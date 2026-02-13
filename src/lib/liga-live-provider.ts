@@ -85,8 +85,9 @@ function normalizeAscii(value: string) {
 }
 
 function parseLiveProviderConfig(): LiveProviderConfig | null {
-  const baseUrl = process.env.FOOTBALL_API_BASE_URL?.trim() ?? "";
-  const apiKey = process.env.FOOTBALL_API_KEY?.trim() ?? "";
+  const baseUrl = process.env.API_FOOTBALL_BASE_URL?.trim() || process.env.FOOTBALL_API_BASE_URL?.trim() || "";
+  const apiKey = process.env.API_FOOTBALL_KEY?.trim() || process.env.FOOTBALL_API_KEY?.trim() || "";
+  const prefersApiSports = Boolean(process.env.API_FOOTBALL_KEY?.trim());
 
   if (!baseUrl || !apiKey) {
     return null;
@@ -95,16 +96,33 @@ function parseLiveProviderConfig(): LiveProviderConfig | null {
   return {
     baseUrl,
     apiKey,
-    apiKeyHeader: process.env.FOOTBALL_API_KEY_HEADER?.trim() || "x-rapidapi-key",
-    apiHost: process.env.FOOTBALL_API_HOST?.trim() || undefined,
-    apiHostHeader: process.env.FOOTBALL_API_HOST_HEADER?.trim() || "x-rapidapi-host",
-    fixturesPath: process.env.FOOTBALL_API_FIXTURES_PATH?.trim() || "/fixtures",
-    leagueId: process.env.FOOTBALL_API_ARG_LEAGUE_ID?.trim() || "128",
-    season: process.env.FOOTBALL_API_ARG_SEASON?.trim() || String(new Date().getFullYear()),
-    timezone: process.env.FOOTBALL_API_ARG_TIMEZONE?.trim() || "America/Argentina/Buenos_Aires",
+    apiKeyHeader:
+      process.env.API_FOOTBALL_KEY_HEADER?.trim() ||
+      process.env.FOOTBALL_API_KEY_HEADER?.trim() ||
+      (prefersApiSports ? "x-apisports-key" : "x-rapidapi-key"),
+    apiHost: process.env.API_FOOTBALL_HOST?.trim() || process.env.FOOTBALL_API_HOST?.trim() || undefined,
+    apiHostHeader:
+      process.env.API_FOOTBALL_HOST_HEADER?.trim() || process.env.FOOTBALL_API_HOST_HEADER?.trim() || "x-rapidapi-host",
+    fixturesPath: process.env.API_FOOTBALL_FIXTURES_PATH?.trim() || process.env.FOOTBALL_API_FIXTURES_PATH?.trim() || "/fixtures",
+    leagueId: process.env.API_FOOTBALL_ARG_LEAGUE_ID?.trim() || process.env.FOOTBALL_API_ARG_LEAGUE_ID?.trim() || "128",
+    season:
+      process.env.API_FOOTBALL_DEFAULT_SEASON?.trim() ||
+      process.env.API_FOOTBALL_ARG_SEASON?.trim() ||
+      process.env.FOOTBALL_API_ARG_SEASON?.trim() ||
+      String(new Date().getFullYear()),
+    timezone:
+      process.env.API_FOOTBALL_ARG_TIMEZONE?.trim() ||
+      process.env.FOOTBALL_API_ARG_TIMEZONE?.trim() ||
+      "America/Argentina/Buenos_Aires",
     roundByPeriod: {
-      fecha14: process.env.FOOTBALL_API_FECHA14_ROUND?.trim() || undefined,
-      fecha15: process.env.FOOTBALL_API_FECHA15_ROUND?.trim() || undefined
+      fecha14:
+        process.env.API_FOOTBALL_FECHA14_ROUND?.trim() ||
+        process.env.FOOTBALL_API_FECHA14_ROUND?.trim() ||
+        undefined,
+      fecha15:
+        process.env.API_FOOTBALL_FECHA15_ROUND?.trim() ||
+        process.env.FOOTBALL_API_FECHA15_ROUND?.trim() ||
+        undefined
     }
   };
 }
