@@ -58,6 +58,18 @@ export interface LeaderboardRow {
   highlight?: boolean;
 }
 
+export type LeaderboardMode = "posiciones" | "stats";
+export type LeaderboardPeriod = "global" | "fecha14";
+
+export interface LeaderboardPayload {
+  groupLabel: string;
+  mode: LeaderboardMode;
+  period: LeaderboardPeriod;
+  periodLabel: string;
+  updatedAt: string;
+  rows: LeaderboardRow[];
+}
+
 export type FixtureScoreTone = "final" | "live" | "upcoming" | "warning";
 
 export interface FixtureMatchRow {

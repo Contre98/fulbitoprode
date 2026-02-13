@@ -1,19 +1,28 @@
 import { Star } from "lucide-react";
-import type { LeaderboardRow } from "@/lib/types";
+import type { LeaderboardMode, LeaderboardRow } from "@/lib/types";
 
 interface LeaderboardTableProps {
-  mode: "posiciones" | "stats";
+  mode: LeaderboardMode;
   rows: LeaderboardRow[];
   groupLabel?: string;
+  loading?: boolean;
+  onModeChange?: (mode: LeaderboardMode) => void;
 }
 
-export function LeaderboardTable({ mode, rows, groupLabel = "Liga amigos | Grupo A" }: LeaderboardTableProps) {
+export function LeaderboardTable({
+  mode,
+  rows,
+  groupLabel = "Liga amigos | Grupo A",
+  loading = false,
+  onModeChange
+}: LeaderboardTableProps) {
   return (
-    <section className="flex flex-col gap-2.5">
+    <section className={`flex flex-col gap-2.5 transition-opacity ${loading ? "opacity-70" : "opacity-100"}`}>
       <div className="overflow-hidden rounded-full border border-[var(--border-light)] bg-[var(--bg-surface-elevated)]">
         <div className="flex items-center justify-center">
           <button
             type="button"
+            onClick={() => onModeChange?.("posiciones")}
             className={`w-full px-3 py-1.5 text-[11px] font-bold ${
               mode === "posiciones" ? "bg-[var(--accent)] text-[var(--bg-body)]" : "text-[var(--text-secondary)]"
             }`}
@@ -22,6 +31,7 @@ export function LeaderboardTable({ mode, rows, groupLabel = "Liga amigos | Grupo
           </button>
           <button
             type="button"
+            onClick={() => onModeChange?.("stats")}
             className={`w-full px-3 py-1.5 text-[11px] font-semibold ${
               mode === "stats" ? "bg-[var(--accent)] text-[var(--bg-body)]" : "text-[var(--text-secondary)]"
             }`}
