@@ -23,6 +23,30 @@ interface LiveProviderConfig {
   roundByPeriod: Partial<Record<MatchPeriod, string>>;
 }
 
+export interface LiveProviderHealth {
+  configured: boolean;
+  baseUrl?: string;
+  fixturesPath?: string;
+  leagueId?: string;
+  season?: string;
+  timezone?: string;
+  keyHeader?: string;
+  hostHeader?: string;
+  hasHost: boolean;
+  period: MatchPeriod;
+  queryMode?: "round" | "window";
+  query?: {
+    round?: string;
+    from?: string;
+    to?: string;
+  };
+  ok: boolean;
+  status: number | null;
+  latencyMs: number | null;
+  fixturesCount: number;
+  error?: string;
+}
+
 export interface LiveFixture {
   id: string;
   kickoffAt: string;
@@ -283,6 +307,114 @@ function getHeaders(config: LiveProviderConfig) {
   return headers;
 }
 
+function buildFixturesUrl(config: LiveProviderConfig, period: MatchPeriod) {
+  const url = new URL(config.fixturesPath, config.baseUrl);
+  url.searchParams.set("league", config.leagueId);
+  url.searchParams.set("season", config.season);
+  url.searchParams.set("timezone", config.timezone);
+
+  const round = config.roundByPeriod[period];
+  if (round) {
+    url.searchParams.set("round", round);
+    return {
+      url,
+      queryMode: "round" as const,
+      query: { round }
+    };
+  }
+
+  const now = new Date();
+  const window = PERIOD_WINDOWS[period];
+  const from = toYmd(shiftDate(now, window.fromDays), config.timezone);
+  const to = toYmd(shiftDate(now, window.toDays), config.timezone);
+
+  url.searchParams.set("from", from);
+  url.searchParams.set("to", to);
+
+  return {
+    url,
+    queryMode: "window" as const,
+    query: { from, to }
+  };
+}
+
+export async function probeLigaArgentinaProvider(period: MatchPeriod = "fecha14"): Promise<LiveProviderHealth> {
+  const config = parseLiveProviderConfig();
+  if (!config) {
+    return {
+      configured: false,
+      hasHost: false,
+      period,
+      ok: false,
+      status: null,
+      latencyMs: null,
+      fixturesCount: 0,
+      error: "Provider env vars are missing."
+    };
+  }
+
+  const { url, queryMode, query } = buildFixturesUrl(config, period);
+  const startedAt = Date.now();
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+
+  try {
+    const response = await fetch(url.toString(), {
+      method: "GET",
+      headers: getHeaders(config),
+      cache: "no-store",
+      signal: controller.signal
+    });
+
+    const payload = (await response.json()) as { response?: unknown[] };
+    const rows = Array.isArray(payload.response) ? payload.response : [];
+
+    return {
+      configured: true,
+      baseUrl: config.baseUrl,
+      fixturesPath: config.fixturesPath,
+      leagueId: config.leagueId,
+      season: config.season,
+      timezone: config.timezone,
+      keyHeader: config.apiKeyHeader,
+      hostHeader: config.apiHost ? config.apiHostHeader : undefined,
+      hasHost: Boolean(config.apiHost),
+      period,
+      queryMode,
+      query,
+      ok: response.ok,
+      status: response.status,
+      latencyMs: Date.now() - startedAt,
+      fixturesCount: rows.length,
+      error: response.ok ? undefined : `Upstream returned status ${response.status}.`
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown provider error";
+    return {
+      configured: true,
+      baseUrl: config.baseUrl,
+      fixturesPath: config.fixturesPath,
+      leagueId: config.leagueId,
+      season: config.season,
+      timezone: config.timezone,
+      keyHeader: config.apiKeyHeader,
+      hostHeader: config.apiHost ? config.apiHostHeader : undefined,
+      hasHost: Boolean(config.apiHost),
+      period,
+      queryMode,
+      query,
+      ok: false,
+      status: null,
+      latencyMs: Date.now() - startedAt,
+      fixturesCount: 0,
+      error: message
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function fetchLigaArgentinaFixtures(period: MatchPeriod): Promise<LiveFixture[]> {
   const config = parseLiveProviderConfig();
   if (!config) {
@@ -290,20 +422,7 @@ export async function fetchLigaArgentinaFixtures(period: MatchPeriod): Promise<L
   }
 
   try {
-    const url = new URL(config.fixturesPath, config.baseUrl);
-    url.searchParams.set("league", config.leagueId);
-    url.searchParams.set("season", config.season);
-    url.searchParams.set("timezone", config.timezone);
-
-    const round = config.roundByPeriod[period];
-    if (round) {
-      url.searchParams.set("round", round);
-    } else {
-      const now = new Date();
-      const window = PERIOD_WINDOWS[period];
-      url.searchParams.set("from", toYmd(shiftDate(now, window.fromDays), config.timezone));
-      url.searchParams.set("to", toYmd(shiftDate(now, window.toDays), config.timezone));
-    }
+    const { url } = buildFixturesUrl(config, period);
 
     const response = await fetch(url.toString(), {
       method: "GET",
