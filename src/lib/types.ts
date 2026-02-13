@@ -1,0 +1,74 @@
+export type AppTab = "inicio" | "posiciones" | "pronosticos" | "fixture" | "configuracion";
+
+export type MatchStatus = "live" | "upcoming" | "final";
+export type PointsTone = "positive" | "warning" | "danger" | "neutral";
+
+export interface TeamRef {
+  code: string;
+}
+
+export interface MatchScore {
+  home: number;
+  away: number;
+}
+
+export interface MatchMeta {
+  label: string;
+  venue?: string;
+}
+
+export interface MatchPoints {
+  value: number;
+  tone: PointsTone;
+}
+
+export interface MatchCardData {
+  id: string;
+  status: MatchStatus;
+  homeTeam: TeamRef;
+  awayTeam: TeamRef;
+  score?: MatchScore;
+  prediction?: MatchScore;
+  meta: MatchMeta;
+  points?: MatchPoints;
+  progress?: number;
+}
+
+export interface PredictionStepperState {
+  homeValue: number | null;
+  awayValue: number | null;
+}
+
+export interface GroupCard {
+  id: string;
+  title: string;
+  subtitle: string;
+  rank: string;
+  rankDelta?: string;
+  points: string;
+  primary?: boolean;
+}
+
+export interface LeaderboardRow {
+  rank: number;
+  name: string;
+  predictions: number;
+  record: string;
+  points: number;
+  highlight?: boolean;
+}
+
+export type FixtureScoreTone = "final" | "live" | "upcoming" | "warning";
+
+export interface FixtureMatchRow {
+  home: string;
+  away: string;
+  scoreLabel: string;
+  tone: FixtureScoreTone;
+}
+
+export interface FixtureDateCard {
+  dateLabel: string;
+  accent?: "default" | "live";
+  rows: FixtureMatchRow[];
+}
