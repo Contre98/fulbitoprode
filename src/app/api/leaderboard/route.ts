@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { fetchLigaArgentinaStandings } from "@/lib/liga-live-provider";
 import { leaderboardRows } from "@/lib/mock-data";
 import type { LeaderboardMode, LeaderboardPayload, LeaderboardPeriod, LeaderboardRow } from "@/lib/types";
 
@@ -64,6 +65,56 @@ function buildStatsRows(period: LeaderboardPeriod): LeaderboardRow[] {
   return toRankedRows(stats);
 }
 
+function mapStandingsToPosicionesRows(rows: {
+  rank: number;
+  teamName: string;
+  played: number;
+  win: number;
+  draw: number;
+  lose: number;
+  points: number;
+}[]): LeaderboardRow[] {
+  return rows.map((row, index) => ({
+    rank: row.rank || index + 1,
+    name: row.teamName,
+    predictions: row.played,
+    record: `${row.win}/${row.draw}/${row.lose}`,
+    points: row.points,
+    highlight: index === 0
+  }));
+}
+
+function mapStandingsToStatsRows(rows: {
+  rank: number;
+  teamName: string;
+  played: number;
+  win: number;
+  draw: number;
+  lose: number;
+  points: number;
+}[]): LeaderboardRow[] {
+  return rows
+    .map((row) => {
+      const maxPoints = Math.max(1, row.played * 3);
+      const efficiency = Math.round((row.points / maxPoints) * 100);
+
+      return {
+        rank: row.rank,
+        name: row.teamName,
+        predictions: row.played,
+        record: `${row.win}/${row.draw}/${row.lose}`,
+        points: efficiency,
+        highlight: false
+      };
+    })
+    .sort((a, b) => b.points - a.points || b.predictions - a.predictions || a.name.localeCompare(b.name))
+    .map((row, index) => ({
+      ...row,
+      rank: index + 1,
+      highlight: index === 0
+    }));
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
 
@@ -73,10 +124,19 @@ export async function GET(request: Request) {
   const mode: LeaderboardMode = modeParam === "stats" ? "stats" : "posiciones";
   const period: LeaderboardPeriod = periodParam === "fecha14" ? "fecha14" : "global";
 
-  const rows = mode === "stats" ? buildStatsRows(period) : buildPosicionesRows(period);
+  const standings = await fetchLigaArgentinaStandings();
+  const liveRows =
+    standings && standings.rows.length > 0
+      ? mode === "stats"
+        ? mapStandingsToStatsRows(standings.rows)
+        : mapStandingsToPosicionesRows(standings.rows)
+      : null;
+
+  const rows = liveRows ?? (mode === "stats" ? buildStatsRows(period) : buildPosicionesRows(period));
+  const groupLabel = standings ? `${standings.leagueName} | ${standings.groupLabel}` : "Liga amigos | Grupo A";
 
   const payload: LeaderboardPayload = {
-    groupLabel: "Liga amigos | Grupo A",
+    groupLabel,
     mode,
     period,
     periodLabel: periodLabels[period],

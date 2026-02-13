@@ -17,6 +17,7 @@ interface LiveProviderConfig {
   apiHost?: string;
   apiHostHeader: string;
   fixturesPath: string;
+  standingsPath: string;
   leagueId: string;
   season: string;
   timezone: string;
@@ -58,6 +59,23 @@ export interface LiveFixture {
   awayName: string;
   homeGoals: number | null;
   awayGoals: number | null;
+}
+
+export interface LiveStandingRow {
+  rank: number;
+  teamName: string;
+  played: number;
+  win: number;
+  draw: number;
+  lose: number;
+  points: number;
+  group: string;
+}
+
+export interface LiveStandingsPayload {
+  leagueName: string;
+  groupLabel: string;
+  rows: LiveStandingRow[];
 }
 
 function asObject(value: unknown): JsonObject | null {
@@ -128,6 +146,8 @@ function parseLiveProviderConfig(): LiveProviderConfig | null {
     apiHostHeader:
       process.env.API_FOOTBALL_HOST_HEADER?.trim() || process.env.FOOTBALL_API_HOST_HEADER?.trim() || "x-rapidapi-host",
     fixturesPath: process.env.API_FOOTBALL_FIXTURES_PATH?.trim() || process.env.FOOTBALL_API_FIXTURES_PATH?.trim() || "/fixtures",
+    standingsPath:
+      process.env.API_FOOTBALL_STANDINGS_PATH?.trim() || process.env.FOOTBALL_API_STANDINGS_PATH?.trim() || "/standings",
     leagueId: process.env.API_FOOTBALL_ARG_LEAGUE_ID?.trim() || process.env.FOOTBALL_API_ARG_LEAGUE_ID?.trim() || "128",
     season:
       process.env.API_FOOTBALL_DEFAULT_SEASON?.trim() ||
@@ -178,6 +198,61 @@ function parseFixture(raw: unknown): LiveFixture | null {
     awayName: readString(awayNode?.name, "AWAY"),
     homeGoals: readNumber(goalsNode?.home),
     awayGoals: readNumber(goalsNode?.away)
+  };
+}
+
+function parseStandingRow(raw: unknown): LiveStandingRow | null {
+  const node = asObject(raw);
+  if (!node) return null;
+
+  const teamNode = asObject(node.team);
+  const allNode = asObject(node.all);
+
+  const rank = readNumber(node.rank);
+  const teamName = readString(teamNode?.name, "");
+
+  if (rank === null || !teamName) {
+    return null;
+  }
+
+  return {
+    rank,
+    teamName,
+    played: readNumber(allNode?.played) ?? 0,
+    win: readNumber(allNode?.win) ?? 0,
+    draw: readNumber(allNode?.draw) ?? 0,
+    lose: readNumber(allNode?.lose) ?? 0,
+    points: readNumber(node.points) ?? 0,
+    group: readString(node.group, "Tabla general")
+  };
+}
+
+function parseStandingsPayload(raw: unknown): LiveStandingsPayload | null {
+  const root = asObject(raw);
+  const response = Array.isArray(root?.response) ? root.response : [];
+  if (response.length === 0) return null;
+
+  const first = asObject(response[0]);
+  const league = asObject(first?.league);
+  const leagueName = readString(league?.name, "Liga Argentina");
+  const standingsRaw = Array.isArray(league?.standings) ? league.standings : [];
+
+  if (standingsRaw.length === 0) {
+    return null;
+  }
+
+  const firstGroup = standingsRaw.find((candidate) => Array.isArray(candidate));
+  const rowsRaw = Array.isArray(firstGroup) ? firstGroup : [];
+  const rows = rowsRaw.map(parseStandingRow).filter((row): row is LiveStandingRow => row !== null);
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  return {
+    leagueName,
+    groupLabel: rows[0].group || "Tabla general",
+    rows: [...rows].sort((a, b) => a.rank - b.rank).slice(0, 20)
   };
 }
 
@@ -305,6 +380,13 @@ function getHeaders(config: LiveProviderConfig) {
   }
 
   return headers;
+}
+
+function buildStandingsUrl(config: LiveProviderConfig) {
+  const url = new URL(config.standingsPath, config.baseUrl);
+  url.searchParams.set("league", config.leagueId);
+  url.searchParams.set("season", config.season);
+  return url;
 }
 
 function buildFixturesUrl(config: LiveProviderConfig, period: MatchPeriod) {
@@ -442,6 +524,33 @@ export async function fetchLigaArgentinaFixtures(period: MatchPeriod): Promise<L
     const message = error instanceof Error ? error.message : "Unknown provider error";
     console.error(`[live-provider] Failed to fetch Liga Argentina fixtures: ${message}`);
     return [];
+  }
+}
+
+export async function fetchLigaArgentinaStandings(): Promise<LiveStandingsPayload | null> {
+  const config = parseLiveProviderConfig();
+  if (!config) {
+    return null;
+  }
+
+  try {
+    const url = buildStandingsUrl(config);
+    const response = await fetch(url.toString(), {
+      method: "GET",
+      headers: getHeaders(config),
+      cache: "no-store"
+    });
+
+    if (!response.ok) {
+      throw new Error(`Upstream standings error ${response.status}`);
+    }
+
+    const payload = await response.json();
+    return parseStandingsPayload(payload);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown provider error";
+    console.error(`[live-provider] Failed to fetch Liga Argentina standings: ${message}`);
+    return null;
   }
 }
 
