@@ -84,3 +84,27 @@ export interface FixtureDateCard {
   accent?: "default" | "live";
   rows: FixtureMatchRow[];
 }
+
+export type MatchPeriod = "fecha14" | "fecha15";
+
+export interface PredictionValue {
+  home: number | null;
+  away: number | null;
+}
+
+export type PredictionsByMatch = Record<string, PredictionValue>;
+
+export interface PronosticosPayload {
+  period: MatchPeriod;
+  periodLabel: string;
+  matches: MatchCardData[];
+  predictions: PredictionsByMatch;
+  updatedAt: string;
+}
+
+export interface FixturePayload {
+  period: MatchPeriod;
+  periodLabel: string;
+  cards: FixtureDateCard[];
+  updatedAt: string;
+}

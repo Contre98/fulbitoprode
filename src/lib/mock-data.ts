@@ -1,4 +1,4 @@
-import type { FixtureDateCard, GroupCard, LeaderboardRow, MatchCardData } from "@/lib/types";
+import type { FixtureDateCard, GroupCard, LeaderboardRow, MatchCardData, MatchPeriod } from "@/lib/types";
 
 export const currentLeagueLabel = "Liga Argentina/Grupo Amigos";
 
@@ -85,6 +85,47 @@ export const pronosticosMatches: MatchCardData[] = [
   }
 ];
 
+export const pronosticosMatchesByPeriod: Record<MatchPeriod, MatchCardData[]> = {
+  fecha14: pronosticosMatches,
+  fecha15: [
+    {
+      id: "f15-live-1",
+      status: "live",
+      homeTeam: { code: "TIG" },
+      awayTeam: { code: "RIV" },
+      score: { home: 1, away: 2 },
+      prediction: { home: 1, away: 1 },
+      meta: { label: "EN VIVO · 61' ST" },
+      points: { value: 1, tone: "warning" },
+      progress: 75
+    },
+    {
+      id: "f15-up-1",
+      status: "upcoming",
+      homeTeam: { code: "HUR" },
+      awayTeam: { code: "LAN" },
+      meta: { label: "POR JUGAR · HOY 22:00", venue: "DUCO" }
+    },
+    {
+      id: "f15-up-2",
+      status: "upcoming",
+      homeTeam: { code: "RAC" },
+      awayTeam: { code: "VEL" },
+      meta: { label: "POR JUGAR · MAÑ 16:00", venue: "CILINDRO" }
+    },
+    {
+      id: "f15-final-1",
+      status: "final",
+      homeTeam: { code: "BOC" },
+      awayTeam: { code: "SLO" },
+      score: { home: 3, away: 0 },
+      prediction: { home: 2, away: 0 },
+      meta: { label: "FINALIZADO" },
+      points: { value: 3, tone: "neutral" }
+    }
+  ]
+};
+
 export const leaderboardRows: LeaderboardRow[] = [
   { rank: 1, name: "Los Pibes FC", predictions: 74, record: "24/38/12", points: 110, highlight: true },
   { rank: 2, name: "Villa United", predictions: 74, record: "20/34/20", points: 102 },
@@ -128,3 +169,36 @@ export const fixtureDateCards: FixtureDateCard[] = [
     ]
   }
 ];
+
+export const fixtureDateCardsByPeriod: Record<MatchPeriod, FixtureDateCard[]> = {
+  fecha14: fixtureDateCards,
+  fecha15: [
+    {
+      dateLabel: "Lunes, 16 de Febrero",
+      rows: [
+        { home: "Huracán", away: "Lanús", scoreLabel: "FINAL · 1 - 0", tone: "final" },
+        { home: "Racing Club", away: "Velez Sarsfield", scoreLabel: "FINAL · 2 - 2", tone: "final" }
+      ]
+    },
+    {
+      dateLabel: "Martes, 17 de Febrero",
+      rows: [
+        { home: "River Plate", away: "Rosario Central", scoreLabel: "FINAL · 3 - 1", tone: "final" },
+        { home: "Talleres", away: "Defensa y Justicia", scoreLabel: "FINAL · 0 - 0", tone: "final" }
+      ]
+    },
+    {
+      dateLabel: "Miércoles, 18 de Febrero",
+      accent: "live",
+      rows: [{ home: "Boca Juniors", away: "Estudiantes", scoreLabel: "EN VIVO · 2 - 1", tone: "live" }]
+    },
+    {
+      dateLabel: "Jueves, 19 de Febrero",
+      rows: [
+        { home: "Tigre", away: "Godoy Cruz", scoreLabel: "POR JUGAR · 17:30", tone: "upcoming" },
+        { home: "Argentinos JRS", away: "San Lorenzo", scoreLabel: "POR JUGAR · 20:00", tone: "upcoming" },
+        { home: "Independiente", away: "Platense", scoreLabel: "POR JUGAR · 22:15", tone: "warning" }
+      ]
+    }
+  ]
+};

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { BookOpen, ChevronRight, Settings, UserRound } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { TopHeader } from "@/components/layout/TopHeader";
@@ -15,7 +16,10 @@ export default function ConfiguracionPage() {
       <section className="flex flex-col gap-[10px] px-5 pt-2">
         <h2 className="text-[17px] font-bold text-white">Perfil</h2>
 
-        <div className="rounded-[10px] border border-[var(--border-dim)] bg-[#111214] p-3">
+        <Link
+          href="/configuracion/perfil"
+          className="rounded-[10px] border border-[var(--border-dim)] bg-[#111214] p-3 transition-opacity hover:opacity-90"
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-[10px]">
               <div className="flex h-[38px] w-[38px] items-center justify-center rounded-full border border-[var(--border-light)] bg-[var(--bg-surface-elevated)]">
@@ -30,7 +34,7 @@ export default function ConfiguracionPage() {
 
             <ChevronRight size={16} strokeWidth={1.9} className="text-[var(--accent)]" />
           </div>
-        </div>
+        </Link>
       </section>
 
       <section className="flex flex-col gap-3 px-5 pt-[10px]">
