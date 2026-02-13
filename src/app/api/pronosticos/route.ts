@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
 import { pronosticosMatchesByPeriod } from "@/lib/mock-data";
+import { clonePredictions, ensurePrediction, getPredictions, setPrediction } from "@/lib/prediction-store";
+import { fetchLigaArgentinaFixtures, mapFixturesToPronosticosMatches } from "@/lib/liga-live-provider";
 import type { MatchCardData, MatchPeriod, PredictionsByMatch, PredictionValue, PronosticosPayload } from "@/lib/types";
 
 const periodLabels: Record<MatchPeriod, string> = {
   fecha14: "Fecha 14",
   fecha15: "Fecha 15"
-};
-
-const predictionStore: Record<MatchPeriod, PredictionsByMatch> = {
-  fecha14: {},
-  fecha15: {}
 };
 
 function toPeriod(value: string | null): MatchPeriod {
@@ -28,50 +25,80 @@ function copyMatches(matches: MatchCardData[]): MatchCardData[] {
   }));
 }
 
-function ensurePeriodDefaults(period: MatchPeriod) {
-  const source = pronosticosMatchesByPeriod[period];
+function calculatePoints(prediction: { home: number; away: number }, score: { home: number; away: number }) {
+  const isExact = prediction.home === score.home && prediction.away === score.away;
+  if (isExact) {
+    return 3;
+  }
+
+  const predictionDiff = Math.sign(prediction.home - prediction.away);
+  const scoreDiff = Math.sign(score.home - score.away);
+  return predictionDiff === scoreDiff ? 1 : 0;
+}
+
+async function getPeriodMatches(period: MatchPeriod) {
+  const liveFixtures = await fetchLigaArgentinaFixtures(period);
+  if (liveFixtures.length > 0) {
+    return mapFixturesToPronosticosMatches(liveFixtures);
+  }
+
+  return copyMatches(pronosticosMatchesByPeriod[period]);
+}
+
+function ensurePeriodDefaults(period: MatchPeriod, source: MatchCardData[]) {
+  const predictions = getPredictions(period);
 
   source.forEach((match) => {
-    if (match.status === "upcoming" && !predictionStore[period][match.id]) {
-      predictionStore[period][match.id] = {
+    if (match.status === "upcoming" && !predictions[match.id]) {
+      ensurePrediction(period, match.id, {
         home: match.prediction?.home ?? null,
         away: match.prediction?.away ?? null
-      };
+      });
     }
   });
 }
 
 function withPredictions(matches: MatchCardData[], predictions: PredictionsByMatch) {
   return matches.map((match) => {
-    if (match.status !== "upcoming") {
-      return match;
-    }
-
     const stored = predictions[match.id];
-    if (!stored || (stored.home === null && stored.away === null)) {
-      return match;
-    }
+    const nextMatch: MatchCardData = { ...match };
 
-    return {
-      ...match,
-      prediction: {
+    if (stored && (stored.home !== null || stored.away !== null)) {
+      nextMatch.prediction = {
         home: stored.home ?? 0,
         away: stored.away ?? 0
-      }
-    };
+      };
+    }
+
+    if (nextMatch.score && nextMatch.prediction) {
+      const points = calculatePoints(nextMatch.prediction, nextMatch.score);
+      nextMatch.points = {
+        value: points,
+        tone:
+          nextMatch.status === "final"
+            ? "neutral"
+            : points === 3
+              ? "positive"
+              : points === 1
+                ? "warning"
+                : "danger"
+      };
+    }
+
+    return nextMatch;
   });
 }
 
-function buildPayload(period: MatchPeriod): PronosticosPayload {
-  ensurePeriodDefaults(period);
-
-  const matches = withPredictions(copyMatches(pronosticosMatchesByPeriod[period]), predictionStore[period]);
+async function buildPayload(period: MatchPeriod): Promise<PronosticosPayload> {
+  const sourceMatches = await getPeriodMatches(period);
+  ensurePeriodDefaults(period, sourceMatches);
+  const matches = withPredictions(sourceMatches, getPredictions(period));
 
   return {
     period,
     periodLabel: periodLabels[period],
     matches,
-    predictions: predictionStore[period],
+    predictions: clonePredictions(period),
     updatedAt: new Date().toISOString()
   };
 }
@@ -80,7 +107,7 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const period = toPeriod(searchParams.get("period"));
 
-  return NextResponse.json(buildPayload(period), { status: 200 });
+  return NextResponse.json(await buildPayload(period), { status: 200 });
 }
 
 export async function POST(request: Request) {
@@ -95,7 +122,8 @@ export async function POST(request: Request) {
     const period = body.period === "fecha15" ? "fecha15" : "fecha14";
     const matchId = typeof body.matchId === "string" ? body.matchId : "";
 
-    const match = pronosticosMatchesByPeriod[period].find((candidate) => candidate.id === matchId);
+    const matches = await getPeriodMatches(period);
+    const match = matches.find((candidate) => candidate.id === matchId);
     if (!match || match.status !== "upcoming") {
       return NextResponse.json({ error: "Invalid upcoming match id." }, { status: 400 });
     }
@@ -104,7 +132,7 @@ export async function POST(request: Request) {
     const away = typeof body.away === "number" ? Math.max(0, Math.min(99, body.away)) : null;
 
     const nextValue: PredictionValue = { home, away };
-    predictionStore[period][matchId] = nextValue;
+    setPrediction(period, matchId, nextValue);
 
     return NextResponse.json({ ok: true, prediction: nextValue, updatedAt: new Date().toISOString() }, { status: 200 });
   } catch {

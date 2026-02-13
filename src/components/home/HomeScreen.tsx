@@ -7,14 +7,25 @@ import { TopHeader } from "@/components/layout/TopHeader";
 import { GroupCardCarousel } from "@/components/home/GroupCardCarousel";
 import { LeagueSelector } from "@/components/home/LeagueSelector";
 import { MatchCard } from "@/components/matches/MatchCard";
+import type { GroupCard, MatchCardData } from "@/lib/types";
 import { currentLeagueLabel, homeGroupCards, liveMatches } from "@/lib/mock-data";
 
-export function HomeScreen() {
+interface HomeScreenProps {
+  leagueLabel?: string;
+  groupCards?: GroupCard[];
+  matches?: MatchCardData[];
+}
+
+export function HomeScreen({
+  leagueLabel = currentLeagueLabel,
+  groupCards = homeGroupCards,
+  matches = liveMatches
+}: HomeScreenProps = {}) {
   return (
     <AppShell activeTab="inicio">
       <TopHeader title="Inicio" userLabel="USER" />
-      <LeagueSelector label={currentLeagueLabel} />
-      <GroupCardCarousel cards={homeGroupCards} />
+      <LeagueSelector label={leagueLabel} />
+      <GroupCardCarousel cards={groupCards} />
 
       <section className="flex flex-col gap-4 px-5 pt-[10px] pb-0">
         <header className="flex items-center justify-between">
@@ -43,7 +54,7 @@ export function HomeScreen() {
           }}
           className="space-y-4 pb-0"
         >
-          {liveMatches.map((match) => (
+          {matches.map((match) => (
             <motion.div
               key={match.id}
               variants={{ hidden: { opacity: 0, y: 6 }, visible: { opacity: 1, y: 0 } }}

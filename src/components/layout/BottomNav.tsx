@@ -6,13 +6,21 @@ interface BottomNavProps {
   activeTab: AppTab;
 }
 
-const tabs = [
+interface NavTab {
+  key: AppTab;
+  label: string;
+  href: string;
+  icon: typeof Trophy;
+  center?: boolean;
+}
+
+const tabs: NavTab[] = [
   { key: "inicio", label: "Inicio", href: "/", icon: Trophy },
   { key: "posiciones", label: "Posiciones", href: "/posiciones", icon: Rows3 },
   { key: "pronosticos", label: "Pronósticos", href: "/pronosticos", icon: ListChecks, center: true },
   { key: "fixture", label: "Fixture", href: "/fixture", icon: CalendarDays },
   { key: "configuracion", label: "Configuración", href: "/configuracion", icon: Settings }
-] as const;
+];
 
 export function BottomNav({ activeTab }: BottomNavProps) {
   return (
