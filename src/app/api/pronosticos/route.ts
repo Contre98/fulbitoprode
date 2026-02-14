@@ -1,62 +1,16 @@
 import { NextResponse } from "next/server";
-import { pronosticosMatchesByPeriod } from "@/lib/mock-data";
-import { clonePredictions, ensurePrediction, getPredictions, setPrediction } from "@/lib/prediction-store";
-import { fetchLigaArgentinaFixtures, mapFixturesToPronosticosMatches } from "@/lib/liga-live-provider";
-import type { MatchCardData, MatchPeriod, PredictionsByMatch, PredictionValue, PronosticosPayload } from "@/lib/types";
-
-const periodLabels: Record<MatchPeriod, string> = {
-  fecha14: "Fecha 14",
-  fecha15: "Fecha 15"
-};
-
-function toPeriod(value: string | null): MatchPeriod {
-  return value === "fecha15" ? "fecha15" : "fecha14";
-}
-
-function copyMatches(matches: MatchCardData[]): MatchCardData[] {
-  return matches.map((match) => ({
-    ...match,
-    homeTeam: { ...match.homeTeam },
-    awayTeam: { ...match.awayTeam },
-    score: match.score ? { ...match.score } : undefined,
-    prediction: match.prediction ? { ...match.prediction } : undefined,
-    meta: { ...match.meta },
-    points: match.points ? { ...match.points } : undefined
-  }));
-}
-
-function calculatePoints(prediction: { home: number; away: number }, score: { home: number; away: number }) {
-  const isExact = prediction.home === score.home && prediction.away === score.away;
-  if (isExact) {
-    return 3;
-  }
-
-  const predictionDiff = Math.sign(prediction.home - prediction.away);
-  const scoreDiff = Math.sign(score.home - score.away);
-  return predictionDiff === scoreDiff ? 1 : 0;
-}
-
-async function getPeriodMatches(period: MatchPeriod) {
-  const liveFixtures = await fetchLigaArgentinaFixtures(period);
-  if (liveFixtures.length > 0) {
-    return mapFixturesToPronosticosMatches(liveFixtures);
-  }
-
-  return copyMatches(pronosticosMatchesByPeriod[period]);
-}
-
-function ensurePeriodDefaults(period: MatchPeriod, source: MatchCardData[]) {
-  const predictions = getPredictions(period);
-
-  source.forEach((match) => {
-    if (match.status === "upcoming" && !predictions[match.id]) {
-      ensurePrediction(period, match.id, {
-        home: match.prediction?.home ?? null,
-        away: match.prediction?.away ?? null
-      });
-    }
-  });
-}
+import { calculatePredictionPoints } from "@/lib/scoring";
+import {
+  fetchAvailableFechas,
+  fetchLigaArgentinaFixtures,
+  formatRoundLabel,
+  mapFixturesToPronosticosMatches,
+  resolveDefaultFecha
+} from "@/lib/liga-live-provider";
+import { getSessionPocketBaseTokenFromRequest, getSessionUserIdFromRequest } from "@/lib/request-auth";
+import { enforceRateLimit, getRequesterFingerprint } from "@/lib/rate-limit";
+import { isActiveGroupMember, listGroupsForUser, listPredictionsForScope, upsertPrediction } from "@/lib/m3-repo";
+import type { MatchCardData, PredictionValue, PredictionsByMatch, PronosticosPayload } from "@/lib/types";
 
 function withPredictions(matches: MatchCardData[], predictions: PredictionsByMatch) {
   return matches.map((match) => {
@@ -71,7 +25,7 @@ function withPredictions(matches: MatchCardData[], predictions: PredictionsByMat
     }
 
     if (nextMatch.score && nextMatch.prediction) {
-      const points = calculatePoints(nextMatch.prediction, nextMatch.score);
+      const points = calculatePredictionPoints(nextMatch.prediction, nextMatch.score);
       nextMatch.points = {
         value: points,
         tone:
@@ -89,40 +43,156 @@ function withPredictions(matches: MatchCardData[], predictions: PredictionsByMat
   });
 }
 
-async function buildPayload(period: MatchPeriod): Promise<PronosticosPayload> {
-  const sourceMatches = await getPeriodMatches(period);
-  ensurePeriodDefaults(period, sourceMatches);
-  const matches = withPredictions(sourceMatches, getPredictions(period));
+async function resolveSelection(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const selectedGroupId = searchParams.get("groupId")?.trim() || null;
+  const requestedPeriod = searchParams.get("period")?.trim() || null;
+
+  const userId = getSessionUserIdFromRequest(request);
+  const pbToken = getSessionPocketBaseTokenFromRequest(request);
+  if (!userId || !pbToken) {
+    return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+  }
+
+  const memberships = await listGroupsForUser(userId, pbToken);
+  if (memberships.length === 0) {
+    return { error: NextResponse.json({ error: "No active groups" }, { status: 409 }) };
+  }
+
+  const selected =
+    (selectedGroupId ? memberships.find((item) => item.group.id === selectedGroupId) : null) || memberships[0];
+  if (!selected) {
+    return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
+  }
+
+  const availableFechas = await fetchAvailableFechas({
+    leagueId: selected.group.leagueId,
+    season: selected.group.season,
+    competitionStage: selected.group.competitionStage
+  });
+  const period =
+    requestedPeriod ||
+    (await resolveDefaultFecha({
+      leagueId: selected.group.leagueId,
+      season: selected.group.season,
+      competitionStage: selected.group.competitionStage,
+      fechas: availableFechas
+    })) ||
+    availableFechas[0] ||
+    "";
 
   return {
-    period,
-    periodLabel: periodLabels[period],
-    matches,
-    predictions: clonePredictions(period),
-    updatedAt: new Date().toISOString()
+    userId,
+    pbToken,
+    selected,
+    period
   };
 }
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const period = toPeriod(searchParams.get("period"));
+  const selection = await resolveSelection(request);
+  if ("error" in selection) {
+    return selection.error;
+  }
 
-  return NextResponse.json(await buildPayload(period), { status: 200 });
+  const { userId, pbToken, selected, period } = selection;
+  if (!period) {
+    const emptyPayload: PronosticosPayload = {
+      period: "",
+      periodLabel: "Sin fechas disponibles",
+      matches: [],
+      predictions: {},
+      updatedAt: new Date().toISOString()
+    };
+    return NextResponse.json(emptyPayload, { status: 200 });
+  }
+
+  const fixtures = await fetchLigaArgentinaFixtures({
+    period,
+    leagueId: selected.group.leagueId,
+    season: selected.group.season,
+    competitionStage: selected.group.competitionStage
+  });
+  const matches = mapFixturesToPronosticosMatches(fixtures);
+
+  const predictions = await listPredictionsForScope(
+    {
+      userId,
+      groupId: selected.group.id,
+      period
+    },
+    pbToken
+  );
+
+  const payload: PronosticosPayload = {
+    period,
+    periodLabel: formatRoundLabel(period),
+    matches: withPredictions(matches, predictions),
+    predictions,
+    updatedAt: new Date().toISOString()
+  };
+
+  return NextResponse.json(payload, { status: 200 });
 }
 
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as {
-      period?: MatchPeriod;
+      period?: string;
       matchId?: string;
+      groupId?: string;
       home?: number | null;
       away?: number | null;
     };
 
-    const period = body.period === "fecha15" ? "fecha15" : "fecha14";
+    const period = body.period?.trim() || "";
     const matchId = typeof body.matchId === "string" ? body.matchId : "";
+    const groupId = typeof body.groupId === "string" ? body.groupId.trim() : "";
+    const userId = getSessionUserIdFromRequest(request) ?? undefined;
+    const pbToken = getSessionPocketBaseTokenFromRequest(request) ?? undefined;
 
-    const matches = await getPeriodMatches(period);
+    if (!userId || !pbToken) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const requester = getRequesterFingerprint(request, `user:${userId}`);
+    const rateLimit = enforceRateLimit(`predictions:write:${userId}:${requester}`, {
+      limit: 120,
+      windowMs: 10 * 60 * 1000
+    });
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many prediction updates. Try again later." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(rateLimit.retryAfterSeconds)
+          }
+        }
+      );
+    }
+
+    if (!groupId || !period || !matchId) {
+      return NextResponse.json({ error: "groupId, period and matchId are required." }, { status: 400 });
+    }
+
+    if (!(await isActiveGroupMember(userId, groupId, pbToken))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const memberships = await listGroupsForUser(userId, pbToken);
+    const selected = memberships.find((item) => item.group.id === groupId);
+    if (!selected) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const fixtures = await fetchLigaArgentinaFixtures({
+      period,
+      leagueId: selected.group.leagueId,
+      season: selected.group.season,
+      competitionStage: selected.group.competitionStage
+    });
+    const matches = mapFixturesToPronosticosMatches(fixtures);
     const match = matches.find((candidate) => candidate.id === matchId);
     if (!match || match.status !== "upcoming") {
       return NextResponse.json({ error: "Invalid upcoming match id." }, { status: 400 });
@@ -132,7 +202,17 @@ export async function POST(request: Request) {
     const away = typeof body.away === "number" ? Math.max(0, Math.min(99, body.away)) : null;
 
     const nextValue: PredictionValue = { home, away };
-    setPrediction(period, matchId, nextValue);
+    await upsertPrediction(
+      {
+        userId,
+        groupId,
+        fixtureId: matchId,
+        period,
+        home,
+        away
+      },
+      pbToken
+    );
 
     return NextResponse.json({ ok: true, prediction: nextValue, updatedAt: new Date().toISOString() }, { status: 200 });
   } catch {
