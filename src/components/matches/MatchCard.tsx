@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Check, Clock3, Shield, TrendingUp } from "lucide-react";
 import { pointsToneColors } from "@/lib/design-tokens";
 import type { MatchCardData } from "@/lib/types";
@@ -19,12 +20,14 @@ interface MatchCardProps extends MatchCardData {
 
 function TeamBadge({
   code,
+  logoUrl,
   align = "left",
   compact = false,
   textTone = "white",
   tiny = false
 }: {
   code: string;
+  logoUrl?: string;
   align?: "left" | "right";
   compact?: boolean;
   textTone?: "white" | "primary";
@@ -44,9 +47,19 @@ function TeamBadge({
           {code}
         </p>
       ) : null}
-      <div className={`relative ${avatarSize}`}>
-        <span className="absolute inset-0 rounded-full border border-[var(--accent)] bg-[var(--bg-surface)]" />
-        <Shield size={shieldSize} className={`absolute ${shieldOffset} text-[var(--border-light)]`} />
+      <div className={`relative ${avatarSize} flex items-center justify-center`}>
+        {logoUrl ? (
+          <Image
+            src={logoUrl}
+            alt={`${code} logo`}
+            fill
+            unoptimized
+            sizes={tiny ? "32px" : "36px"}
+            className="absolute inset-0 object-contain p-[2px]"
+          />
+        ) : (
+          <Shield size={shieldSize} className={`absolute ${shieldOffset} text-[var(--border-light)]`} />
+        )}
       </div>
       {align === "left" ? (
         <p className={`font-team text-[26px] font-extrabold ${textColor}`}>
@@ -133,10 +146,6 @@ export function MatchCard({
             <span className="text-[10px] font-semibold tracking-[1.5px] text-[#9f9fa8]">{meta.label}</span>
           ) : null}
 
-          {isUpcoming && meta.venue ? (
-            <span className="text-[10px] font-bold tracking-[1px] text-[#e4e4e7]">{meta.venue}</span>
-          ) : null}
-
           {points ? (
             <span
               className="flex items-center gap-1 rounded-full border px-[10px] py-[3px]"
@@ -158,6 +167,7 @@ export function MatchCard({
         <div className="flex items-center justify-between">
           <TeamBadge
             code={homeTeam.code}
+            logoUrl={homeTeam.logoUrl}
             align="left"
             compact={isCompactTeams || isFinal}
             textTone={teamTextTone}
@@ -183,6 +193,7 @@ export function MatchCard({
 
           <TeamBadge
             code={awayTeam.code}
+            logoUrl={awayTeam.logoUrl}
             align="right"
             compact={isCompactTeams || isFinal}
             textTone={teamTextTone}

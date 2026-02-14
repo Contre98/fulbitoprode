@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, ListChecks, Rows3, Settings, Trophy } from "lucide-react";
+import { CalendarDays, ContactRound, ListChecks, Rows3, Trophy } from "lucide-react";
 import type { AppTab } from "@/lib/types";
 
 interface BottomNavProps {
@@ -19,7 +19,7 @@ const tabs: NavTab[] = [
   { key: "posiciones", label: "Posiciones", href: "/posiciones", icon: Rows3 },
   { key: "pronosticos", label: "Pronósticos", href: "/pronosticos", icon: ListChecks, center: true },
   { key: "fixture", label: "Fixture", href: "/fixture", icon: CalendarDays },
-  { key: "configuracion", label: "Configuración", href: "/configuracion", icon: Settings }
+  { key: "configuracion", label: "Grupos", href: "/configuracion", icon: ContactRound }
 ];
 
 export function BottomNav({ activeTab }: BottomNavProps) {

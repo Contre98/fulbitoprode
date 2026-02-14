@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Shield } from "lucide-react";
 import type { FixtureDateCard as FixtureDateCardType, FixtureMatchRow } from "@/lib/types";
 
@@ -11,6 +12,23 @@ const toneClassMap: Record<FixtureMatchRow["tone"], string> = {
   upcoming: "text-[var(--text-primary)]",
   warning: "text-[#facc15]"
 };
+
+function TeamLogo({ logoUrl, teamName }: { logoUrl?: string; teamName: string }) {
+  if (logoUrl) {
+    return (
+      <Image
+        src={logoUrl}
+        alt={`${teamName} logo`}
+        width={20}
+        height={20}
+        unoptimized
+        className="h-5 w-5 object-contain"
+      />
+    );
+  }
+
+  return <Shield size={16} strokeWidth={1.9} className="text-[var(--border-light)]" />;
+}
 
 export function FixtureDateCard({ card }: FixtureDateCardProps) {
   const isLiveAccent = card.accent === "live";
@@ -26,19 +44,19 @@ export function FixtureDateCard({ card }: FixtureDateCardProps) {
 
         {card.rows.map((row, index) => (
           <div key={`${row.home}-${row.away}`}>
-            <div className="flex items-center justify-between py-2">
-              <div className="flex w-[160px] items-center gap-2">
-                <Shield size={16} strokeWidth={1.9} className="text-[var(--border-light)]" />
-                <span className="text-xs font-semibold text-[var(--text-primary)]">{row.home}</span>
+            <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 py-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <TeamLogo logoUrl={row.homeLogoUrl} teamName={row.home} />
+                <span className="truncate text-xs font-semibold text-[var(--text-primary)]">{row.home}</span>
               </div>
 
-              <span className={`font-mono text-[11px] font-bold tracking-[0px] ${toneClassMap[row.tone]}`}>
+              <span className={`px-1 text-center font-mono text-[11px] font-bold tracking-[0px] ${toneClassMap[row.tone]}`}>
                 {row.scoreLabel}
               </span>
 
-              <div className="flex w-[160px] items-center justify-end gap-2">
-                <span className="text-xs font-semibold text-[var(--text-primary)]">{row.away}</span>
-                <Shield size={16} strokeWidth={1.9} className="text-[var(--border-light)]" />
+              <div className="flex min-w-0 items-center justify-end gap-2">
+                <span className="truncate text-xs font-semibold text-[var(--text-primary)]">{row.away}</span>
+                <TeamLogo logoUrl={row.awayLogoUrl} teamName={row.away} />
               </div>
             </div>
 

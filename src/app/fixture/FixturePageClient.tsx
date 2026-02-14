@@ -7,31 +7,24 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { TopHeader } from "@/components/layout/TopHeader";
 import { CurrentSelectionSelector } from "@/components/home/CurrentSelectionSelector";
-import { MatchCard } from "@/components/matches/MatchCard";
+import { FixtureDateCard } from "@/components/fixture/FixtureDateCard";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { useAuthSession } from "@/lib/use-auth-session";
-import type { FechasPayload, MatchCardData, PredictionSaveStatus, PredictionValue, PredictionsByMatch, PronosticosPayload, SelectionOption } from "@/lib/types";
+import type { FechasPayload, FixtureDateCard as FixtureDateCardType, FixturePayload, SelectionOption } from "@/lib/types";
 
 interface FechaOption {
   id: string;
   label: string;
 }
 
-function isTransientStatus(status: number) {
-  return status === 408 || status === 409 || status === 429 || status >= 500;
-}
-
-export default function PronosticosPage() {
+export default function FixturePage() {
   const router = useRouter();
   const [periods, setPeriods] = useState<FechaOption[]>([]);
   const [periodIndex, setPeriodIndex] = useState(0);
+  const [periodLabel, setPeriodLabel] = useState("-");
+  const [cards, setCards] = useState<FixtureDateCardType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [periodLabel, setPeriodLabel] = useState("-");
-  const [matches, setMatches] = useState<MatchCardData[]>([]);
-  const [stepperByMatch, setStepperByMatch] = useState<PredictionsByMatch>({});
-  const [saveStatusByMatch, setSaveStatusByMatch] = useState<Record<string, PredictionSaveStatus>>({});
-  const [saveErrorByMatch, setSaveErrorByMatch] = useState<Record<string, string>>({});
   const { loading: authLoading, authenticated, user, memberships, activeGroupId, setActiveGroupId } = useAuthSession();
 
   const selectionOptions = useMemo<SelectionOption[]>(
@@ -114,10 +107,11 @@ export default function PronosticosPage() {
   }, [activeSelection]);
 
   useEffect(() => {
-    if (!activeSelection || !period) {
-      setMatches([]);
-      setStepperByMatch({});
-      setPeriodLabel(period || "Sin fechas disponibles");
+    if (authLoading || !authenticated || !activeSelection || !period) {
+      if (!period) {
+        setCards([]);
+        setPeriodLabel("Sin fechas disponibles");
+      }
       return;
     }
     const groupId = activeSelection.groupId;
@@ -130,7 +124,7 @@ export default function PronosticosPage() {
 
       try {
         const response = await fetch(
-          `/api/pronosticos?period=${encodeURIComponent(period)}&groupId=${encodeURIComponent(groupId)}`,
+          `/api/fixture?period=${encodeURIComponent(period)}&groupId=${encodeURIComponent(groupId)}`,
           {
             method: "GET",
             cache: "no-store"
@@ -141,16 +135,15 @@ export default function PronosticosPage() {
           throw new Error(`Request failed with status ${response.status}`);
         }
 
-        const payload = (await response.json()) as PronosticosPayload;
+        const payload = (await response.json()) as FixturePayload;
 
         if (!cancelled) {
           setPeriodLabel(payload.periodLabel || period);
-          setMatches(payload.matches);
-          setStepperByMatch(payload.predictions);
+          setCards(payload.cards);
         }
       } catch (fetchError) {
         if (!cancelled) {
-          setError(fetchError instanceof Error ? fetchError.message : "No se pudieron cargar los pronósticos.");
+          setError(fetchError instanceof Error ? fetchError.message : "No se pudo cargar el fixture.");
         }
       } finally {
         if (!cancelled) {
@@ -164,93 +157,18 @@ export default function PronosticosPage() {
     return () => {
       cancelled = true;
     };
-  }, [period, activeSelection]);
-
-  async function persistPrediction(matchId: string, value: PredictionValue) {
-    if (!activeSelection || !period) {
-      return;
-    }
-    const groupId = activeSelection.groupId;
-
-    setSaveStatusByMatch((prev) => ({ ...prev, [matchId]: "saving" }));
-    setSaveErrorByMatch((prev) => {
-      const next = { ...prev };
-      delete next[matchId];
-      return next;
-    });
-
-    const attempt = async () =>
-      fetch("/api/pronosticos", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          period,
-          matchId,
-          groupId,
-          home: value.home,
-          away: value.away
-        })
-      });
-
-    try {
-      let response = await attempt();
-      if (!response.ok && isTransientStatus(response.status)) {
-        await new Promise((resolve) => setTimeout(resolve, 350));
-        response = await attempt();
-      }
-
-      if (!response.ok) {
-        throw new Error(`No se pudo guardar (${response.status})`);
-      }
-
-      setSaveStatusByMatch((prev) => ({ ...prev, [matchId]: "idle" }));
-    } catch (persistError) {
-      setSaveStatusByMatch((prev) => ({ ...prev, [matchId]: "error" }));
-      setSaveErrorByMatch((prev) => ({
-        ...prev,
-        [matchId]: persistError instanceof Error ? persistError.message : "No se pudo guardar el pronóstico"
-      }));
-    }
-  }
-
-  const setPrediction = (matchId: string, side: "home" | "away", delta: number) => {
-    let nextValue: PredictionValue | null = null;
-
-    setStepperByMatch((prev) => {
-      const current = prev[matchId] ?? { home: null, away: null };
-      const currentNumber = current[side] ?? 0;
-      const updated = Math.max(0, Math.min(99, currentNumber + delta));
-
-      nextValue = {
-        ...current,
-        [side]: updated
-      };
-
-      return {
-        ...prev,
-        [matchId]: nextValue
-      };
-    });
-
-    if (nextValue) {
-      void persistPrediction(matchId, nextValue);
-    }
-  };
-
-  const orderedMatches = useMemo(() => matches, [matches]);
+  }, [period, authLoading, authenticated, activeSelection]);
 
   return (
-    <AppShell activeTab="pronosticos">
-      <TopHeader title="Pronósticos" userLabel={user?.name || "USER"} />
+    <AppShell activeTab="fixture">
+      <TopHeader title="Fixture" userLabel={user?.name || "USER"} />
       <CurrentSelectionSelector options={selectionOptions} activeGroupId={activeGroupId} onChange={setActiveGroupId} />
 
-      <section className="flex flex-col gap-2 px-5 pt-[10px]">
+      <section className="flex flex-col gap-3 px-5 pt-[10px]">
         {memberships.length === 0 ? (
           <div className="rounded-[10px] border border-[var(--border-dim)] bg-[#0b0b0d] p-4">
             <p className="text-[13px] font-semibold text-white">No tenés grupos activos.</p>
-            <p className="mt-1 text-[11px] text-[var(--text-secondary)]">Creá o uníte a un grupo para cargar pronósticos.</p>
+            <p className="mt-1 text-[11px] text-[var(--text-secondary)]">Creá o uníte a un grupo para ver el fixture.</p>
             <Link href="/configuracion" className="mt-3 inline-flex rounded-[8px] bg-[var(--accent)] px-3 py-1.5 text-[11px] font-bold text-black">
               Ir a grupos
             </Link>
@@ -283,42 +201,15 @@ export default function PronosticosPage() {
           </div>
         ) : null}
 
-        <div className={`space-y-2 transition-opacity ${loading ? "opacity-70" : "opacity-100"}`}>
+        <div className={`space-y-[10px] transition-opacity ${loading ? "opacity-70" : "opacity-100"}`}>
           {loading
-            ? Array.from({ length: 4 }).map((_, index) => (
-                <SkeletonBlock key={`pronosticos-skeleton-${index}`} className="h-[136px] w-full" />
+            ? Array.from({ length: 3 }).map((_, index) => (
+                <SkeletonBlock key={`fixture-skeleton-${index}`} className="h-[156px] w-full" />
               ))
-            : orderedMatches.map((match) => {
-            if (match.status === "upcoming") {
-              const stepper = stepperByMatch[match.id] ?? { home: null, away: null };
-              const saveStatus = saveStatusByMatch[match.id] || "idle";
-              const saveError = saveErrorByMatch[match.id];
-
-              return (
-                <div key={match.id} className="space-y-1">
-                  <MatchCard
-                    {...match}
-                    showPredictionStepper
-                    stepper={{
-                      homeValue: stepper.home,
-                      awayValue: stepper.away,
-                      onHomeIncrement: () => setPrediction(match.id, "home", 1),
-                      onHomeDecrement: () => setPrediction(match.id, "home", -1),
-                      onAwayIncrement: () => setPrediction(match.id, "away", 1),
-                      onAwayDecrement: () => setPrediction(match.id, "away", -1)
-                    }}
-                  />
-                  {saveStatus === "saving" ? <p className="px-1 text-[10px] text-[var(--text-secondary)]">Guardando...</p> : null}
-                  {saveStatus === "error" ? <p className="px-1 text-[10px] text-red-400">{saveError || "No se pudo guardar."}</p> : null}
-                </div>
-              );
-            }
-
-            return <MatchCard key={match.id} {...match} />;
-          })}
+            : cards.map((card) => <FixtureDateCard key={card.dateLabel} card={card} />)}
         </div>
 
-        {memberships.length > 0 && !loading && orderedMatches.length === 0 ? (
+        {memberships.length > 0 && !loading && cards.length === 0 ? (
           <p className="text-[11px] font-medium text-[var(--text-secondary)]">No hay partidos disponibles para esta fecha.</p>
         ) : null}
 
