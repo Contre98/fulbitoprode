@@ -78,7 +78,11 @@ export async function POST(request: Request) {
       },
       { status: 201 }
     );
-  } catch {
+  } catch (error) {
+    if (process.env.NODE_ENV !== "production") {
+      const message = error instanceof Error ? error.message : "Invalid payload";
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
 }
