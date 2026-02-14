@@ -1,0 +1,504 @@
+[
+  {
+    "id": "_pb_users_auth_",
+    "name": "users",
+    "type": "auth",
+    "system": false,
+    "listRule": "@request.auth.id != '' && id = @request.auth.id",
+    "viewRule": "@request.auth.id != '' && id = @request.auth.id",
+    "createRule": "",
+    "updateRule": "@request.auth.id != '' && id = @request.auth.id",
+    "deleteRule": "@request.auth.id != '' && id = @request.auth.id",
+    "schema": [
+      {
+        "id": "txtnameusr00001",
+        "name": "name",
+        "type": "text",
+        "system": false,
+        "required": false,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "min": 1,
+          "max": 120,
+          "pattern": ""
+        }
+      },
+      {
+        "id": "txtfavteam00001",
+        "name": "favorite_team",
+        "type": "text",
+        "system": false,
+        "required": false,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "min": null,
+          "max": 120,
+          "pattern": ""
+        }
+      },
+      {
+        "id": "urlavatar000001",
+        "name": "avatar_url",
+        "type": "url",
+        "system": false,
+        "required": false,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "exceptDomains": null,
+          "onlyDomains": null
+        }
+      }
+    ],
+    "indexes": [
+      "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users (email)"
+    ],
+    "options": {
+      "allowEmailAuth": true,
+      "allowOAuth2Auth": false,
+      "allowUsernameAuth": false,
+      "manageRule": null,
+      "minPasswordLength": 8,
+      "onlyVerified": false
+    }
+  },
+  {
+    "id": "grpcol000000001",
+    "name": "groups",
+    "type": "base",
+    "system": false,
+    "listRule": "@request.auth.id != ''",
+    "viewRule": "@request.auth.id != ''",
+    "createRule": "@request.auth.id != ''",
+    "updateRule": "@request.auth.id != ''",
+    "deleteRule": "@request.auth.id != ''",
+    "schema": [
+      {
+        "id": "txtgrpname00001",
+        "name": "name",
+        "type": "text",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "min": 2,
+          "max": 80,
+          "pattern": ""
+        }
+      },
+      {
+        "id": "txtgrpslug00001",
+        "name": "slug",
+        "type": "text",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "min": 2,
+          "max": 80,
+          "pattern": ""
+        }
+      },
+      {
+        "id": "relownrusr0001",
+        "name": "owner_user_id",
+        "type": "relation",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "collectionId": "_pb_users_auth_",
+          "cascadeDelete": false,
+          "minSelect": null,
+          "maxSelect": 1,
+          "displayFields": null
+        }
+      },
+      {
+        "id": "boolactive00001",
+        "name": "is_active",
+        "type": "bool",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "hidden": false,
+        "options": {}
+      },
+      {
+        "id": "txtseason000001",
+        "name": "season",
+        "type": "text",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "min": null,
+          "max": 12,
+          "pattern": ""
+        }
+      },
+      {
+        "id": "numleague000001",
+        "name": "league_id",
+        "type": "number",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "min": 1,
+          "max": null,
+          "noDecimal": true
+        }
+      }
+    ],
+    "indexes": [
+      "CREATE UNIQUE INDEX idx_groups_slug ON groups (slug)"
+    ],
+    "options": {}
+  },
+  {
+    "id": "grpmem000000001",
+    "name": "group_members",
+    "type": "base",
+    "system": false,
+    "listRule": "@request.auth.id != ''",
+    "viewRule": "@request.auth.id != ''",
+    "createRule": "@request.auth.id != '' && user_id = @request.auth.id",
+    "updateRule": "@request.auth.id != ''",
+    "deleteRule": "@request.auth.id != ''",
+    "schema": [
+      {
+        "id": "relgroup0000001",
+        "name": "group_id",
+        "type": "relation",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "collectionId": "grpcol000000001",
+          "cascadeDelete": false,
+          "minSelect": null,
+          "maxSelect": 1,
+          "displayFields": null
+        }
+      },
+      {
+        "id": "reluser00000001",
+        "name": "user_id",
+        "type": "relation",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "collectionId": "_pb_users_auth_",
+          "cascadeDelete": false,
+          "minSelect": null,
+          "maxSelect": 1,
+          "displayFields": null
+        }
+      },
+      {
+        "id": "selrole00000001",
+        "name": "role",
+        "type": "select",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "maxSelect": 1,
+          "values": ["owner", "admin", "member"]
+        }
+      },
+      {
+        "id": "selstatus000001",
+        "name": "status",
+        "type": "select",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "maxSelect": 1,
+          "values": ["active", "invited", "removed"]
+        }
+      },
+      {
+        "id": "datejoined00001",
+        "name": "joined_at",
+        "type": "date",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "min": "",
+          "max": ""
+        }
+      }
+    ],
+    "indexes": [
+      "CREATE UNIQUE INDEX idx_group_members_unique ON group_members (group_id, user_id)"
+    ],
+    "options": {}
+  },
+  {
+    "id": "grpinv000000001",
+    "name": "group_invites",
+    "type": "base",
+    "system": false,
+    "listRule": "@request.auth.id != ''",
+    "viewRule": "@request.auth.id != ''",
+    "createRule": "@request.auth.id != ''",
+    "updateRule": "@request.auth.id != ''",
+    "deleteRule": "@request.auth.id != ''",
+    "schema": [
+      {
+        "id": "relinvgrp000001",
+        "name": "group_id",
+        "type": "relation",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "collectionId": "grpcol000000001",
+          "cascadeDelete": false,
+          "minSelect": null,
+          "maxSelect": 1,
+          "displayFields": null
+        }
+      },
+      {
+        "id": "txtcode00000001",
+        "name": "code",
+        "type": "text",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "min": 6,
+          "max": 16,
+          "pattern": ""
+        }
+      },
+      {
+        "id": "txttoken0000001",
+        "name": "token",
+        "type": "text",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "min": 16,
+          "max": 128,
+          "pattern": ""
+        }
+      },
+      {
+        "id": "relcreatedby001",
+        "name": "created_by",
+        "type": "relation",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "collectionId": "_pb_users_auth_",
+          "cascadeDelete": false,
+          "minSelect": null,
+          "maxSelect": 1,
+          "displayFields": null
+        }
+      },
+      {
+        "id": "dateexp00000001",
+        "name": "expires_at",
+        "type": "date",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "min": "",
+          "max": ""
+        }
+      },
+      {
+        "id": "nummaxuses00001",
+        "name": "max_uses",
+        "type": "number",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "min": 1,
+          "max": null,
+          "noDecimal": true
+        }
+      },
+      {
+        "id": "numuses00000001",
+        "name": "uses",
+        "type": "number",
+        "system": false,
+        "required": false,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "min": 0,
+          "max": null,
+          "noDecimal": true
+        }
+      }
+    ],
+    "indexes": [
+      "CREATE UNIQUE INDEX idx_group_invites_code ON group_invites (code)",
+      "CREATE UNIQUE INDEX idx_group_invites_token ON group_invites (token)"
+    ],
+    "options": {}
+  },
+  {
+    "id": "predct000000001",
+    "name": "predictions",
+    "type": "base",
+    "system": false,
+    "listRule": "@request.auth.id != '' && (user_id = @request.auth.id || (@collection.group_members.user_id ?= @request.auth.id && @collection.group_members.group_id ?= group_id && @collection.group_members.status ?= 'active'))",
+    "viewRule": "@request.auth.id != '' && (user_id = @request.auth.id || (@collection.group_members.user_id ?= @request.auth.id && @collection.group_members.group_id ?= group_id && @collection.group_members.status ?= 'active'))",
+    "createRule": "@request.auth.id != '' && user_id = @request.auth.id",
+    "updateRule": "@request.auth.id != '' && user_id = @request.auth.id",
+    "deleteRule": "@request.auth.id != '' && user_id = @request.auth.id",
+    "schema": [
+      {
+        "id": "relpredgrp00001",
+        "name": "group_id",
+        "type": "relation",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "collectionId": "grpcol000000001",
+          "cascadeDelete": false,
+          "minSelect": null,
+          "maxSelect": 1,
+          "displayFields": null
+        }
+      },
+      {
+        "id": "relpredusr00001",
+        "name": "user_id",
+        "type": "relation",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "collectionId": "_pb_users_auth_",
+          "cascadeDelete": false,
+          "minSelect": null,
+          "maxSelect": 1,
+          "displayFields": null
+        }
+      },
+      {
+        "id": "txtfixid0000001",
+        "name": "fixture_id",
+        "type": "text",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "min": 1,
+          "max": 64,
+          "pattern": ""
+        }
+      },
+      {
+        "id": "txtperiod000001",
+        "name": "period",
+        "type": "text",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "min": null,
+          "max": 24,
+          "pattern": ""
+        }
+      },
+      {
+        "id": "numhomepred001",
+        "name": "home_pred",
+        "type": "number",
+        "system": false,
+        "required": false,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "min": 0,
+          "max": 99,
+          "noDecimal": true
+        }
+      },
+      {
+        "id": "numawaypred001",
+        "name": "away_pred",
+        "type": "number",
+        "system": false,
+        "required": false,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "min": 0,
+          "max": 99,
+          "noDecimal": true
+        }
+      },
+      {
+        "id": "datesubm0000001",
+        "name": "submitted_at",
+        "type": "date",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "min": "",
+          "max": ""
+        }
+      },
+      {
+        "id": "dateupdt0000001",
+        "name": "updated_at",
+        "type": "date",
+        "system": false,
+        "required": true,
+        "presentable": false,
+        "hidden": false,
+        "options": {
+          "min": "",
+          "max": ""
+        }
+      }
+    ],
+    "indexes": [
+      "CREATE UNIQUE INDEX idx_predictions_unique ON predictions (group_id, user_id, fixture_id)"
+    ],
+    "options": {}
+  }
+]

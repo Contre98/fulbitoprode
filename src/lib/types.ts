@@ -5,6 +5,7 @@ export type PointsTone = "positive" | "warning" | "danger" | "neutral";
 
 export interface TeamRef {
   code: string;
+  logoUrl?: string;
 }
 
 export interface MatchScore {
@@ -51,6 +52,7 @@ export interface GroupCard {
 
 export interface LeaderboardRow {
   rank: number;
+  userId?: string;
   name: string;
   predictions: number;
   record: string;
@@ -59,7 +61,8 @@ export interface LeaderboardRow {
 }
 
 export type LeaderboardMode = "posiciones" | "stats";
-export type LeaderboardPeriod = "global" | "fecha14";
+export type MatchPeriod = string;
+export type LeaderboardPeriod = "global" | MatchPeriod;
 
 export interface LeaderboardPayload {
   groupLabel: string;
@@ -75,6 +78,8 @@ export type FixtureScoreTone = "final" | "live" | "upcoming" | "warning";
 export interface FixtureMatchRow {
   home: string;
   away: string;
+  homeLogoUrl?: string;
+  awayLogoUrl?: string;
   scoreLabel: string;
   tone: FixtureScoreTone;
 }
@@ -84,8 +89,6 @@ export interface FixtureDateCard {
   accent?: "default" | "live";
   rows: FixtureMatchRow[];
 }
-
-export type MatchPeriod = "fecha14" | "fecha15";
 
 export interface PredictionValue {
   home: number | null;
@@ -107,4 +110,80 @@ export interface FixturePayload {
   periodLabel: string;
   cards: FixtureDateCard[];
   updatedAt: string;
+}
+
+export interface LeagueOption {
+  id: number;
+  name: string;
+  country?: string;
+  season: string;
+  competitionKey: string;
+  competitionName: string;
+  competitionStage?: "apertura" | "clausura" | "general";
+  status: "ongoing" | "upcoming";
+  startsAt?: string;
+  endsAt?: string;
+}
+
+export interface LeaguesPayload {
+  leagues: LeagueOption[];
+  updatedAt: string;
+}
+
+export interface FechaOption {
+  id: MatchPeriod;
+  label: string;
+}
+
+export interface FechasPayload {
+  leagueId: number;
+  season: string;
+  fechas: FechaOption[];
+  defaultFecha: MatchPeriod;
+  updatedAt: string;
+}
+
+export interface SelectionOption {
+  groupId: string;
+  groupName: string;
+  role: "owner" | "admin" | "member";
+  leagueId: number;
+  leagueName: string;
+  season: string;
+  competitionKey?: string;
+  competitionName?: string;
+  competitionStage?: "apertura" | "clausura" | "general";
+}
+
+export type PredictionSaveStatus = "idle" | "saving" | "error";
+
+export interface GroupInvite {
+  code: string;
+  token: string;
+  expiresAt: string;
+}
+
+export interface GroupInvitePayload {
+  invite: GroupInvite | null;
+  canRefresh: boolean;
+}
+
+export interface CreateGroupResponse {
+  group: {
+    id: string;
+    name: string;
+    slug: string;
+    role: "owner" | "admin" | "member";
+    season: string;
+    leagueId: number;
+    competitionStage: "apertura" | "clausura" | "general";
+    competitionName: string;
+    competitionKey: string;
+  };
+  invite: GroupInvite;
+}
+
+export interface RefreshInviteResponse {
+  ok: true;
+  invite: GroupInvite;
 }

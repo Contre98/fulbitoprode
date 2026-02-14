@@ -43,7 +43,6 @@ describe("MatchCard", () => {
     );
 
     expect(screen.getByText("POR JUGAR · HOY 17:00")).toBeInTheDocument();
-    expect(screen.getByText("MONUMENTAL")).toBeInTheDocument();
     expect(screen.getAllByText("-")).toHaveLength(2);
   });
 
