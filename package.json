@@ -7,8 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "typecheck": "tsc --noEmit -p tsconfig.check.json",
     "test": "vitest",
-    "test:run": "vitest run"
+    "test:run": "vitest run",
+    "validate:release": "bash scripts/release/validate-release.sh --skip-install",
+    "validate:release:full": "bash scripts/release/validate-release.sh",
+    "smoke:private": "bash scripts/release/private-smoke.sh"
   },
   "dependencies": {
     "framer-motion": "^12.0.0",
