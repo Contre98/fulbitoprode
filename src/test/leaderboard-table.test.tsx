@@ -15,7 +15,7 @@ describe("LeaderboardTable", () => {
     );
 
     expect(screen.getByText("Pred")).toBeInTheDocument();
-    expect(screen.getByText("E/WD/N")).toBeInTheDocument();
+    expect(screen.getByText("EX/RE/NA")).toBeInTheDocument();
     expect(screen.getByText("Pts")).toBeInTheDocument();
     expect(screen.getByText("Los Pibes FC")).toBeInTheDocument();
     expect(screen.getByTestId("leaderboard-highlight-icon")).toBeInTheDocument();

@@ -10,6 +10,6 @@ describe("BottomNav", () => {
     expect(screen.getByRole("link", { name: /Posiciones/i })).toHaveAttribute("href", "/posiciones");
     expect(screen.getByRole("link", { name: /Pronósticos/i })).toHaveAttribute("href", "/pronosticos");
     expect(screen.getByRole("link", { name: /Fixture/i })).toHaveAttribute("href", "/fixture");
-    expect(screen.getByRole("link", { name: /Configuración/i })).toHaveAttribute("href", "/configuracion");
+    expect(screen.getByRole("link", { name: /Grupos/i })).toHaveAttribute("href", "/configuracion");
   });
 });
