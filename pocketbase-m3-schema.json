@@ -1,0 +1,282 @@
+{
+  "collections": [
+    {
+      "name": "users",
+      "type": "auth",
+      "listRule": "@request.auth.id != '' && id = @request.auth.id",
+      "viewRule": "@request.auth.id != '' && id = @request.auth.id",
+      "createRule": "",
+      "updateRule": "@request.auth.id != '' && id = @request.auth.id",
+      "deleteRule": "@request.auth.id != '' && id = @request.auth.id",
+      "options": {
+        "allowEmailAuth": true,
+        "allowOAuth2Auth": false,
+        "allowUsernameAuth": false,
+        "manageRule": null,
+        "minPasswordLength": 8,
+        "onlyVerified": false
+      },
+      "fields": [
+        {
+          "name": "email",
+          "type": "email",
+          "required": true,
+          "system": true
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "required": false,
+          "min": 1,
+          "max": 120
+        },
+        {
+          "name": "favorite_team",
+          "type": "text",
+          "required": false,
+          "max": 120
+        },
+        {
+          "name": "avatar_url",
+          "type": "url",
+          "required": false
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_users_email ON users (email)"
+      ]
+    },
+    {
+      "name": "groups",
+      "type": "base",
+      "listRule": "@request.auth.id != '' && @collection.group_members.group_id ?= id && @collection.group_members.user_id ?= @request.auth.id && @collection.group_members.status ?= 'active'",
+      "viewRule": "@request.auth.id != '' && @collection.group_members.group_id ?= id && @collection.group_members.user_id ?= @request.auth.id && @collection.group_members.status ?= 'active'",
+      "createRule": "@request.auth.id != ''",
+      "updateRule": "@request.auth.id != '' && @collection.group_members.group_id ?= id && @collection.group_members.user_id ?= @request.auth.id && @collection.group_members.status ?= 'active' && (@collection.group_members.role ?= 'owner' || @collection.group_members.role ?= 'admin')",
+      "deleteRule": "@request.auth.id != '' && @collection.group_members.group_id ?= id && @collection.group_members.user_id ?= @request.auth.id && @collection.group_members.status ?= 'active' && (@collection.group_members.role ?= 'owner' || @collection.group_members.role ?= 'admin')",
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "required": true,
+          "min": 2,
+          "max": 80
+        },
+        {
+          "name": "slug",
+          "type": "text",
+          "required": true,
+          "min": 2,
+          "max": 80
+        },
+        {
+          "name": "owner_user_id",
+          "type": "relation",
+          "required": true,
+          "collection": "users",
+          "maxSelect": 1
+        },
+        {
+          "name": "is_active",
+          "type": "bool",
+          "required": true
+        },
+        {
+          "name": "season",
+          "type": "text",
+          "required": true,
+          "max": 12
+        },
+        {
+          "name": "league_id",
+          "type": "number",
+          "required": true,
+          "min": 1
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_groups_slug ON groups (slug)"
+      ]
+    },
+    {
+      "name": "group_members",
+      "type": "base",
+      "listRule": "@request.auth.id != '' && (user_id = @request.auth.id || (@collection.group_members.group_id ?= group_id && @collection.group_members.user_id ?= @request.auth.id && @collection.group_members.status ?= 'active'))",
+      "viewRule": "@request.auth.id != '' && (user_id = @request.auth.id || (@collection.group_members.group_id ?= group_id && @collection.group_members.user_id ?= @request.auth.id && @collection.group_members.status ?= 'active'))",
+      "createRule": "@request.auth.id != '' && user_id = @request.auth.id",
+      "updateRule": "@request.auth.id != '' && (user_id = @request.auth.id || (@collection.group_members.group_id ?= group_id && @collection.group_members.user_id ?= @request.auth.id && @collection.group_members.status ?= 'active' && (@collection.group_members.role ?= 'owner' || @collection.group_members.role ?= 'admin')))",
+      "deleteRule": "@request.auth.id != '' && (user_id = @request.auth.id || (@collection.group_members.group_id ?= group_id && @collection.group_members.user_id ?= @request.auth.id && @collection.group_members.status ?= 'active' && (@collection.group_members.role ?= 'owner' || @collection.group_members.role ?= 'admin')))",
+      "fields": [
+        {
+          "name": "group_id",
+          "type": "relation",
+          "required": true,
+          "collection": "groups",
+          "maxSelect": 1
+        },
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": true,
+          "collection": "users",
+          "maxSelect": 1
+        },
+        {
+          "name": "role",
+          "type": "select",
+          "required": true,
+          "values": [
+            "owner",
+            "admin",
+            "member"
+          ],
+          "maxSelect": 1
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "values": [
+            "active",
+            "invited",
+            "removed"
+          ],
+          "maxSelect": 1
+        },
+        {
+          "name": "joined_at",
+          "type": "date",
+          "required": true
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_group_members_unique ON group_members (group_id, user_id)"
+      ]
+    },
+    {
+      "name": "group_invites",
+      "type": "base",
+      "listRule": "@request.auth.id != '' && ((@collection.group_members.group_id ?= group_id && @collection.group_members.user_id ?= @request.auth.id && @collection.group_members.status ?= 'active') || code = @request.query.code || token = @request.query.token)",
+      "viewRule": "@request.auth.id != '' && ((@collection.group_members.group_id ?= group_id && @collection.group_members.user_id ?= @request.auth.id && @collection.group_members.status ?= 'active') || code = @request.query.code || token = @request.query.token)",
+      "createRule": "@request.auth.id != '' && @collection.group_members.group_id ?= group_id && @collection.group_members.user_id ?= @request.auth.id && @collection.group_members.status ?= 'active' && (@collection.group_members.role ?= 'owner' || @collection.group_members.role ?= 'admin')",
+      "updateRule": "@request.auth.id != '' && @collection.group_members.group_id ?= group_id && @collection.group_members.user_id ?= @request.auth.id && @collection.group_members.status ?= 'active' && (@collection.group_members.role ?= 'owner' || @collection.group_members.role ?= 'admin')",
+      "deleteRule": "@request.auth.id != '' && @collection.group_members.group_id ?= group_id && @collection.group_members.user_id ?= @request.auth.id && @collection.group_members.status ?= 'active' && (@collection.group_members.role ?= 'owner' || @collection.group_members.role ?= 'admin')",
+      "fields": [
+        {
+          "name": "group_id",
+          "type": "relation",
+          "required": true,
+          "collection": "groups",
+          "maxSelect": 1
+        },
+        {
+          "name": "code",
+          "type": "text",
+          "required": true,
+          "min": 6,
+          "max": 16
+        },
+        {
+          "name": "token",
+          "type": "text",
+          "required": true,
+          "min": 16,
+          "max": 128
+        },
+        {
+          "name": "created_by",
+          "type": "relation",
+          "required": true,
+          "collection": "users",
+          "maxSelect": 1
+        },
+        {
+          "name": "expires_at",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "max_uses",
+          "type": "number",
+          "required": true,
+          "min": 1
+        },
+        {
+          "name": "uses",
+          "type": "number",
+          "required": true,
+          "min": 0
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_group_invites_code ON group_invites (code)",
+        "CREATE UNIQUE INDEX idx_group_invites_token ON group_invites (token)"
+      ]
+    },
+    {
+      "name": "predictions",
+      "type": "base",
+      "listRule": "@request.auth.id != '' && (user_id = @request.auth.id || (@collection.group_members.user_id ?= @request.auth.id && @collection.group_members.group_id ?= group_id && @collection.group_members.status ?= 'active'))",
+      "viewRule": "@request.auth.id != '' && (user_id = @request.auth.id || (@collection.group_members.user_id ?= @request.auth.id && @collection.group_members.group_id ?= group_id && @collection.group_members.status ?= 'active'))",
+      "createRule": "@request.auth.id != '' && user_id = @request.auth.id",
+      "updateRule": "@request.auth.id != '' && user_id = @request.auth.id",
+      "deleteRule": "@request.auth.id != '' && user_id = @request.auth.id",
+      "fields": [
+        {
+          "name": "group_id",
+          "type": "relation",
+          "required": true,
+          "collection": "groups",
+          "maxSelect": 1
+        },
+        {
+          "name": "user_id",
+          "type": "relation",
+          "required": true,
+          "collection": "users",
+          "maxSelect": 1
+        },
+        {
+          "name": "fixture_id",
+          "type": "text",
+          "required": true,
+          "min": 1,
+          "max": 64
+        },
+        {
+          "name": "period",
+          "type": "text",
+          "required": true,
+          "max": 24
+        },
+        {
+          "name": "home_pred",
+          "type": "number",
+          "required": false,
+          "min": 0,
+          "max": 99
+        },
+        {
+          "name": "away_pred",
+          "type": "number",
+          "required": false,
+          "min": 0,
+          "max": 99
+        },
+        {
+          "name": "submitted_at",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "updated_at",
+          "type": "date",
+          "required": true
+        }
+      ],
+      "indexes": [
+        "CREATE UNIQUE INDEX idx_predictions_unique ON predictions (group_id, user_id, fixture_id)"
+      ]
+    }
+  ]
+}
