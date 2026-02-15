@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
+import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 const ACTIVE_GROUP_STORAGE_KEY = "fulbito.activeGroupId";
 
@@ -24,7 +25,20 @@ interface SessionUser {
   favoriteTeam?: string | null;
 }
 
-export function useAuthSession() {
+interface AuthSessionValue {
+  loading: boolean;
+  authenticated: boolean;
+  user: SessionUser | null;
+  memberships: Membership[];
+  activeGroupId: string | null;
+  activeGroup: Membership | null;
+  setActiveGroupId: (groupId: string) => void;
+  refresh: () => Promise<void>;
+}
+
+const AuthSessionContext = createContext<AuthSessionValue | null>(null);
+
+function useAuthSessionState(): AuthSessionValue {
   const [loading, setLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
   const [user, setUser] = useState<SessionUser | null>(null);
@@ -101,4 +115,17 @@ export function useAuthSession() {
     setActiveGroupId,
     refresh
   };
+}
+
+export function AuthSessionProvider({ children }: { children: ReactNode }) {
+  const value = useAuthSessionState();
+  return createElement(AuthSessionContext.Provider, { value }, children);
+}
+
+export function useAuthSession() {
+  const value = useContext(AuthSessionContext);
+  if (!value) {
+    throw new Error("useAuthSession must be used inside AuthSessionProvider");
+  }
+  return value;
 }

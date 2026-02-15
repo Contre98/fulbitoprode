@@ -41,7 +41,7 @@ export function LeaderboardTable({
         </div>
       </div>
 
-      <div className="h-[488px] overflow-hidden rounded-2xl border border-[#2a2a2e] bg-[var(--bg-body)] p-[15px_10px]">
+      <div className="h-[488px] overflow-hidden rounded-[6px] border border-[#2a2a2e] bg-[var(--bg-body)] p-[15px_10px]">
         <div className="flex items-center justify-between px-[2px] pb-[2px]">
           <p className="max-w-[45%] truncate text-[13px] font-bold text-[#f5f5f5]">{groupLabel}</p>
           <div className="flex w-[188px] gap-3">
@@ -55,7 +55,7 @@ export function LeaderboardTable({
           {rows.map((row, index) => {
             const isStripe = index % 2 === 0;
             return (
-              <div key={`${row.rank}-${row.userId || row.name}`} className="flex items-center justify-between rounded-[10px] px-[10px] py-2" style={{ backgroundColor: isStripe ? "#24242a" : "#202026" }}>
+              <div key={`${row.rank}-${row.userId || row.name}`} className="flex items-center justify-between rounded-[6px] px-[10px] py-2" style={{ backgroundColor: isStripe ? "#24242a" : "#202026" }}>
                 <div className="flex min-w-0 items-center gap-2">
                   <span className="w-5 text-center font-mono text-[11px] font-bold text-[#d4d4d8]">{row.rank}</span>
                   <span className={`truncate text-xs ${row.highlight ? "font-bold text-white" : "font-semibold text-[#d4d4d8]"}`}>

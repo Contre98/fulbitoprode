@@ -149,6 +149,10 @@ function toSlug(input: string) {
     .slice(0, 40);
 }
 
+function uniqNonEmpty(values: string[]) {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
 async function getActiveMembership(userId: string, groupId: string, authToken: string) {
   const membershipFilter = encodeURIComponent(`user_id=${q(userId)} && group_id=${q(groupId)} && status='active'`);
   const membership = await pbRequest<PbListResult<ActiveMembershipRecord>>(
@@ -382,6 +386,57 @@ export async function listGroupMembers(groupId: string, authToken: string): Prom
     .filter((row) => Boolean(row.userId));
 }
 
+export async function listGroupMembersForGroups(groupIds: string[], authToken: string): Promise<Record<string, M3GroupMember[]>> {
+  const ids = uniqNonEmpty(groupIds);
+  if (ids.length === 0) {
+    return {};
+  }
+
+  const byGroupId = Object.fromEntries(ids.map((id) => [id, [] as M3GroupMember[]]));
+  const groupFilter = ids.map((id) => `group_id=${q(id)}`).join(" || ");
+  const filter = encodeURIComponent(`status='active' && (${groupFilter})`);
+  const response = await pbRequest<
+    PbListResult<{
+      id: string;
+      group_id: string;
+      user_id: string;
+      role: "owner" | "admin" | "member";
+      joined_at?: string;
+      expand?: {
+        user_id?:
+          | {
+              id: string;
+              name?: string;
+              email?: string;
+            }
+          | Array<{
+              id: string;
+              name?: string;
+              email?: string;
+            }>;
+      };
+    }>
+  >(`/api/collections/group_members/records?perPage=2000&filter=${filter}&expand=user_id`, { method: "GET" }, authToken);
+
+  response.items.forEach((item) => {
+    if (!item.group_id || !byGroupId[item.group_id]) {
+      return;
+    }
+
+    const expandedUser = Array.isArray(item.expand?.user_id) ? item.expand?.user_id[0] : item.expand?.user_id;
+    const fallbackName = item.user_id ? `Usuario ${item.user_id.slice(0, 6)}` : "Usuario";
+
+    byGroupId[item.group_id].push({
+      userId: item.user_id,
+      role: item.role,
+      joinedAt: item.joined_at || new Date().toISOString(),
+      name: expandedUser?.name || expandedUser?.email?.split("@")[0] || fallbackName
+    });
+  });
+
+  return byGroupId;
+}
+
 export async function listGroupPredictions(
   input: { groupId: string; period?: string },
   authToken: string
@@ -411,6 +466,53 @@ export async function listGroupPredictions(
     away: item.away_pred ?? null,
     submittedAt: item.submitted_at || new Date().toISOString()
   }));
+}
+
+export async function listGroupPredictionsForGroups(
+  input: { groupIds: string[]; period?: string },
+  authToken: string
+): Promise<Record<string, M3GroupPrediction[]>> {
+  const ids = uniqNonEmpty(input.groupIds);
+  if (ids.length === 0) {
+    return {};
+  }
+
+  const byGroupId = Object.fromEntries(ids.map((id) => [id, [] as M3GroupPrediction[]]));
+  const groupFilter = ids.map((id) => `group_id=${q(id)}`).join(" || ");
+  const clauses = [`(${groupFilter})`];
+  if (input.period) {
+    clauses.push(`period=${q(input.period)}`);
+  }
+  const filter = encodeURIComponent(clauses.join(" && "));
+  const response = await pbRequest<
+    PbListResult<{
+      id: string;
+      group_id: string;
+      user_id: string;
+      fixture_id: string;
+      period: string;
+      home_pred: number | null;
+      away_pred: number | null;
+      submitted_at?: string;
+    }>
+  >(`/api/collections/predictions/records?perPage=5000&filter=${filter}`, { method: "GET" }, authToken);
+
+  response.items.forEach((item) => {
+    if (!item.group_id || !byGroupId[item.group_id]) {
+      return;
+    }
+
+    byGroupId[item.group_id].push({
+      userId: item.user_id,
+      fixtureId: item.fixture_id,
+      period: item.period,
+      home: item.home_pred ?? null,
+      away: item.away_pred ?? null,
+      submittedAt: item.submitted_at || new Date().toISOString()
+    });
+  });
+
+  return byGroupId;
 }
 
 export async function createGroup(
@@ -691,7 +793,11 @@ export async function leaveGroup(input: { userId: string; groupId: string }, aut
     );
 
     if (owners.totalItems <= 1) {
-      return { ok: false as const, error: "No podés abandonar el grupo si sos el único owner." };
+      const deleted = await deleteGroupSoft(input, authToken);
+      if (!deleted.ok) {
+        return { ok: false as const, error: deleted.error };
+      }
+      return { ok: true as const, deletedGroup: true };
     }
   }
 
@@ -706,7 +812,7 @@ export async function leaveGroup(input: { userId: string; groupId: string }, aut
     authToken
   );
 
-  return { ok: true as const };
+  return { ok: true as const, deletedGroup: false };
 }
 
 export async function renameGroup(
@@ -750,12 +856,25 @@ export async function renameGroup(
 }
 
 export async function deleteGroupSoft(input: { userId: string; groupId: string }, authToken: string) {
+  const groupRecord = await pbRequest<{
+    id: string;
+    name: string;
+    slug: string;
+    owner_user_id?: string;
+    is_active: boolean;
+    season?: string;
+    league_id?: number;
+  }>(`/api/collections/groups/records/${input.groupId}`, { method: "GET" }, authToken);
+
   const membersFilter = encodeURIComponent(`group_id=${q(input.groupId)} && status='active'`);
   const members = await pbRequest<
     PbListResult<{
       id: string;
+      group_id: string;
       user_id: string;
       role: "owner" | "admin" | "member";
+      status: "active" | "removed";
+      joined_at?: string;
     }>
   >(`/api/collections/group_members/records?perPage=500&filter=${membersFilter}`, { method: "GET" }, authToken);
 
@@ -774,56 +893,94 @@ export async function deleteGroupSoft(input: { userId: string; groupId: string }
     return { ok: false as const, error: "Solo admins u owners pueden eliminar grupos con otros miembros." };
   }
 
-  await pbRequest(
-    `/api/collections/groups/records/${input.groupId}`,
-    {
-      method: "PATCH",
-      body: JSON.stringify({
-        is_active: false
-      })
-    },
-    authToken
-  );
-
-  await Promise.all(
-    members.items.map((member) =>
-      pbRequest(
-        `/api/collections/group_members/records/${member.id}`,
-        {
-          method: "PATCH",
-          body: JSON.stringify({
-            status: "removed"
-          })
-        },
-        authToken
-      )
-    )
-  );
-
   const invitesFilter = encodeURIComponent(`group_id=${q(input.groupId)}`);
   const invites = await pbRequest<
     PbListResult<{
       id: string;
+      group_id: string;
+      code: string;
+      token: string;
+      created_by: string;
+      expires_at?: string;
       uses?: number;
       max_uses?: number;
     }>
   >(`/api/collections/group_invites/records?perPage=500&filter=${invitesFilter}`, { method: "GET" }, authToken);
 
+  try {
+    await pbRequest(
+      `/api/collections/groups/records/${input.groupId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: groupRecord.name || "Grupo",
+          slug: groupRecord.slug || toSlug(groupRecord.name || "grupo"),
+          owner_user_id: groupRecord.owner_user_id || input.userId,
+          is_active: false,
+          season: groupRecord.season || String(new Date().getFullYear()),
+          league_id: groupRecord.league_id ?? 128
+        })
+      },
+      authToken
+    );
+  } catch (error) {
+    const message = extractPocketBaseErrorMessage(error);
+    const rawMessage = error instanceof Error ? error.message.toLowerCase() : "";
+    const isIsActiveRequiredError =
+      (message.toLowerCase().includes("is_active") && message.toLowerCase().includes("missing required value")) ||
+      (rawMessage.includes("is_active") && rawMessage.includes("missing required value"));
+    if (!isIsActiveRequiredError) {
+      throw error;
+    }
+
+    // Some PocketBase setups reject is_active=false when the bool is required.
+    // Continue by removing members/invites so the group becomes inaccessible.
+  }
+
   await Promise.all(
-    invites.items.map((invite) =>
-      pbRequest(
+    invites.items.map((invite) => {
+      const fallbackInvite = generateInviteValues();
+      return pbRequest(
         `/api/collections/group_invites/records/${invite.id}`,
         {
           method: "PATCH",
           body: JSON.stringify({
+            group_id: invite.group_id || input.groupId,
+            code: invite.code || fallbackInvite.code,
+            token: invite.token || fallbackInvite.token,
+            created_by: invite.created_by || input.userId,
             expires_at: new Date().toISOString(),
+            max_uses: invite.max_uses ?? 200,
             uses: invite.max_uses ?? invite.uses ?? 1
           })
         },
         authToken
-      )
-    )
+      );
+    })
   );
+
+  const nowIso = new Date().toISOString();
+  const orderedMembers = [...members.items].sort((a, b) => {
+    if (a.user_id === input.userId) return 1;
+    if (b.user_id === input.userId) return -1;
+    return 0;
+  });
+  for (const member of orderedMembers) {
+    await pbRequest(
+      `/api/collections/group_members/records/${member.id}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          group_id: member.group_id || input.groupId,
+          user_id: member.user_id,
+          role: member.role || "member",
+          status: "removed",
+          joined_at: member.joined_at || nowIso
+        })
+      },
+      authToken
+    );
+  }
 
   return {
     ok: true as const,

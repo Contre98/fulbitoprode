@@ -15,7 +15,7 @@ function GroupCardView({ card, isSelected }: { card: GroupCard; isSelected: bool
 
   return (
     <article
-      className={`h-[170px] w-[290px] shrink-0 snap-center rounded-[20px] border border-[var(--border-dim)] p-5 transition-all ${
+      className={`h-[170px] w-[290px] shrink-0 snap-center rounded-[6px] border border-[var(--border-dim)] p-5 transition-all ${
         isPrimary ? "opacity-100" : "opacity-80"
       }`}
       style={{

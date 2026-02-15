@@ -64,6 +64,36 @@ export type LeaderboardMode = "posiciones" | "stats";
 export type MatchPeriod = string;
 export type LeaderboardPeriod = "global" | MatchPeriod;
 
+export interface LeaderboardBestFecha {
+  period: MatchPeriod;
+  periodLabel: string;
+  userId?: string;
+  userName: string;
+  points: number;
+}
+
+export interface LeaderboardWorldBenchmark {
+  leagueName: string;
+  leaderPoints: number;
+  groupTotalPoints: number;
+  averageMemberPoints: number;
+  ratioVsLeaderPct: number;
+}
+
+export interface LeaderboardGroupStats {
+  memberCount: number;
+  scoredPredictions: number;
+  correctPredictions: number;
+  exactPredictions: number;
+  resultPredictions: number;
+  missPredictions: number;
+  accuracyPct: number;
+  totalPoints: number;
+  averageMemberPoints: number;
+  bestFecha: LeaderboardBestFecha | null;
+  worldBenchmark: LeaderboardWorldBenchmark | null;
+}
+
 export interface LeaderboardPayload {
   groupLabel: string;
   mode: LeaderboardMode;
@@ -71,6 +101,7 @@ export interface LeaderboardPayload {
   periodLabel: string;
   updatedAt: string;
   rows: LeaderboardRow[];
+  groupStats?: LeaderboardGroupStats | null;
 }
 
 export type FixtureScoreTone = "final" | "live" | "upcoming" | "warning";

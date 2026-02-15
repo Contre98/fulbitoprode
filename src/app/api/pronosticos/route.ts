@@ -65,21 +65,23 @@ async function resolveSelection(request: Request) {
     return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
   }
 
-  const availableFechas = await fetchAvailableFechas({
-    leagueId: selected.group.leagueId,
-    season: selected.group.season,
-    competitionStage: selected.group.competitionStage
-  });
-  const period =
-    requestedPeriod ||
-    (await resolveDefaultFecha({
+  let period = requestedPeriod || "";
+  if (!period) {
+    const availableFechas = await fetchAvailableFechas({
       leagueId: selected.group.leagueId,
       season: selected.group.season,
-      competitionStage: selected.group.competitionStage,
-      fechas: availableFechas
-    })) ||
-    availableFechas[0] ||
-    "";
+      competitionStage: selected.group.competitionStage
+    });
+    period =
+      (await resolveDefaultFecha({
+        leagueId: selected.group.leagueId,
+        season: selected.group.season,
+        competitionStage: selected.group.competitionStage,
+        fechas: availableFechas
+      })) ||
+      availableFechas[0] ||
+      "";
+  }
 
   return {
     userId,
@@ -107,22 +109,23 @@ export async function GET(request: Request) {
     return NextResponse.json(emptyPayload, { status: 200 });
   }
 
-  const fixtures = await fetchLigaArgentinaFixtures({
-    period,
-    leagueId: selected.group.leagueId,
-    season: selected.group.season,
-    competitionStage: selected.group.competitionStage
-  });
+  const [fixtures, predictions] = await Promise.all([
+    fetchLigaArgentinaFixtures({
+      period,
+      leagueId: selected.group.leagueId,
+      season: selected.group.season,
+      competitionStage: selected.group.competitionStage
+    }),
+    listPredictionsForScope(
+      {
+        userId,
+        groupId: selected.group.id,
+        period
+      },
+      pbToken
+    )
+  ]);
   const matches = mapFixturesToPronosticosMatches(fixtures);
-
-  const predictions = await listPredictionsForScope(
-    {
-      userId,
-      groupId: selected.group.id,
-      period
-    },
-    pbToken
-  );
 
   const payload: PronosticosPayload = {
     period,

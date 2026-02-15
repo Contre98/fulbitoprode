@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
@@ -10,11 +10,79 @@ import { CurrentSelectionSelector } from "@/components/home/CurrentSelectionSele
 import { LeaderboardTable } from "@/components/leaderboard/LeaderboardTable";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { useAuthSession } from "@/lib/use-auth-session";
+import { usePageBenchmark } from "@/lib/use-page-benchmark";
 import type { FechasPayload, LeaderboardMode, LeaderboardPayload, SelectionOption } from "@/lib/types";
 
 interface PeriodOption {
   id: string;
   label: string;
+}
+
+function StatsSummary({ payload }: { payload: LeaderboardPayload | null }) {
+  if (!payload?.groupStats || payload.mode !== "stats") {
+    return null;
+  }
+
+  const { groupStats } = payload;
+
+  return (
+    <div className="grid grid-cols-2 gap-2.5">
+      <div className="rounded-[6px] border border-[var(--border-dim)] bg-[var(--bg-surface)] p-2.5">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.3px] text-[var(--text-muted)]">Miembros</p>
+        <p className="mt-1 text-[18px] font-extrabold text-white">{groupStats.memberCount}</p>
+      </div>
+
+      <div className="rounded-[6px] border border-[var(--border-dim)] bg-[var(--bg-surface)] p-2.5">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.3px] text-[var(--text-muted)]">Aciertos totales</p>
+        <p className="mt-1 text-[18px] font-extrabold text-white">{groupStats.correctPredictions}</p>
+        <p className="text-[10px] text-[var(--text-secondary)]">
+          {groupStats.exactPredictions} exactos · {groupStats.resultPredictions} resultado
+        </p>
+      </div>
+
+      <div className="rounded-[6px] border border-[var(--border-dim)] bg-[var(--bg-surface)] p-2.5">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.3px] text-[var(--text-muted)]">Precisión grupal</p>
+        <p className="mt-1 text-[18px] font-extrabold text-[var(--accent)]">{groupStats.accuracyPct}%</p>
+        <p className="text-[10px] text-[var(--text-secondary)]">{groupStats.scoredPredictions} predicciones evaluadas</p>
+      </div>
+
+      <div className="rounded-[6px] border border-[var(--border-dim)] bg-[var(--bg-surface)] p-2.5">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.3px] text-[var(--text-muted)]">Puntaje del grupo</p>
+        <p className="mt-1 text-[18px] font-extrabold text-white">{groupStats.totalPoints}</p>
+        <p className="text-[10px] text-[var(--text-secondary)]">Promedio por miembro: {groupStats.averageMemberPoints}</p>
+      </div>
+
+      <div className="col-span-2 rounded-[6px] border border-[var(--border-dim)] bg-[var(--bg-surface)] p-2.5">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.3px] text-[var(--text-muted)]">Mejor fecha histórica</p>
+        {groupStats.bestFecha ? (
+          <>
+            <p className="mt-1 text-[13px] font-bold text-white">
+              {groupStats.bestFecha.periodLabel}: {groupStats.bestFecha.userName} ({groupStats.bestFecha.points} pts)
+            </p>
+            <p className="text-[10px] text-[var(--text-secondary)]">Récord individual de puntos en una fecha dentro del grupo.</p>
+          </>
+        ) : (
+          <p className="mt-1 text-[11px] text-[var(--text-secondary)]">Todavía no hay partidos puntuados.</p>
+        )}
+      </div>
+
+      <div className="col-span-2 rounded-[6px] border border-[var(--border-dim)] bg-[var(--bg-surface)] p-2.5">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.3px] text-[var(--text-muted)]">Benchmark liga/torneo</p>
+        {groupStats.worldBenchmark ? (
+          <>
+            <p className="mt-1 text-[13px] font-bold text-white">
+              {groupStats.worldBenchmark.groupTotalPoints} pts grupo vs {groupStats.worldBenchmark.leaderPoints} pts líder
+            </p>
+            <p className="text-[10px] text-[var(--text-secondary)]">
+              {groupStats.worldBenchmark.leagueName}: {groupStats.worldBenchmark.ratioVsLeaderPct}% del líder de la tabla.
+            </p>
+          </>
+        ) : (
+          <p className="mt-1 text-[11px] text-[var(--text-secondary)]">No se pudo cargar la tabla de referencia de la liga.</p>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default function PosicionesPage() {
@@ -26,7 +94,11 @@ export default function PosicionesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [payload, setPayload] = useState<LeaderboardPayload | null>(null);
+  const fechasCacheRef = useRef<Map<string, FechasPayload>>(new Map());
+  const payloadCacheRef = useRef<Map<string, LeaderboardPayload>>(new Map());
+  const lastRefreshTickRef = useRef(0);
   const { loading: authLoading, authenticated, user, memberships, activeGroupId, setActiveGroupId } = useAuthSession();
+  usePageBenchmark("posiciones", loading);
 
   const selectionOptions = useMemo<SelectionOption[]>(
     () =>
@@ -66,6 +138,18 @@ export default function PosicionesPage() {
     const leagueId = activeSelection.leagueId;
     const season = activeSelection.season;
     const competitionStage = activeSelection.competitionStage || "general";
+    const cacheKey = `${leagueId}:${season}:${competitionStage}`;
+    const cached = fechasCacheRef.current.get(cacheKey);
+    if (cached) {
+      const nextOptions: PeriodOption[] = [
+        { id: "global", label: "Global acumulado" },
+        ...cached.fechas.map((fecha) => ({ id: fecha.id, label: fecha.label }))
+      ];
+
+      setPeriodOptions(nextOptions);
+      setPeriodIndex((prev) => (prev < nextOptions.length ? prev : 0));
+      return;
+    }
 
     let cancelled = false;
 
@@ -88,6 +172,7 @@ export default function PosicionesPage() {
           return;
         }
 
+        fechasCacheRef.current.set(cacheKey, payload);
         const nextOptions: PeriodOption[] = [
           { id: "global", label: "Global acumulado" },
           ...payload.fechas.map((fecha) => ({ id: fecha.id, label: fecha.label }))
@@ -117,6 +202,15 @@ export default function PosicionesPage() {
       return;
     }
     const groupId = activeSelection.groupId;
+    const requestKey = `${groupId}:${mode}:${period}`;
+    const shouldBypassCache = refreshTick > lastRefreshTickRef.current;
+    const cached = payloadCacheRef.current.get(requestKey);
+    if (!shouldBypassCache && cached) {
+      setError(null);
+      setLoading(false);
+      setPayload(cached);
+      return;
+    }
 
     let cancelled = false;
 
@@ -140,6 +234,7 @@ export default function PosicionesPage() {
         const json = (await response.json()) as LeaderboardPayload;
 
         if (!cancelled) {
+          payloadCacheRef.current.set(requestKey, json);
           setPayload(json);
         }
       } catch (fetchError) {
@@ -150,6 +245,7 @@ export default function PosicionesPage() {
         if (!cancelled) {
           setLoading(false);
         }
+        lastRefreshTickRef.current = refreshTick;
       }
     }
 
@@ -171,10 +267,10 @@ export default function PosicionesPage() {
 
       <section className="flex flex-col gap-2.5 px-5 pt-[10px] pb-2">
         {memberships.length === 0 ? (
-          <div className="rounded-[10px] border border-[var(--border-dim)] bg-[#0b0b0d] p-4">
+          <div className="rounded-[6px] border border-[var(--border-dim)] bg-[#0b0b0d] p-4">
             <p className="text-[13px] font-semibold text-white">No tenés grupos activos.</p>
             <p className="mt-1 text-[11px] text-[var(--text-secondary)]">Creá o uníte a un grupo para ver las posiciones.</p>
-            <Link href="/configuracion" className="mt-3 inline-flex rounded-[8px] bg-[var(--accent)] px-3 py-1.5 text-[11px] font-bold text-black">
+            <Link href="/configuracion" className="mt-3 inline-flex rounded-[6px] bg-[var(--accent)] px-3 py-1.5 text-[11px] font-bold text-black">
               Ir a grupos
             </Link>
           </div>
@@ -221,16 +317,19 @@ export default function PosicionesPage() {
             {loading && rows.length === 0 ? (
               <div className="space-y-2">
                 <SkeletonBlock className="h-8 w-full rounded-full" />
-                <SkeletonBlock className="h-[420px] w-full rounded-2xl" />
+                <SkeletonBlock className="h-[420px] w-full rounded-[6px]" />
               </div>
             ) : (
-              <LeaderboardTable
-                mode={mode}
-                rows={rows}
-                groupLabel={payload?.groupLabel ?? "Sin grupo"}
-                loading={loading}
-                onModeChange={setMode}
-              />
+              <div className="space-y-2.5">
+                <StatsSummary payload={payload} />
+                <LeaderboardTable
+                  mode={mode}
+                  rows={rows}
+                  groupLabel={payload?.groupLabel ?? "Sin grupo"}
+                  loading={loading}
+                  onModeChange={setMode}
+                />
+              </div>
             )}
           </>
         ) : null}

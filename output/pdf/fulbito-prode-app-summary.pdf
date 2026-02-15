@@ -1,0 +1,63 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [3 0 R] /Count 1 >>
+endobj
+3 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+5 0 obj
+<< /Length 3294 >>
+stream
+BT /F1 16 Tf 1 0 0 1 54 744 Tm (Fulbito Prode 2.0 - One-Page App Summary) Tj ET
+BT /F1 9 Tf 1 0 0 1 54 722 Tm (Evidence source: repository files only \(README, src/lib, src/app/api, docs\).) Tj ET
+BT /F1 12 Tf 1 0 0 1 54 704 Tm (What It Is) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 690 Tm (? Fulbito Prode 2.0 is a Next.js app for group-based football score predictions.) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 677 Tm (? It combines a PocketBase backend for auth/group data with API-Football match and standings data.) Tj ET
+BT /F1 12 Tf 1 0 0 1 54 659 Tm (Who It Is For) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 645 Tm (? Primary persona: football fans playing private prediction pools with friends in shared groups.) Tj ET
+BT /F1 12 Tf 1 0 0 1 54 627 Tm (What It Does) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 613 Tm (? Email/password auth with signed session cookies and PocketBase token-backed API calls.) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 600 Tm (? Creates groups and manages member roles \(owner/admin/member\).) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 587 Tm (? Issues, reads, refreshes, and consumes invite codes/tokens for group joining.) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 574 Tm (? Lets users submit per-match predictions for a selected round; writes are rate-limited.) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 561 Tm (? Builds leaderboards and home rank cards by scoring predictions vs final match results.) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 548 Tm (? Fetches fixtures, rounds, leagues, and standings from API-Football with short TTL caching.) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 535 Tm (? Provides provider health checks gated by owner/admin session or x-healthcheck-token.) Tj ET
+BT /F1 12 Tf 1 0 0 1 54 517 Tm (How It Works) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 503 Tm (? UI: Next.js app routes \(/auth, /, /pronosticos, /posiciones, /fixture, /configuracion\).) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 490 Tm (? Server API: route handlers in src/app/api/* validate session and orchestrate reads/writes.) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 477 Tm (? Data layer: src/lib/m3-repo.ts wraps PocketBase REST collections \(users, groups,) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 464 Tm (? group_members, group_invites, predictions\).) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 451 Tm (? Live data: src/lib/liga-live-provider.ts calls API-Football endpoints and maps provider payloads) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 438 Tm (? to UI models; cache avoids repeated upstream calls.) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 425 Tm (? Flow: Browser -> Next.js API -> PocketBase/API-Football -> normalized JSON -> React UI.) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 412 Tm (? Background jobs/queue workers: Not found in repo.) Tj ET
+BT /F1 12 Tf 1 0 0 1 54 394 Tm (How To Run \(Minimal\)) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 380 Tm (? 1\) Prereqs: Node.js 20+, npm 10+, running PocketBase, and an API-Football key.) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 367 Tm (? 2\) Copy .env.example to .env.local and set POCKETBASE_URL, SESSION_SECRET,) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 354 Tm (? API_FOOTBALL_BASE_URL, and API_FOOTBALL_KEY.) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 341 Tm (? 3\) Apply PocketBase schema from pocketbase-m3-schema.json.) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 328 Tm (? 4\) Install and start: npm install && npm run dev.) Tj ET
+BT /F1 10 Tf 1 0 0 1 54 315 Tm (? 5\) Open /auth, sign in, then use core screens \(/pronosticos, /posiciones, /fixture\).) Tj ET
+endstream
+endobj
+xref
+0 6
+0000000000 65535 f 
+0000000015 00000 n 
+0000000064 00000 n 
+0000000121 00000 n 
+0000000247 00000 n 
+0000000317 00000 n 
+trailer
+<< /Size 6 /Root 1 0 R >>
+startxref
+3663
+%%EOF

@@ -15,6 +15,15 @@ interface MatchCardProps extends MatchCardData {
     onHomeDecrement?: () => void;
     onAwayIncrement?: () => void;
     onAwayDecrement?: () => void;
+    min?: number;
+    max?: number;
+  };
+  predictionBox?: {
+    homeValue: number | null;
+    awayValue: number | null;
+    onClick?: () => void;
+    disabled?: boolean;
+    highlighted?: boolean;
   };
 }
 
@@ -105,7 +114,8 @@ export function MatchCard({
   points,
   progress,
   showPredictionStepper,
-  stepper
+  stepper,
+  predictionBox
 }: MatchCardProps) {
   const isLive = status === "live";
   const isUpcoming = status === "upcoming";
@@ -118,7 +128,7 @@ export function MatchCard({
 
   return (
     <article
-      className={`w-full rounded-md border p-[6px_8px_14px_8px] ${
+      className={`w-full rounded-[6px] border p-[6px_8px_14px_8px] ${
         isLive
           ? "border-[#324429] bg-[#0b0d09]"
           : isUpcoming
@@ -175,18 +185,38 @@ export function MatchCard({
           />
 
           {isUpcoming && showPredictionStepper && stepper ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <PredictionStepper
                 value={stepper.homeValue}
                 onIncrement={stepper.onHomeIncrement}
                 onDecrement={stepper.onHomeDecrement}
+                min={stepper.min}
+                max={stepper.max}
               />
               <PredictionStepper
                 value={stepper.awayValue}
                 onIncrement={stepper.onAwayIncrement}
                 onDecrement={stepper.onAwayDecrement}
+                min={stepper.min}
+                max={stepper.max}
               />
             </div>
+          ) : isUpcoming && predictionBox ? (
+            <button
+              type="button"
+              onClick={predictionBox.onClick}
+              disabled={predictionBox.disabled}
+              className={`flex min-w-[92px] items-center justify-center rounded-[6px] border px-2 py-2 font-mono text-[17px] font-bold transition-opacity hover:opacity-95 disabled:opacity-50 ${
+                predictionBox.highlighted
+                  ? "border-[var(--accent)] bg-[rgba(153,204,0,0.12)] text-[var(--accent)]"
+                  : "border-[var(--border-light)] bg-black text-white"
+              }`}
+              aria-label="Editar pronóstico"
+            >
+              <span>{predictionBox.homeValue === null ? "-" : predictionBox.homeValue}</span>
+              <span className="px-1 text-[11px] text-[var(--text-secondary)]">-</span>
+              <span>{predictionBox.awayValue === null ? "-" : predictionBox.awayValue}</span>
+            </button>
           ) : score ? (
             <ScoreCenter home={score.home} away={score.away} prediction={prediction} />
           ) : null}
@@ -202,8 +232,8 @@ export function MatchCard({
         </div>
 
         {typeof progress === "number" ? (
-          <div className="h-0.5 w-full rounded bg-[var(--bg-surface-elevated)]">
-            <div className="h-0.5 rounded bg-[var(--accent)]" style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} />
+          <div className="h-0.5 w-full rounded-[6px] bg-[var(--bg-surface-elevated)]">
+            <div className="h-0.5 rounded-[6px] bg-[var(--accent)]" style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} />
           </div>
         ) : null}
       </div>

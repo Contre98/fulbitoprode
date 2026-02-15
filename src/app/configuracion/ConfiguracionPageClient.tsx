@@ -278,6 +278,7 @@ export default function ConfiguracionPage() {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(payload?.error || "No se pudo abandonar el grupo.");
       }
+      const payload = (await response.json().catch(() => null)) as { deletedGroup?: boolean } | null;
 
       setInviteByGroupId((prev) => {
         const next = { ...prev };
@@ -290,7 +291,7 @@ export default function ConfiguracionPage() {
         return next;
       });
       await refresh();
-      setMessage("Abandonaste el grupo activo.");
+      setMessage(payload?.deletedGroup ? "El grupo activo fue eliminado." : "Abandonaste el grupo activo.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Error al abandonar grupo.");
     }
@@ -463,7 +464,7 @@ export default function ConfiguracionPage() {
               value={joinCodeOrToken}
               onChange={(event) => setJoinCodeOrToken(event.target.value)}
               placeholder="Código o token"
-              className="h-10 w-full rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-surface)] px-3 text-[12px] font-semibold text-white outline-none"
+              className="h-10 w-full rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-surface)] px-3 text-[12px] font-semibold text-white outline-none"
             />
             <button
               type="button"
@@ -506,7 +507,7 @@ export default function ConfiguracionPage() {
                             if (!canEditActiveGroup) return;
                             setEditingGroupName((value) => !value);
                           }}
-                          className="flex h-6 w-6 items-center justify-center rounded-[8px] border border-[var(--border-dim)] bg-[#16181C]"
+                          className="flex h-6 w-6 items-center justify-center rounded-[6px] border border-[var(--border-dim)] bg-[#16181C]"
                           aria-label={`Editar ${membership.groupName}`}
                         >
                           <Pencil size={12} className="text-[#D2D7DF]" />
@@ -514,7 +515,7 @@ export default function ConfiguracionPage() {
                         <button
                           type="button"
                           onClick={() => void leaveActiveGroup()}
-                          className="flex h-6 w-6 items-center justify-center rounded-[8px] border border-[var(--border-dim)] bg-[#16181C]"
+                          className="flex h-6 w-6 items-center justify-center rounded-[6px] border border-[var(--border-dim)] bg-[#16181C]"
                           aria-label={`Salir de ${membership.groupName}`}
                         >
                           <X size={12} className="text-[#FF8A8A]" />
@@ -522,7 +523,7 @@ export default function ConfiguracionPage() {
                         <button
                           type="button"
                           onClick={() => void copyInviteShare(membership.groupId)}
-                          className="flex h-6 w-6 items-center justify-center rounded-[8px] border border-[var(--border-dim)] bg-[#16181C]"
+                          className="flex h-6 w-6 items-center justify-center rounded-[6px] border border-[var(--border-dim)] bg-[#16181C]"
                           aria-label={`Copiar enlace de ${membership.groupName}`}
                         >
                           <Link2 size={12} className="text-[#D2D7DF]" />
@@ -535,7 +536,7 @@ export default function ConfiguracionPage() {
                           onClick={() => {
                             setActiveGroupId(membership.groupId);
                           }}
-                          className="flex h-6 w-6 items-center justify-center rounded-[8px] border border-[var(--border-dim)] bg-[#16181C]"
+                          className="flex h-6 w-6 items-center justify-center rounded-[6px] border border-[var(--border-dim)] bg-[#16181C]"
                           aria-label={`Cambiar a ${membership.groupName}`}
                         >
                           <ExternalLink size={12} className="text-[#FF8A8A]" />
@@ -543,7 +544,7 @@ export default function ConfiguracionPage() {
                         <button
                           type="button"
                           onClick={() => void copyInviteShare(membership.groupId)}
-                          className="flex h-6 w-6 items-center justify-center rounded-[8px] border border-[var(--border-dim)] bg-[#16181C]"
+                          className="flex h-6 w-6 items-center justify-center rounded-[6px] border border-[var(--border-dim)] bg-[#16181C]"
                           aria-label={`Copiar enlace de ${membership.groupName}`}
                         >
                           <Link2 size={12} className="text-[#D2D7DF]" />
@@ -565,7 +566,7 @@ export default function ConfiguracionPage() {
                 type="button"
                 disabled={refreshingInvite || !canRefreshActiveInvite}
                 onClick={() => void refreshInvite()}
-                className="inline-flex h-8 items-center gap-1 rounded-[8px] border border-[var(--border-dim)] bg-[#16181C] px-2 text-[11px] font-semibold text-[var(--text-secondary)] disabled:opacity-60"
+                className="inline-flex h-8 items-center gap-1 rounded-[6px] border border-[var(--border-dim)] bg-[#16181C] px-2 text-[11px] font-semibold text-[var(--text-secondary)] disabled:opacity-60"
               >
                 <RefreshCw size={12} className={refreshingInvite ? "animate-spin" : ""} />
                 {refreshingInvite ? "Regenerando" : "Regenerar"}
@@ -573,19 +574,19 @@ export default function ConfiguracionPage() {
             </div>
 
             {editingGroupName ? (
-              <div className="mb-3 rounded-[8px] border border-[var(--border-dim)] bg-[#111214] p-2.5">
+              <div className="mb-3 rounded-[6px] border border-[var(--border-dim)] bg-[#111214] p-2.5">
                 <p className="mb-2 text-[10px] font-medium text-[var(--text-secondary)]">Editar nombre del grupo</p>
                 <div className="flex gap-2">
                   <input
                     value={groupNameDraft}
                     onChange={(event) => setGroupNameDraft(event.target.value)}
-                    className="h-9 w-full rounded-[8px] border border-[var(--border-light)] bg-[var(--bg-surface)] px-2.5 text-[12px] font-semibold text-white outline-none"
+                    className="h-9 w-full rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-surface)] px-2.5 text-[12px] font-semibold text-white outline-none"
                   />
                   <button
                     type="button"
                     onClick={() => void renameActiveGroup()}
                     disabled={renamingGroup || !groupNameDraft.trim()}
-                    className="h-9 rounded-[8px] bg-[var(--accent)] px-3 text-[11px] font-bold text-black disabled:opacity-60"
+                    className="h-9 rounded-[6px] bg-[var(--accent)] px-3 text-[11px] font-bold text-black disabled:opacity-60"
                   >
                     {renamingGroup ? "Guardando" : "Guardar"}
                   </button>
@@ -598,11 +599,11 @@ export default function ConfiguracionPage() {
               <p className="text-[11px] font-medium text-[var(--text-secondary)]">Cargando invitación...</p>
             ) : activeInvite ? (
               <div className="space-y-2">
-                <div className="rounded-[8px] border border-[var(--border-dim)] bg-[#111214] p-2.5">
+                <div className="rounded-[6px] border border-[var(--border-dim)] bg-[#111214] p-2.5">
                   <p className="text-[10px] font-medium text-[var(--text-secondary)]">Código</p>
                   <p className="mt-1 text-[14px] font-black tracking-[0.8px] text-white">{activeInvite.code}</p>
                 </div>
-                <div className="rounded-[8px] border border-[var(--border-dim)] bg-[#111214] p-2.5">
+                <div className="rounded-[6px] border border-[var(--border-dim)] bg-[#111214] p-2.5">
                   <p className="text-[10px] font-medium text-[var(--text-secondary)]">Token</p>
                   <p className="mt-1 truncate text-[11px] font-semibold text-white">{activeInvite.token}</p>
                 </div>
@@ -614,14 +615,14 @@ export default function ConfiguracionPage() {
                   <button
                     type="button"
                     onClick={() => void copyInviteShare(activeGroupId)}
-                    className="h-9 rounded-[8px] border border-[var(--border-dim)] bg-[#16181C] text-[11px] font-semibold text-[var(--text-secondary)]"
+                    className="h-9 rounded-[6px] border border-[var(--border-dim)] bg-[#16181C] text-[11px] font-semibold text-[var(--text-secondary)]"
                   >
                     Copiar invitación
                   </button>
                   <button
                     type="button"
                     onClick={() => void copyInviteToken(activeGroupId)}
-                    className="h-9 rounded-[8px] border border-[var(--border-dim)] bg-[#16181C] text-[11px] font-semibold text-[var(--text-secondary)]"
+                    className="h-9 rounded-[6px] border border-[var(--border-dim)] bg-[#16181C] text-[11px] font-semibold text-[var(--text-secondary)]"
                   >
                     Copiar token
                   </button>
@@ -632,7 +633,7 @@ export default function ConfiguracionPage() {
                       await navigator.clipboard.writeText(activeInvite.code);
                       setMessage("Código copiado.");
                     }}
-                    className="h-9 rounded-[8px] border border-[var(--border-dim)] bg-[#16181C] text-[11px] font-semibold text-[var(--text-secondary)]"
+                    className="h-9 rounded-[6px] border border-[var(--border-dim)] bg-[#16181C] text-[11px] font-semibold text-[var(--text-secondary)]"
                   >
                     Copiar código
                   </button>

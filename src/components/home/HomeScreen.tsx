@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/layout/AppShell";
 import { TopHeader } from "@/components/layout/TopHeader";
 import { GroupCardCarousel } from "@/components/home/GroupCardCarousel";
 import { FixtureDateCard } from "@/components/fixture/FixtureDateCard";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { useAuthSession } from "@/lib/use-auth-session";
+import { usePageBenchmark } from "@/lib/use-page-benchmark";
 import type { FixtureDateCard as FixtureDateCardType, GroupCard } from "@/lib/types";
 
 interface HomePayload {
@@ -21,7 +22,9 @@ export function HomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [groupCards, setGroupCards] = useState<GroupCard[]>([]);
   const [liveCards, setLiveCards] = useState<FixtureDateCardType[]>([]);
+  const homeCacheRef = useRef<Map<string, HomePayload>>(new Map());
   const { user, memberships, activeGroupId, setActiveGroupId } = useAuthSession();
+  usePageBenchmark("home", loading);
 
   useEffect(() => {
     if (memberships.length === 0) {
@@ -32,6 +35,14 @@ export function HomeScreen() {
     }
 
     const targetGroupId = activeGroupId || memberships[0].groupId;
+    const cached = homeCacheRef.current.get(targetGroupId);
+    if (cached) {
+      setError(null);
+      setLoading(false);
+      setGroupCards(cached.groupCards);
+      setLiveCards(cached.liveCards);
+      return;
+    }
     let cancelled = false;
 
     async function load() {
@@ -53,6 +64,7 @@ export function HomeScreen() {
           return;
         }
 
+        homeCacheRef.current.set(targetGroupId, payload);
         setGroupCards(payload.groupCards);
         setLiveCards(payload.liveCards);
       } catch (fetchError) {
@@ -90,10 +102,10 @@ export function HomeScreen() {
         <div className="h-px w-full bg-[var(--bg-surface)]" />
 
         {memberships.length === 0 ? (
-          <div className="rounded-[10px] border border-[var(--border-dim)] bg-[#0b0b0d] p-4">
+          <div className="rounded-[6px] border border-[var(--border-dim)] bg-[#0b0b0d] p-4">
             <p className="text-[13px] font-semibold text-white">No tenés grupos activos.</p>
             <p className="mt-1 text-[11px] text-[var(--text-secondary)]">Creá o uníte a un grupo para empezar.</p>
-            <Link href="/configuracion" className="mt-3 inline-flex rounded-[8px] bg-[var(--accent)] px-3 py-1.5 text-[11px] font-bold text-black">
+            <Link href="/configuracion" className="mt-3 inline-flex rounded-[6px] bg-[var(--accent)] px-3 py-1.5 text-[11px] font-bold text-black">
               Ir a grupos
             </Link>
           </div>
@@ -102,7 +114,7 @@ export function HomeScreen() {
         {memberships.length > 0 ? (
           <div className={`space-y-[10px] transition-opacity ${loading ? "opacity-70" : "opacity-100"}`}>
             {loading
-              ? Array.from({ length: 3 }).map((_, index) => (
+              ? Array.from({ length: 6 }).map((_, index) => (
                   <SkeletonBlock key={`home-skeleton-${index}`} className="h-[132px] w-full" />
                 ))
               : liveCards.map((card) => <FixtureDateCard key={card.dateLabel} card={card} />)}

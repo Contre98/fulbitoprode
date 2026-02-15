@@ -12,7 +12,8 @@
     "test:run": "vitest run",
     "validate:release": "bash scripts/release/validate-release.sh --skip-install",
     "validate:release:full": "bash scripts/release/validate-release.sh",
-    "smoke:private": "bash scripts/release/private-smoke.sh"
+    "smoke:private": "bash scripts/release/private-smoke.sh",
+    "benchmark:private": "bash scripts/perf/benchmark-private.sh"
   },
   "dependencies": {
     "framer-motion": "^12.0.0",

@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LockKeyhole, Mail, UserRound } from "lucide-react";
+import { useAuthSession } from "@/lib/use-auth-session";
 
 export default function AuthPage() {
   const router = useRouter();
+  const { refresh } = useAuthSession();
   const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
@@ -34,6 +36,7 @@ export default function AuthPage() {
         throw new Error(payload?.error || "No se pudo autenticar.");
       }
 
+      await refresh();
       router.replace("/pronosticos");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Error de autenticación");
@@ -46,18 +49,18 @@ export default function AuthPage() {
     <main className="relative mx-auto flex h-dvh w-full max-w-[469px] flex-col overflow-hidden bg-[radial-gradient(circle_at_20%_0%,#1f3a2a_0%,#0b0b0d_55%,#060607_100%)] px-5 py-7 text-white">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[linear-gradient(180deg,rgba(204,255,0,0.14)_0%,rgba(204,255,0,0)_100%)]" />
 
-      <section className="relative z-10 mb-6 rounded-[18px] border border-[#2a2f1f] bg-[#0f120f]/95 p-5 shadow-[0_16px_40px_rgba(0,0,0,0.35)]">
+      <section className="relative z-10 mb-6 rounded-[6px] border border-[#2a2f1f] bg-[#0f120f]/95 p-5 shadow-[0_16px_40px_rgba(0,0,0,0.35)]">
         <p className="text-[11px] font-semibold tracking-[1.2px] text-[var(--accent)]">FULBITO PRODE</p>
         <h1 className="mt-2 text-[29px] font-black leading-[1.05]">Entrá y jugá tu fecha.</h1>
         <p className="mt-2 text-[12px] text-[var(--text-secondary)]">Elegí resultados, competí con tu grupo y seguí la tabla en vivo.</p>
       </section>
 
-      <section className="relative z-10 flex-1 rounded-[18px] border border-[var(--border-dim)] bg-[#0b0b0d]/95 p-4">
-        <div className="grid grid-cols-2 gap-2 rounded-[12px] border border-[var(--border-dim)] bg-[#111316] p-1">
+      <section className="relative z-10 flex-1 rounded-[6px] border border-[var(--border-dim)] bg-[#0b0b0d]/95 p-4">
+        <div className="grid grid-cols-2 gap-2 rounded-[6px] border border-[var(--border-dim)] bg-[#111316] p-1">
           <button
             type="button"
             onClick={() => setMode("login")}
-            className={`h-10 rounded-[9px] text-[12px] font-bold transition-colors ${
+            className={`h-10 rounded-[6px] text-[12px] font-bold transition-colors ${
               mode === "login"
                 ? "bg-[var(--accent)] text-black"
                 : "bg-transparent text-[var(--text-secondary)]"
@@ -68,7 +71,7 @@ export default function AuthPage() {
           <button
             type="button"
             onClick={() => setMode("register")}
-            className={`h-10 rounded-[9px] text-[12px] font-bold transition-colors ${
+            className={`h-10 rounded-[6px] text-[12px] font-bold transition-colors ${
               mode === "register"
                 ? "bg-[var(--accent)] text-black"
                 : "bg-transparent text-[var(--text-secondary)]"
@@ -80,7 +83,7 @@ export default function AuthPage() {
 
         <div className="mt-4 flex flex-col gap-3">
           {mode === "register" ? (
-            <label className="flex items-center gap-2 rounded-[11px] border border-[var(--border-light)] bg-[#121417] px-3">
+            <label className="flex items-center gap-2 rounded-[6px] border border-[var(--border-light)] bg-[#121417] px-3">
               <UserRound size={16} className="text-[var(--text-secondary)]" />
               <input
                 value={name}
@@ -91,7 +94,7 @@ export default function AuthPage() {
             </label>
           ) : null}
 
-          <label className="flex items-center gap-2 rounded-[11px] border border-[var(--border-light)] bg-[#121417] px-3">
+          <label className="flex items-center gap-2 rounded-[6px] border border-[var(--border-light)] bg-[#121417] px-3">
             <Mail size={16} className="text-[var(--text-secondary)]" />
             <input
               value={email}
@@ -102,7 +105,7 @@ export default function AuthPage() {
             />
           </label>
 
-          <label className="flex items-center gap-2 rounded-[11px] border border-[var(--border-light)] bg-[#121417] px-3">
+          <label className="flex items-center gap-2 rounded-[6px] border border-[var(--border-light)] bg-[#121417] px-3">
             <LockKeyhole size={16} className="text-[var(--text-secondary)]" />
             <input
               value={password}
@@ -118,7 +121,7 @@ export default function AuthPage() {
           type="button"
           disabled={loading || !email || !password || (mode === "register" && !name.trim())}
           onClick={submit}
-          className="mt-4 h-11 w-full rounded-[11px] bg-[var(--accent)] text-[13px] font-black text-black disabled:opacity-60"
+          className="mt-4 h-11 w-full rounded-[6px] bg-[var(--accent)] text-[13px] font-black text-black disabled:opacity-60"
         >
           {loading ? "Procesando..." : mode === "login" ? "Ingresar" : "Crear cuenta"}
         </button>

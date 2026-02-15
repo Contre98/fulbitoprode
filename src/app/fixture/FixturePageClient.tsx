@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
@@ -10,6 +10,7 @@ import { CurrentSelectionSelector } from "@/components/home/CurrentSelectionSele
 import { FixtureDateCard } from "@/components/fixture/FixtureDateCard";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { useAuthSession } from "@/lib/use-auth-session";
+import { usePageBenchmark } from "@/lib/use-page-benchmark";
 import type { FechasPayload, FixtureDateCard as FixtureDateCardType, FixturePayload, SelectionOption } from "@/lib/types";
 
 interface FechaOption {
@@ -25,7 +26,9 @@ export default function FixturePage() {
   const [cards, setCards] = useState<FixtureDateCardType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const fixtureCacheRef = useRef<Map<string, FixturePayload>>(new Map());
   const { loading: authLoading, authenticated, user, memberships, activeGroupId, setActiveGroupId } = useAuthSession();
+  usePageBenchmark("fixture", loading);
 
   const selectionOptions = useMemo<SelectionOption[]>(
     () =>
@@ -115,6 +118,15 @@ export default function FixturePage() {
       return;
     }
     const groupId = activeSelection.groupId;
+    const cacheKey = `${groupId}:${period}`;
+    const cached = fixtureCacheRef.current.get(cacheKey);
+    if (cached) {
+      setError(null);
+      setLoading(false);
+      setPeriodLabel(cached.periodLabel || period);
+      setCards(cached.cards);
+      return;
+    }
 
     let cancelled = false;
 
@@ -138,6 +150,7 @@ export default function FixturePage() {
         const payload = (await response.json()) as FixturePayload;
 
         if (!cancelled) {
+          fixtureCacheRef.current.set(cacheKey, payload);
           setPeriodLabel(payload.periodLabel || period);
           setCards(payload.cards);
         }
@@ -166,10 +179,10 @@ export default function FixturePage() {
 
       <section className="flex flex-col gap-3 px-5 pt-[10px]">
         {memberships.length === 0 ? (
-          <div className="rounded-[10px] border border-[var(--border-dim)] bg-[#0b0b0d] p-4">
+          <div className="rounded-[6px] border border-[var(--border-dim)] bg-[#0b0b0d] p-4">
             <p className="text-[13px] font-semibold text-white">No tenés grupos activos.</p>
             <p className="mt-1 text-[11px] text-[var(--text-secondary)]">Creá o uníte a un grupo para ver el fixture.</p>
-            <Link href="/configuracion" className="mt-3 inline-flex rounded-[8px] bg-[var(--accent)] px-3 py-1.5 text-[11px] font-bold text-black">
+            <Link href="/configuracion" className="mt-3 inline-flex rounded-[6px] bg-[var(--accent)] px-3 py-1.5 text-[11px] font-bold text-black">
               Ir a grupos
             </Link>
           </div>

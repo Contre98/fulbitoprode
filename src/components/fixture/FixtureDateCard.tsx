@@ -35,7 +35,7 @@ export function FixtureDateCard({ card }: FixtureDateCardProps) {
 
   return (
     <article
-      className={`w-full rounded-md border px-2 pt-[6px] pb-[14px] ${
+      className={`w-full rounded-[6px] border px-2 pt-[6px] pb-[14px] ${
         isLiveAccent ? "border-[#324429] bg-[#0b0d09]" : "border-[#4c4c55] bg-[#0b0b0d]"
       }`}
     >

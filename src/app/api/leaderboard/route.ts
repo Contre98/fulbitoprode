@@ -1,17 +1,40 @@
 import { NextResponse } from "next/server";
-import { calculatePredictionPoints } from "@/lib/scoring";
-import { fetchAvailableFechas, fetchLigaArgentinaFixtures, formatRoundLabel, mapFixturesToPronosticosMatches } from "@/lib/liga-live-provider";
+import { fetchAvailableFechas, fetchLigaArgentinaFixtures, fetchLigaArgentinaStandings, formatRoundLabel, mapFixturesToPronosticosMatches } from "@/lib/liga-live-provider";
 import { listGroupMembers, listGroupPredictions, listGroupsForUser } from "@/lib/m3-repo";
 import { getSessionPocketBaseTokenFromRequest, getSessionUserIdFromRequest } from "@/lib/request-auth";
-import type { LeaderboardMode, LeaderboardPayload, LeaderboardPeriod, LeaderboardRow, MatchCardData, MatchPeriod } from "@/lib/types";
+import { calculatePredictionPoints } from "@/lib/scoring";
+import type {
+  LeaderboardGroupStats,
+  LeaderboardMode,
+  LeaderboardPayload,
+  LeaderboardPeriod,
+  LeaderboardRow,
+  MatchCardData,
+  MatchPeriod
+} from "@/lib/types";
 
 const LEADERBOARD_SCOREMAP_TTL_MS = 120_000;
-const leaderboardScoreMapCache = new Map<string, { expiresAt: number; scoreMap: Map<string, { home: number; away: number }> }>();
+const leaderboardScoreMapCache = new Map<
+  string,
+  {
+    expiresAt: number;
+    scoreMap: Map<string, { home: number; away: number }>;
+    scoreMapByPeriod: Map<string, Map<string, { home: number; away: number }>>;
+  }
+>();
 
 function cloneScoreMap(source: Map<string, { home: number; away: number }>) {
   const next = new Map<string, { home: number; away: number }>();
   source.forEach((value, key) => {
     next.set(key, { home: value.home, away: value.away });
+  });
+  return next;
+}
+
+function cloneScoreMapByPeriod(source: Map<string, Map<string, { home: number; away: number }>>) {
+  const next = new Map<string, Map<string, { home: number; away: number }>>();
+  source.forEach((scoreMap, period) => {
+    next.set(period, cloneScoreMap(scoreMap));
   });
   return next;
 }
@@ -52,7 +75,7 @@ async function getPeriodMatches(input: {
   return copyMatches(mapFixturesToPronosticosMatches(liveFixtures));
 }
 
-async function buildFixtureScoreMap(input: {
+async function buildFixtureScoreMaps(input: {
   leagueId: number;
   season: string;
   periods: MatchPeriod[];
@@ -62,10 +85,14 @@ async function buildFixtureScoreMap(input: {
   const now = Date.now();
   const cached = leaderboardScoreMapCache.get(cacheKey);
   if (cached && cached.expiresAt > now) {
-    return cloneScoreMap(cached.scoreMap);
+    return {
+      scoreMap: cloneScoreMap(cached.scoreMap),
+      scoreMapByPeriod: cloneScoreMapByPeriod(cached.scoreMapByPeriod)
+    };
   }
 
   const scoreMap = new Map<string, { home: number; away: number }>();
+  const scoreMapByPeriod = new Map<string, Map<string, { home: number; away: number }>>();
 
   for (const period of input.periods) {
     const matches = await getPeriodMatches({
@@ -74,24 +101,35 @@ async function buildFixtureScoreMap(input: {
       period,
       competitionStage: input.competitionStage
     });
+
+    const periodScoreMap = new Map<string, { home: number; away: number }>();
     for (const match of matches) {
       if (!match.score) {
         continue;
       }
 
-      scoreMap.set(match.id, {
+      const score = {
         home: match.score.home,
         away: match.score.away
-      });
+      };
+
+      scoreMap.set(match.id, score);
+      periodScoreMap.set(match.id, score);
     }
+
+    scoreMapByPeriod.set(period, periodScoreMap);
   }
 
   leaderboardScoreMapCache.set(cacheKey, {
     expiresAt: now + LEADERBOARD_SCOREMAP_TTL_MS,
-    scoreMap
+    scoreMap,
+    scoreMapByPeriod
   });
 
-  return scoreMap;
+  return {
+    scoreMap: cloneScoreMap(scoreMap),
+    scoreMapByPeriod: cloneScoreMapByPeriod(scoreMapByPeriod)
+  };
 }
 
 function buildRows(params: {
@@ -197,6 +235,124 @@ function buildRows(params: {
   return toLeaderboardRows(rows);
 }
 
+function buildGroupStats(input: {
+  members: Array<{ userId: string; name: string }>;
+  predictions: Array<{ userId: string; fixtureId: string; period: string; home: number | null; away: number | null }>;
+  scoreMapByPeriod: Map<string, Map<string, { home: number; away: number }>>;
+  standings: Awaited<ReturnType<typeof fetchLigaArgentinaStandings>>;
+}): LeaderboardGroupStats {
+  const memberNameById = new Map<string, string>();
+
+  input.members.forEach((member) => {
+    memberNameById.set(member.userId, member.name);
+  });
+
+  let scoredPredictions = 0;
+  let exactPredictions = 0;
+  let resultPredictions = 0;
+  let missPredictions = 0;
+  let totalPoints = 0;
+
+  const pointsByFechaUser = new Map<string, Map<string, number>>();
+
+  input.predictions.forEach((prediction) => {
+    if (prediction.home === null || prediction.away === null) {
+      return;
+    }
+
+    const periodScoreMap = input.scoreMapByPeriod.get(prediction.period);
+    if (!periodScoreMap) {
+      return;
+    }
+
+    const score = periodScoreMap.get(prediction.fixtureId);
+    if (!score) {
+      return;
+    }
+
+    const points = calculatePredictionPoints(
+      {
+        home: prediction.home,
+        away: prediction.away
+      },
+      score
+    );
+
+    scoredPredictions += 1;
+    totalPoints += points;
+
+    if (!pointsByFechaUser.has(prediction.period)) {
+      pointsByFechaUser.set(prediction.period, new Map<string, number>());
+    }
+    const periodPoints = pointsByFechaUser.get(prediction.period);
+    if (periodPoints) {
+      periodPoints.set(prediction.userId, (periodPoints.get(prediction.userId) || 0) + points);
+    }
+
+    if (points === 3) {
+      exactPredictions += 1;
+      return;
+    }
+
+    if (points === 1) {
+      resultPredictions += 1;
+      return;
+    }
+
+    missPredictions += 1;
+  });
+
+  let bestFecha: LeaderboardGroupStats["bestFecha"] = null;
+
+  pointsByFechaUser.forEach((pointsByUserInPeriod, period) => {
+    pointsByUserInPeriod.forEach((points, userId) => {
+      const userName = memberNameById.get(userId) || `Usuario ${userId.slice(0, 6)}`;
+      const candidate = {
+        period,
+        periodLabel: formatRoundLabel(period),
+        userId,
+        userName,
+        points
+      };
+
+      if (!bestFecha || candidate.points > bestFecha.points || (candidate.points === bestFecha.points && candidate.userName.localeCompare(bestFecha.userName) < 0)) {
+        bestFecha = candidate;
+      }
+    });
+  });
+
+  const memberCount = input.members.length;
+  const correctPredictions = exactPredictions + resultPredictions;
+  const accuracyPct = scoredPredictions > 0 ? Math.round((correctPredictions / scoredPredictions) * 100) : 0;
+  const averageMemberPoints = memberCount > 0 ? Math.round((totalPoints / memberCount) * 10) / 10 : 0;
+
+  const leaderPoints = input.standings?.rows?.length ? Math.max(...input.standings.rows.map((row) => row.points)) : null;
+  const worldBenchmark =
+    leaderPoints && leaderPoints > 0
+      ? {
+          leagueName: input.standings?.leagueName || "Liga",
+          leaderPoints,
+          groupTotalPoints: totalPoints,
+          averageMemberPoints,
+          ratioVsLeaderPct: Math.round((totalPoints / leaderPoints) * 100)
+        }
+      : null;
+
+  return {
+    memberCount,
+    scoredPredictions,
+    correctPredictions,
+    exactPredictions,
+    resultPredictions,
+    missPredictions,
+    accuracyPct,
+    totalPoints,
+    averageMemberPoints,
+    bestFecha,
+    worldBenchmark
+  };
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
 
@@ -221,7 +377,8 @@ export async function GET(request: Request) {
       period,
       periodLabel: period === "global" ? "Global acumulado" : formatRoundLabel(period),
       updatedAt: new Date().toISOString(),
-      rows: []
+      rows: [],
+      groupStats: null
     };
     return NextResponse.json(payload, { status: 200 });
   }
@@ -237,15 +394,19 @@ export async function GET(request: Request) {
   const leagueId = selectedMembership.group.leagueId;
   const season = selectedMembership.group.season;
 
-  const allFechas = await fetchAvailableFechas({
-    leagueId,
-    season,
-    competitionStage: selectedMembership.group.competitionStage
-  });
-  const periods: MatchPeriod[] = period === "global" ? allFechas : [String(period)];
+  let periods: MatchPeriod[] = [];
+  if (period === "global") {
+    periods = await fetchAvailableFechas({
+      leagueId,
+      season,
+      competitionStage: selectedMembership.group.competitionStage
+    });
+  } else {
+    periods = [String(period)];
+  }
 
   try {
-    const [members, predictions, scoreMap] = await Promise.all([
+    const [members, predictions, scoreMaps] = await Promise.all([
       listGroupMembers(groupId, pbToken),
       listGroupPredictions(
         {
@@ -254,7 +415,7 @@ export async function GET(request: Request) {
         },
         pbToken
       ),
-      buildFixtureScoreMap({
+      buildFixtureScoreMaps({
         leagueId,
         season,
         periods,
@@ -262,15 +423,54 @@ export async function GET(request: Request) {
       })
     ]);
 
+    const memberRows = members.map((member) => ({
+      userId: member.userId,
+      name: member.name
+    }));
+
     const rows = buildRows({
       mode,
-      members: members.map((member) => ({
-        userId: member.userId,
-        name: member.name
-      })),
+      members: memberRows,
       predictions,
-      scoreMap
+      scoreMap: scoreMaps.scoreMap
     });
+
+    let groupStats: LeaderboardPayload["groupStats"] = null;
+
+    if (mode === "stats") {
+      const allPredictions =
+        period === "global"
+          ? predictions
+          : await listGroupPredictions(
+              {
+                groupId
+              },
+              pbToken
+            );
+
+      const allPeriods = [...new Set(allPredictions.map((prediction) => prediction.period).filter(Boolean))];
+      const allPeriodScoreMaps =
+        allPeriods.length > 0
+          ? await buildFixtureScoreMaps({
+              leagueId,
+              season,
+              periods: allPeriods,
+              competitionStage: selectedMembership.group.competitionStage
+            })
+          : { scoreMap: new Map<string, { home: number; away: number }>(), scoreMapByPeriod: new Map<string, Map<string, { home: number; away: number }>>() };
+
+      const standings = await fetchLigaArgentinaStandings({
+        leagueId,
+        season
+      });
+
+      groupStats = buildGroupStats({
+        members: memberRows,
+        predictions: allPredictions,
+        scoreMapByPeriod: allPeriodScoreMaps.scoreMapByPeriod,
+        standings
+      });
+    }
 
     const payload: LeaderboardPayload = {
       groupLabel: selectedMembership.group.name,
@@ -278,7 +478,8 @@ export async function GET(request: Request) {
       period,
       periodLabel: period === "global" ? "Global acumulado" : formatRoundLabel(String(period)),
       updatedAt: new Date().toISOString(),
-      rows
+      rows,
+      groupStats
     };
 
     return NextResponse.json(payload, { status: 200 });

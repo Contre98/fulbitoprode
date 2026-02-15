@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Archivo, JetBrains_Mono, Manrope } from "next/font/google";
 import "@/app/globals.css";
+import { AuthSessionProvider } from "@/lib/use-auth-session";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -28,7 +29,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body className={`${manrope.variable} ${jetbrainsMono.variable} ${archivo.variable}`}>{children}</body>
+      <body className={`${manrope.variable} ${jetbrainsMono.variable} ${archivo.variable}`}>
+        <AuthSessionProvider>{children}</AuthSessionProvider>
+      </body>
     </html>
   );
 }

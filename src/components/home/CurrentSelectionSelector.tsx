@@ -19,7 +19,7 @@ export function CurrentSelectionSelector({
       <section className="bg-[var(--bg-body)] pb-2">
         <div className="flex flex-col gap-2 px-5 pt-2 pb-[10px]">
           <p className="pl-[10px] text-[10px] font-bold tracking-[0px] text-[var(--text-muted)]">{caption}</p>
-          <div className="h-[42px] rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-surface)] px-[10px]">
+          <div className="h-[42px] rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-surface)] px-[10px]">
             <div className="flex h-full items-center gap-2 text-[12px] font-semibold text-[var(--text-secondary)]">
               <Trophy size={16} strokeWidth={1.9} className="text-[var(--text-muted)]" />
               Sin grupo activo
@@ -37,7 +37,7 @@ export function CurrentSelectionSelector({
     <section className="bg-[var(--bg-body)] pb-2">
       <div className="flex flex-col gap-2 px-5 pt-2 pb-[10px]">
         <p className="pl-[10px] text-[10px] font-bold tracking-[0px] text-[var(--text-muted)]">{caption}</p>
-        <div className="relative h-[42px] rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-surface)] px-[10px]">
+        <div className="relative h-[42px] rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-surface)] px-[10px]">
           <Trophy size={16} strokeWidth={1.9} className="pointer-events-none absolute top-[12px] left-[10px] text-[var(--accent)]" />
           <select
             value={value}

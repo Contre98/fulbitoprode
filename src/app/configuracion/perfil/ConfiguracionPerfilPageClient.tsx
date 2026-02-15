@@ -79,13 +79,13 @@ export default function ConfiguracionPerfilPage() {
       <section className="flex flex-col gap-3 px-5 pt-[2px] pb-4">
         <Link
           href="/configuracion"
-          className="inline-flex w-fit items-center gap-1 rounded-[8px] border border-[var(--border-dim)] bg-[#111214] px-3 py-1.5 text-[11px] font-semibold text-[var(--text-secondary)]"
+          className="inline-flex w-fit items-center gap-1 rounded-[6px] border border-[var(--border-dim)] bg-[#111214] px-3 py-1.5 text-[11px] font-semibold text-[var(--text-secondary)]"
         >
           <ArrowLeft size={13} />
           Volver
         </Link>
 
-        <div className="rounded-[16px] border border-[var(--border-dim)] bg-[linear-gradient(135deg,#101113,#0b0b0d)] p-4">
+        <div className="rounded-[6px] border border-[var(--border-dim)] bg-[linear-gradient(135deg,#101113,#0b0b0d)] p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 items-center gap-[11px]">
               <div className="flex h-[62px] w-[62px] items-center justify-center rounded-full border border-[var(--border-light)] bg-[var(--bg-surface-elevated)]">
@@ -97,14 +97,14 @@ export default function ConfiguracionPerfilPage() {
               </div>
             </div>
 
-            <span className="hidden items-center gap-1 rounded-[10px] border border-[var(--border-dim)] bg-[#111218] px-[11px] py-[7px] text-[12px] font-semibold text-[var(--text-primary)] sm:inline-flex">
+            <span className="hidden items-center gap-1 rounded-[6px] border border-[var(--border-dim)] bg-[#111218] px-[11px] py-[7px] text-[12px] font-semibold text-[var(--text-primary)] sm:inline-flex">
               <PencilLine size={13} />
               Editable
             </span>
           </div>
         </div>
 
-        <div className="rounded-[16px] border border-[var(--border-dim)] bg-[#0b0b0d] p-4">
+        <div className="rounded-[6px] border border-[var(--border-dim)] bg-[#0b0b0d] p-4">
           <h2 className="text-[15px] font-bold text-white">Datos y preferencias</h2>
 
           <div className="mt-3 flex flex-col gap-2">
@@ -114,7 +114,7 @@ export default function ConfiguracionPerfilPage() {
                 value={name}
                 onChange={(event) => setName(event.target.value)}
                 maxLength={120}
-                className="h-11 rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-surface)] px-3 text-[13px] font-semibold text-white outline-none"
+                className="h-11 rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-surface)] px-3 text-[13px] font-semibold text-white outline-none"
               />
             </label>
 
@@ -123,7 +123,7 @@ export default function ConfiguracionPerfilPage() {
               <input
                 value={user?.email || ""}
                 readOnly
-                className="h-11 rounded-[10px] border border-[var(--border-dim)] bg-[#111214] px-3 text-[13px] font-semibold text-[var(--text-secondary)] outline-none"
+                className="h-11 rounded-[6px] border border-[var(--border-dim)] bg-[#111214] px-3 text-[13px] font-semibold text-[var(--text-secondary)] outline-none"
               />
             </label>
 
@@ -134,7 +134,7 @@ export default function ConfiguracionPerfilPage() {
                 onChange={(event) => setFavoriteTeam(event.target.value)}
                 maxLength={120}
                 placeholder="Boca Juniors"
-                className="h-11 rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-surface)] px-3 text-[13px] font-semibold text-white outline-none"
+                className="h-11 rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-surface)] px-3 text-[13px] font-semibold text-white outline-none"
               />
             </label>
           </div>
@@ -146,7 +146,7 @@ export default function ConfiguracionPerfilPage() {
               type="button"
               onClick={saveProfile}
               disabled={saving || loading}
-              className="h-12 rounded-[12px] bg-[var(--accent)] text-[15px] font-black text-[var(--bg-body)] disabled:opacity-60"
+              className="h-12 rounded-[6px] bg-[var(--accent)] text-[15px] font-black text-[var(--bg-body)] disabled:opacity-60"
             >
               {saving ? "Guardando..." : "Guardar cambios"}
             </button>
@@ -155,7 +155,7 @@ export default function ConfiguracionPerfilPage() {
               type="button"
               onClick={logout}
               disabled={loggingOut}
-              className="h-12 rounded-[12px] border border-[var(--border-dim)] bg-[#111214] text-[15px] font-semibold text-[var(--text-secondary)] disabled:opacity-60"
+              className="h-12 rounded-[6px] border border-[var(--border-dim)] bg-[#111214] text-[15px] font-semibold text-[var(--text-secondary)] disabled:opacity-60"
             >
               {loggingOut ? "Cerrando..." : "Cerrar sesión"}
             </button>

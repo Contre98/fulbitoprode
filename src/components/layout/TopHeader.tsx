@@ -1,5 +1,4 @@
 import { Bell, Sun, UserRound } from "lucide-react";
-import { LiveDataStatusBadge } from "@/components/layout/LiveDataStatusBadge";
 
 interface TopHeaderProps {
   title: string;
@@ -20,7 +19,6 @@ export function TopHeader({ title, userLabel = "USER" }: TopHeaderProps) {
       </div>
 
       <div className="flex items-center gap-3 pr-[12px] text-[var(--text-secondary)]">
-        <LiveDataStatusBadge />
         <button type="button" aria-label="Cambiar tema" className="transition-opacity hover:opacity-90">
           <Sun size={20} strokeWidth={1.9} />
         </button>

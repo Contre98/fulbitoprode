@@ -38,22 +38,24 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const fechas = await fetchAvailableFechas({
-    leagueId: selected.group.leagueId,
-    season: selected.group.season,
-    competitionStage: selected.group.competitionStage
-  });
-
-  const period =
-    requestedPeriod ||
-    (await resolveDefaultFecha({
+  let period = requestedPeriod || "";
+  if (!period) {
+    const fechas = await fetchAvailableFechas({
       leagueId: selected.group.leagueId,
       season: selected.group.season,
-      competitionStage: selected.group.competitionStage,
-      fechas
-    })) ||
-    fechas[0] ||
-    "";
+      competitionStage: selected.group.competitionStage
+    });
+
+    period =
+      (await resolveDefaultFecha({
+        leagueId: selected.group.leagueId,
+        season: selected.group.season,
+        competitionStage: selected.group.competitionStage,
+        fechas
+      })) ||
+      fechas[0] ||
+      "";
+  }
   if (!period) {
     const payload: FixturePayload = {
       period: "",
