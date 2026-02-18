@@ -9,7 +9,7 @@ import {
 } from "@/lib/liga-live-provider";
 import { listGroupMembersForGroups, listGroupPredictionsForGroups, listGroupsForUser } from "@/lib/m3-repo";
 import { getSessionPocketBaseTokenFromRequest, getSessionUserIdFromRequest } from "@/lib/request-auth";
-import type { FixtureDateCard, GroupCard } from "@/lib/types";
+import type { GroupCard, HomePayload } from "@/lib/types";
 
 const HOME_SCOREMAP_TTL_MS = 120_000;
 const homeScoreMapCache = new Map<string, { expiresAt: number; scoreMap: Map<string, { home: number; away: number }> }>();
@@ -141,14 +141,19 @@ export async function GET(request: Request) {
 
   const memberships = await listGroupsForUser(userId, pbToken);
   if (memberships.length === 0) {
-    return NextResponse.json(
-      {
-        groupCards: [] as GroupCard[],
-        liveCards: [] as FixtureDateCard[],
-        updatedAt: new Date().toISOString()
-      },
-      { status: 200 }
-    );
+    const emptyPayload: HomePayload = {
+      groupCards: [] as GroupCard[],
+      liveCards: [],
+      updatedAt: new Date().toISOString(),
+      summary: {
+        pendingPredictions: 0,
+        liveMatches: 0,
+        myRank: undefined,
+        myPoints: 0
+      }
+    };
+
+    return NextResponse.json(emptyPayload, { status: 200 });
   }
 
   const selected =
@@ -180,6 +185,7 @@ export async function GET(request: Request) {
     : [];
 
   const liveCards = mapFixturesToHomeUpcomingMatches(liveFixtures);
+  const selectedPeriodMatches = mapFixturesToPronosticosMatches(liveFixtures);
 
   const groupIds = memberships.map(({ group }) => group.id);
   const competitions = new Map<
@@ -263,12 +269,39 @@ export async function GET(request: Request) {
     // Keep a stable visual order so horizontal swipe doesn't jump when active group changes.
     .sort((a, b) => a.title.localeCompare(b.title));
 
-  return NextResponse.json(
-    {
-      groupCards,
-      liveCards,
-      updatedAt: new Date().toISOString()
-    },
-    { status: 200 }
-  );
+  const selectedPredictions = predictionsByGroup[selected.group.id] || [];
+  const selectedPredictionByFixture = new Map<string, { home: number | null; away: number | null }>();
+  selectedPredictions.forEach((prediction) => {
+    if (!selectedPredictionByFixture.has(prediction.fixtureId)) {
+      selectedPredictionByFixture.set(prediction.fixtureId, {
+        home: prediction.home,
+        away: prediction.away
+      });
+    }
+  });
+
+  const pendingPredictions = selectedPeriodMatches
+    .filter((match) => match.status === "upcoming")
+    .filter((match) => {
+      const prediction = selectedPredictionByFixture.get(match.id);
+      return !(prediction && prediction.home !== null && prediction.away !== null);
+    }).length;
+
+  const selectedCard = groupCards.find((card) => card.id === selected.group.id);
+  const parsedRank = selectedCard?.rank ? Number(selectedCard.rank.replace(/[^0-9]/g, "")) : null;
+  const parsedPoints = selectedCard?.points ? Number(selectedCard.points) : null;
+
+  const payload: HomePayload = {
+    groupCards,
+    liveCards,
+    updatedAt: new Date().toISOString(),
+    summary: {
+      pendingPredictions,
+      liveMatches: selectedPeriodMatches.filter((match) => match.status === "live").length,
+      myRank: parsedRank && Number.isFinite(parsedRank) ? parsedRank : undefined,
+      myPoints: parsedPoints && Number.isFinite(parsedPoints) ? parsedPoints : 0
+    }
+  };
+
+  return NextResponse.json(payload, { status: 200 });
 }

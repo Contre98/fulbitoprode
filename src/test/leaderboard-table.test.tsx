@@ -17,7 +17,7 @@ describe("LeaderboardTable", () => {
     expect(screen.getByText("Pred")).toBeInTheDocument();
     expect(screen.getByText("EX/RE/NA")).toBeInTheDocument();
     expect(screen.getByText("Pts")).toBeInTheDocument();
-    expect(screen.getByText("Los Pibes FC")).toBeInTheDocument();
+    expect(screen.getAllByText("Los Pibes FC").length).toBeGreaterThan(0);
     expect(screen.getByTestId("leaderboard-highlight-icon")).toBeInTheDocument();
   });
 });

@@ -1,36 +1,36 @@
 export const designTokens = {
   accent: "#ccff00",
-  accentDim: "#1a2600",
-  bgBody: "#09090b",
-  bgSurface: "#18181b",
-  bgSurfaceElevated: "#27272a",
-  borderDim: "#27272a",
-  borderLight: "#3f3f46",
-  textPrimary: "#e4e4e7",
-  textSecondary: "#a1a1aa",
-  textMuted: "#71717a",
-  textTertiary: "#52525b"
+  accentDim: "rgba(204,255,0,0.2)",
+  bgBody: "#050507",
+  bgSurface: "#0b0c0f",
+  bgSurfaceElevated: "#13161c",
+  borderDim: "#262b34",
+  borderLight: "#37404f",
+  textPrimary: "#f4f6fa",
+  textSecondary: "#a8b0bd",
+  textMuted: "#7f8998",
+  textTertiary: "#7f8998"
 } as const;
 
 export const pointsToneColors = {
   positive: {
-    badgeBg: "#151d10",
-    badgeBorder: "#304122",
-    text: designTokens.accent
+    badgeBg: "rgba(116,226,122,0.16)",
+    badgeBorder: "rgba(116,226,122,0.44)",
+    text: "var(--success)"
   },
   warning: {
-    badgeBg: "#242207",
-    badgeBorder: "#403c21",
-    text: "#ffb309"
+    badgeBg: "rgba(255,180,84,0.16)",
+    badgeBorder: "rgba(255,180,84,0.44)",
+    text: "var(--warning)"
   },
   danger: {
-    badgeBg: "#1c0f0f",
-    badgeBorder: "#a03b3b",
-    text: "#f33636"
+    badgeBg: "rgba(255,107,125,0.16)",
+    badgeBorder: "rgba(255,107,125,0.44)",
+    text: "var(--danger)"
   },
   neutral: {
-    badgeBg: "#18181b",
-    badgeBorder: "#3f3f46",
-    text: "#a1a1aa"
+    badgeBg: "var(--bg-surface-2)",
+    badgeBorder: "var(--border-subtle)",
+    text: "var(--text-secondary)"
   }
 } as const;

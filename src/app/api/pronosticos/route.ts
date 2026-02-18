@@ -200,9 +200,12 @@ export async function POST(request: Request) {
     if (!match || match.status !== "upcoming") {
       return NextResponse.json({ error: "Invalid upcoming match id." }, { status: 400 });
     }
+    if (match.isLocked) {
+      return NextResponse.json({ error: "Prediction window closed for this match." }, { status: 409 });
+    }
 
-    const home = typeof body.home === "number" ? Math.max(0, Math.min(99, body.home)) : null;
-    const away = typeof body.away === "number" ? Math.max(0, Math.min(99, body.away)) : null;
+    const home = typeof body.home === "number" ? Math.max(0, Math.min(20, body.home)) : null;
+    const away = typeof body.away === "number" ? Math.max(0, Math.min(20, body.away)) : null;
 
     const nextValue: PredictionValue = { home, away };
     await upsertPrediction(

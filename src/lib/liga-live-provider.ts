@@ -689,6 +689,12 @@ function formatLiveLabel(fixture: LiveFixture) {
   return `EN VIVO · ${elapsed}' ${secondHalf ? "ST" : "PT"}`;
 }
 
+function formatLiveCompactLabel(fixture: LiveFixture) {
+  const elapsed = fixture.elapsed ?? 0;
+  const secondHalf = fixture.statusShort === "2H" || fixture.statusShort === "ET" || elapsed > 45;
+  return `${secondHalf ? "ST" : "PT"} ${elapsed}'`;
+}
+
 function toProgress(elapsed: number | null) {
   if (elapsed === null) return 50;
   const progress = Math.round((elapsed / 90) * 100);
@@ -1261,21 +1267,28 @@ export async function fetchLigaArgentinaStandings(input?: { leagueId?: number | 
 export function mapFixturesToPronosticosMatches(fixtures: LiveFixture[]): MatchCardData[] {
   const config = parseLiveProviderConfig();
   const timezone = config?.timezone ?? "America/Argentina/Buenos_Aires";
+  const now = Date.now();
 
   const mapped = fixtures.map((fixture) => {
     const status = classifyFixtureStatus(fixture.statusShort);
+    const kickoffMs = new Date(fixture.kickoffAt).getTime();
+    const isLocked = status === "upcoming" && Number.isFinite(kickoffMs) ? kickoffMs <= now : false;
     const card: MatchCardData = {
       id: fixture.id,
       status,
       homeTeam: { code: formatTeamCode(fixture.homeName), logoUrl: fixture.homeLogoUrl },
       awayTeam: { code: formatTeamCode(fixture.awayName), logoUrl: fixture.awayLogoUrl },
+      kickoffAt: fixture.kickoffAt,
+      deadlineAt: status === "upcoming" ? fixture.kickoffAt : undefined,
+      isLocked,
       meta: {
         label:
           status === "live"
             ? formatLiveLabel(fixture)
             : status === "final"
               ? "FINALIZADO"
-              : formatKickoffLabel(fixture.kickoffAt, timezone)
+              : `${isLocked ? "CERRADO · " : ""}${formatKickoffLabel(fixture.kickoffAt, timezone)}`,
+        venue: fixture.venue || undefined
       }
     };
 
@@ -1305,6 +1318,7 @@ export function mapFixturesToPronosticosMatches(fixtures: LiveFixture[]): MatchC
 export function mapFixturesToFixtureCards(fixtures: LiveFixture[]): FixtureDateCard[] {
   const config = parseLiveProviderConfig();
   const timezone = config?.timezone ?? "America/Argentina/Buenos_Aires";
+  const now = Date.now();
 
   const grouped = new Map<
     string,
@@ -1330,7 +1344,13 @@ export function mapFixturesToFixtureCards(fixtures: LiveFixture[]): FixtureDateC
     if (!entry) return;
 
     const tone: FixtureMatchRow["tone"] =
-      status === "live" ? "live" : status === "final" ? "final" : "upcoming";
+      status === "live"
+        ? "live"
+        : status === "final"
+          ? "final"
+          : new Date(fixture.kickoffAt).getTime() - now <= 90 * 60 * 1000
+            ? "warning"
+            : "upcoming";
 
     const scoreLabel =
       status === "live"
@@ -1345,7 +1365,10 @@ export function mapFixturesToFixtureCards(fixtures: LiveFixture[]): FixtureDateC
       homeLogoUrl: fixture.homeLogoUrl,
       awayLogoUrl: fixture.awayLogoUrl,
       scoreLabel,
-      tone
+      tone,
+      kickoffAt: fixture.kickoffAt,
+      venue: fixture.venue || undefined,
+      statusDetail: status === "live" ? formatLiveCompactLabel(fixture) : fixture.statusLong || undefined
     });
   });
 
@@ -1363,9 +1386,22 @@ export function mapFixturesToHomeLiveMatches(fixtures: LiveFixture[]): MatchCard
 }
 
 export function mapFixturesToHomeUpcomingMatches(fixtures: LiveFixture[]): FixtureDateCard[] {
-  const limitedFixtures = sortByKickoff(fixtures)
-    .filter((fixture) => classifyFixtureStatus(fixture.statusShort) !== "final")
-    .slice(0, 6);
+  const statusOrder: Record<MatchStatus, number> = {
+    upcoming: 0,
+    live: 1,
+    final: 2
+  };
+
+  const limitedFixtures = [...fixtures]
+    .sort((a, b) => {
+      const statusDiff = statusOrder[classifyFixtureStatus(a.statusShort)] - statusOrder[classifyFixtureStatus(b.statusShort)];
+      if (statusDiff !== 0) {
+        return statusDiff;
+      }
+
+      return new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime();
+    })
+    .slice(0, 8);
 
   return mapFixturesToFixtureCards(limitedFixtures);
 }

@@ -43,6 +43,7 @@ export async function POST(request: Request) {
           id: user.id,
           email: user.email,
           name: user.name,
+          username: user.username ?? null,
           favoriteTeam: user.favoriteTeam ?? null
         }
       },

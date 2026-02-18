@@ -22,6 +22,7 @@ interface SessionUser {
   id: string;
   email: string;
   name: string;
+  username?: string | null;
   favoriteTeam?: string | null;
 }
 

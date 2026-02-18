@@ -217,7 +217,9 @@ function buildRows(params: {
         name: entry.name,
         predictions: entry.exact,
         record,
-        points: efficiency
+        points: efficiency,
+        deltaRank: 0,
+        streak: entry.exact
       };
     }
 
@@ -227,7 +229,9 @@ function buildRows(params: {
       name: entry.name,
       predictions: entry.scoredPredictions,
       record,
-      points: entry.points
+      points: entry.points,
+      deltaRank: 0,
+      streak: entry.exact
     };
   });
 

@@ -27,6 +27,7 @@ export interface M3User {
   id: string;
   email: string;
   name: string;
+  username?: string | null;
   favoriteTeam?: string | null;
 }
 
@@ -61,6 +62,7 @@ interface PbAuthRecord {
   id: string;
   email: string;
   name?: string;
+  username?: string;
   favorite_team?: string | null;
 }
 
@@ -69,9 +71,13 @@ interface PbAuthResponse {
   record: PbAuthRecord;
 }
 
-interface ActiveMembershipRecord {
+interface GroupMembershipRecord {
   id: string;
+  group_id: string;
+  user_id: string;
   role: "owner" | "admin" | "member";
+  status: "active" | "removed";
+  joined_at?: string;
 }
 
 function requirePbUrl() {
@@ -155,12 +161,22 @@ function uniqNonEmpty(values: string[]) {
 
 async function getActiveMembership(userId: string, groupId: string, authToken: string) {
   const membershipFilter = encodeURIComponent(`user_id=${q(userId)} && group_id=${q(groupId)} && status='active'`);
-  const membership = await pbRequest<PbListResult<ActiveMembershipRecord>>(
+  const membership = await pbRequest<PbListResult<GroupMembershipRecord>>(
     `/api/collections/group_members/records?perPage=1&filter=${membershipFilter}`,
     { method: "GET" },
     authToken
   );
 
+  return membership.items[0] || null;
+}
+
+async function getGroupMembershipRecord(input: { userId: string; groupId: string }, authToken: string) {
+  const membershipFilter = encodeURIComponent(`user_id=${q(input.userId)} && group_id=${q(input.groupId)} && status='active'`);
+  const membership = await pbRequest<PbListResult<GroupMembershipRecord>>(
+    `/api/collections/group_members/records?perPage=1&filter=${membershipFilter}`,
+    { method: "GET" },
+    authToken
+  );
   return membership.items[0] || null;
 }
 
@@ -189,10 +205,12 @@ function decodeSeasonWithStage(raw: string, leagueId: number) {
 }
 
 function mapUserFromRecord(record: PbAuthRecord): M3User {
+  const fallbackUsername = record.email.split("@")[0] || "jugador";
   return {
     id: record.id,
     email: record.email,
     name: record.name || record.email.split("@")[0] || "Jugador",
+    username: record.username || fallbackUsername,
     favoriteTeam: record.favorite_team ?? null
   };
 }
@@ -247,7 +265,7 @@ export async function registerWithPassword(input: {
 }
 
 export async function getUserById(userId: string, authToken: string) {
-  const record = await pbRequest<{ id: string; email: string; name?: string; favorite_team?: string | null }>(
+  const record = await pbRequest<{ id: string; email: string; name?: string; username?: string; favorite_team?: string | null }>(
     `/api/collections/users/records/${userId}`,
     { method: "GET" },
     authToken
@@ -258,7 +276,7 @@ export async function getUserById(userId: string, authToken: string) {
 
 export async function updateUserProfile(
   userId: string,
-  input: { name?: string | null; favoriteTeam?: string | null },
+  input: { name?: string | null; favoriteTeam?: string | null; username?: string | null; email?: string | null },
   authToken: string
 ) {
   const payload: Record<string, unknown> = {};
@@ -273,11 +291,21 @@ export async function updateUserProfile(
     payload.favorite_team = trimmed || null;
   }
 
+  if (input.username !== undefined) {
+    const trimmed = input.username?.trim() || "";
+    payload.username = trimmed || null;
+  }
+
+  if (input.email !== undefined) {
+    const trimmed = input.email?.trim() || "";
+    payload.email = trimmed || null;
+  }
+
   if (Object.keys(payload).length === 0) {
     return getUserById(userId, authToken);
   }
 
-  const record = await pbRequest<{ id: string; email: string; name?: string; favorite_team?: string | null }>(
+  const record = await pbRequest<{ id: string; email: string; name?: string; username?: string; favorite_team?: string | null }>(
     `/api/collections/users/records/${userId}`,
     {
       method: "PATCH",
@@ -384,6 +412,127 @@ export async function listGroupMembers(groupId: string, authToken: string): Prom
       };
     })
     .filter((row) => Boolean(row.userId));
+}
+
+export async function updateGroupMemberRole(
+  input: {
+    actorUserId: string;
+    groupId: string;
+    targetUserId: string;
+    role: "admin" | "member";
+  },
+  authToken: string
+) {
+  const actorMembership = await getActiveMembership(input.actorUserId, input.groupId, authToken);
+  if (!actorMembership || (actorMembership.role !== "owner" && actorMembership.role !== "admin")) {
+    return { ok: false as const, error: "No tenés permisos para gestionar miembros." };
+  }
+
+  const targetMembership = await getGroupMembershipRecord(
+    { userId: input.targetUserId, groupId: input.groupId },
+    authToken
+  );
+  if (!targetMembership) {
+    return { ok: false as const, error: "El miembro seleccionado no está activo en este grupo." };
+  }
+
+  if (targetMembership.user_id === input.actorUserId && input.role !== "admin") {
+    return { ok: false as const, error: "No podés quitarte permisos desde esta pantalla." };
+  }
+
+  if (targetMembership.role === "owner") {
+    return { ok: false as const, error: "No se puede modificar el rol del owner." };
+  }
+
+  if (actorMembership.role === "admin" && targetMembership.role === "admin" && targetMembership.user_id !== input.actorUserId) {
+    return { ok: false as const, error: "Solo un owner puede modificar a otro admin." };
+  }
+
+  if (targetMembership.role === input.role) {
+    return {
+      ok: true as const,
+      changed: false as const,
+      member: {
+        userId: targetMembership.user_id,
+        role: targetMembership.role
+      }
+    };
+  }
+
+  await pbRequest(
+    `/api/collections/group_members/records/${targetMembership.id}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        group_id: targetMembership.group_id,
+        user_id: targetMembership.user_id,
+        role: input.role,
+        status: targetMembership.status || "active",
+        joined_at: targetMembership.joined_at || new Date().toISOString()
+      })
+    },
+    authToken
+  );
+
+  return {
+    ok: true as const,
+    changed: true as const,
+    member: {
+      userId: targetMembership.user_id,
+      role: input.role
+    }
+  };
+}
+
+export async function removeGroupMember(
+  input: {
+    actorUserId: string;
+    groupId: string;
+    targetUserId: string;
+  },
+  authToken: string
+) {
+  const actorMembership = await getActiveMembership(input.actorUserId, input.groupId, authToken);
+  if (!actorMembership || (actorMembership.role !== "owner" && actorMembership.role !== "admin")) {
+    return { ok: false as const, error: "No tenés permisos para expulsar miembros." };
+  }
+
+  if (input.actorUserId === input.targetUserId) {
+    return { ok: false as const, error: "Usá la opción salir del grupo para abandonar tu membresía." };
+  }
+
+  const targetMembership = await getGroupMembershipRecord(
+    { userId: input.targetUserId, groupId: input.groupId },
+    authToken
+  );
+  if (!targetMembership) {
+    return { ok: false as const, error: "El miembro seleccionado no está activo en este grupo." };
+  }
+
+  if (targetMembership.role === "owner") {
+    return { ok: false as const, error: "No se puede expulsar al owner del grupo." };
+  }
+
+  if (actorMembership.role === "admin" && targetMembership.role === "admin") {
+    return { ok: false as const, error: "Solo un owner puede expulsar a otro admin." };
+  }
+
+  await pbRequest(
+    `/api/collections/group_members/records/${targetMembership.id}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        group_id: targetMembership.group_id,
+        user_id: targetMembership.user_id,
+        role: targetMembership.role,
+        status: "removed",
+        joined_at: targetMembership.joined_at || new Date().toISOString()
+      })
+    },
+    authToken
+  );
+
+  return { ok: true as const };
 }
 
 export async function listGroupMembersForGroups(groupIds: string[], authToken: string): Promise<Record<string, M3GroupMember[]>> {

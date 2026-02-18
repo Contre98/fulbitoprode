@@ -23,6 +23,11 @@ export async function GET(request: Request, context: Params) {
     return NextResponse.json({ error: result.error }, { status: 403 });
   }
 
+  const configuredBase = process.env.NEXT_PUBLIC_APP_URL?.trim() || "";
+  const requestBase = new URL(request.url).origin;
+  const base = (configuredBase || requestBase).replace(/\/$/, "");
+  const inviteUrl = result.invite ? `${base}/configuracion?invite=${encodeURIComponent(result.invite.token)}` : undefined;
+
   return NextResponse.json(
     {
       invite: result.invite
@@ -32,7 +37,8 @@ export async function GET(request: Request, context: Params) {
             expiresAt: new Date(result.invite.expiresAt).toISOString()
           }
         : null,
-      canRefresh: result.canRefresh
+      canRefresh: result.canRefresh,
+      inviteUrl
     },
     { status: 200 }
   );

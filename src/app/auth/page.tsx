@@ -1,9 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { LockKeyhole, Mail, UserRound } from "lucide-react";
 import { useAuthSession } from "@/lib/use-auth-session";
+
+interface FieldErrors {
+  name?: string;
+  email?: string;
+  password?: string;
+}
+
+function validateFields(mode: "login" | "register", name: string, email: string, password: string): FieldErrors {
+  const next: FieldErrors = {};
+  if (mode === "register" && !name.trim()) {
+    next.name = "Ingresá tu nombre.";
+  }
+
+  if (!email.trim()) {
+    next.email = "Ingresá tu email.";
+  } else if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+    next.email = "Email inválido.";
+  }
+
+  if (!password) {
+    next.password = "Ingresá una contraseña.";
+  } else if (mode === "register" && password.length < 8) {
+    next.password = "Mínimo 8 caracteres.";
+  }
+
+  return next;
+}
 
 export default function AuthPage() {
   const router = useRouter();
@@ -14,10 +41,21 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [errors, setErrors] = useState<FieldErrors>({});
+
+  const fieldErrors = useMemo(() => validateFields(mode, name, email, password), [mode, name, email, password]);
+  const canSubmit = Object.keys(fieldErrors).length === 0;
 
   async function submit() {
+    const validation = validateFields(mode, name, email, password);
+    setErrors(validation);
+    if (Object.keys(validation).length > 0) {
+      return;
+    }
+
     setLoading(true);
     setMessage(null);
+
     try {
       const endpoint = mode === "login" ? "/api/auth/login-password" : "/api/auth/register-password";
 
@@ -46,35 +84,35 @@ export default function AuthPage() {
   }
 
   return (
-    <main className="relative mx-auto flex h-dvh w-full max-w-[469px] flex-col overflow-hidden bg-[radial-gradient(circle_at_20%_0%,#1f3a2a_0%,#0b0b0d_55%,#060607_100%)] px-5 py-7 text-white">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[linear-gradient(180deg,rgba(204,255,0,0.14)_0%,rgba(204,255,0,0)_100%)]" />
-
-      <section className="relative z-10 mb-6 rounded-[6px] border border-[#2a2f1f] bg-[#0f120f]/95 p-5 shadow-[0_16px_40px_rgba(0,0,0,0.35)]">
-        <p className="text-[11px] font-semibold tracking-[1.2px] text-[var(--accent)]">FULBITO PRODE</p>
-        <h1 className="mt-2 text-[29px] font-black leading-[1.05]">Entrá y jugá tu fecha.</h1>
-        <p className="mt-2 text-[12px] text-[var(--text-secondary)]">Elegí resultados, competí con tu grupo y seguí la tabla en vivo.</p>
+    <main className="relative mx-auto flex min-h-dvh w-full max-w-[469px] flex-col bg-[radial-gradient(circle_at_5%_0%,rgba(204,255,0,0.14),transparent_40%),var(--bg-app)] px-4 pb-[calc(24px+env(safe-area-inset-bottom,0px))] pt-6 text-[var(--text-primary)]">
+      <section className="rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface-1)] p-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[1.4px] text-[var(--accent-primary)]">FULBITO PRODE</p>
+        <h1 className="mt-2 text-[30px] font-black leading-[1.03]">Entrá y competí en cada fecha.</h1>
+        <p className="mt-2 text-[12px] text-[var(--text-secondary)]">Resultados, ranking en vivo y grupos privados con tus amigos.</p>
       </section>
 
-      <section className="relative z-10 flex-1 rounded-[6px] border border-[var(--border-dim)] bg-[#0b0b0d]/95 p-4">
-        <div className="grid grid-cols-2 gap-2 rounded-[6px] border border-[var(--border-dim)] bg-[#111316] p-1">
+      <section className="mt-3 flex flex-1 flex-col rounded-3xl border border-[var(--border-subtle)] bg-[var(--bg-surface-1)] p-4">
+        <div className="grid grid-cols-2 gap-1 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface-2)] p-1">
           <button
             type="button"
-            onClick={() => setMode("login")}
-            className={`h-10 rounded-[6px] text-[12px] font-bold transition-colors ${
-              mode === "login"
-                ? "bg-[var(--accent)] text-black"
-                : "bg-transparent text-[var(--text-secondary)]"
+            onClick={() => {
+              setMode("login");
+              setErrors({});
+            }}
+            className={`min-h-11 rounded-xl text-[12px] font-bold transition-colors ${
+              mode === "login" ? "bg-[var(--accent-primary)] text-[var(--text-on-accent)]" : "text-[var(--text-secondary)]"
             }`}
           >
             Ingresar
           </button>
           <button
             type="button"
-            onClick={() => setMode("register")}
-            className={`h-10 rounded-[6px] text-[12px] font-bold transition-colors ${
-              mode === "register"
-                ? "bg-[var(--accent)] text-black"
-                : "bg-transparent text-[var(--text-secondary)]"
+            onClick={() => {
+              setMode("register");
+              setErrors({});
+            }}
+            className={`min-h-11 rounded-xl text-[12px] font-bold transition-colors ${
+              mode === "register" ? "bg-[var(--accent-primary)] text-[var(--text-on-accent)]" : "text-[var(--text-secondary)]"
             }`}
           >
             Crear cuenta
@@ -83,50 +121,68 @@ export default function AuthPage() {
 
         <div className="mt-4 flex flex-col gap-3">
           {mode === "register" ? (
-            <label className="flex items-center gap-2 rounded-[6px] border border-[var(--border-light)] bg-[#121417] px-3">
-              <UserRound size={16} className="text-[var(--text-secondary)]" />
-              <input
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                placeholder="Nombre"
-                className="h-11 w-full bg-transparent text-[13px] font-semibold outline-none"
-              />
+            <label className="flex flex-col gap-1">
+              <span className="text-[11px] font-semibold text-[var(--text-secondary)]">Nombre</span>
+              <div className={`flex items-center gap-2 rounded-xl border px-3 ${errors.name ? "border-[var(--danger)]" : "border-[var(--border-subtle)]"} bg-[var(--bg-surface-2)]`}>
+                <UserRound size={16} className="text-[var(--text-secondary)]" />
+                <input
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Nombre"
+                  className="h-12 w-full bg-transparent text-[14px] font-semibold outline-none"
+                />
+              </div>
+              {errors.name ? <span className="text-[11px] text-[var(--danger)]">{errors.name}</span> : null}
             </label>
           ) : null}
 
-          <label className="flex items-center gap-2 rounded-[6px] border border-[var(--border-light)] bg-[#121417] px-3">
-            <Mail size={16} className="text-[var(--text-secondary)]" />
-            <input
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="tu@email.com"
-              type="email"
-              className="h-11 w-full bg-transparent text-[13px] font-semibold outline-none"
-            />
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-semibold text-[var(--text-secondary)]">Email</span>
+            <div className={`flex items-center gap-2 rounded-xl border px-3 ${errors.email ? "border-[var(--danger)]" : "border-[var(--border-subtle)]"} bg-[var(--bg-surface-2)]`}>
+              <Mail size={16} className="text-[var(--text-secondary)]" />
+              <input
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="tu@email.com"
+                type="email"
+                className="h-12 w-full bg-transparent text-[14px] font-semibold outline-none"
+              />
+            </div>
+            {errors.email ? <span className="text-[11px] text-[var(--danger)]">{errors.email}</span> : null}
           </label>
 
-          <label className="flex items-center gap-2 rounded-[6px] border border-[var(--border-light)] bg-[#121417] px-3">
-            <LockKeyhole size={16} className="text-[var(--text-secondary)]" />
-            <input
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="Contraseña"
-              type="password"
-              className="h-11 w-full bg-transparent text-[13px] font-semibold outline-none"
-            />
+          <label className="flex flex-col gap-1">
+            <span className="text-[11px] font-semibold text-[var(--text-secondary)]">Contraseña</span>
+            <div className={`flex items-center gap-2 rounded-xl border px-3 ${errors.password ? "border-[var(--danger)]" : "border-[var(--border-subtle)]"} bg-[var(--bg-surface-2)]`}>
+              <LockKeyhole size={16} className="text-[var(--text-secondary)]" />
+              <input
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Contraseña"
+                type="password"
+                className="h-12 w-full bg-transparent text-[14px] font-semibold outline-none"
+              />
+            </div>
+            {errors.password ? <span className="text-[11px] text-[var(--danger)]">{errors.password}</span> : null}
           </label>
         </div>
 
-        <button
-          type="button"
-          disabled={loading || !email || !password || (mode === "register" && !name.trim())}
-          onClick={submit}
-          className="mt-4 h-11 w-full rounded-[6px] bg-[var(--accent)] text-[13px] font-black text-black disabled:opacity-60"
-        >
-          {loading ? "Procesando..." : mode === "login" ? "Ingresar" : "Crear cuenta"}
-        </button>
+        {message ? (
+          <p className="mt-3 rounded-xl border border-[rgba(255,107,125,0.35)] bg-[rgba(255,107,125,0.12)] px-3 py-2 text-[11px] text-[var(--danger)]">
+            {message}
+          </p>
+        ) : null}
 
-        {message ? <p className="mt-3 text-[11px] text-red-400">{message}</p> : null}
+        <div className="mt-auto pt-4">
+          <button
+            type="button"
+            disabled={loading || !canSubmit}
+            onClick={() => void submit()}
+            className="h-12 w-full rounded-xl bg-[var(--accent-primary)] text-[14px] font-bold text-[var(--text-on-accent)] disabled:opacity-60"
+          >
+            {loading ? "Procesando..." : mode === "login" ? "Ingresar" : "Crear cuenta"}
+          </button>
+        </div>
       </section>
     </main>
   );

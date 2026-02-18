@@ -16,14 +16,12 @@ export function CurrentSelectionSelector({
 }: CurrentSelectionSelectorProps) {
   if (options.length === 0) {
     return (
-      <section className="bg-[var(--bg-body)] pb-2">
-        <div className="flex flex-col gap-2 px-5 pt-2 pb-[10px]">
-          <p className="pl-[10px] text-[10px] font-bold tracking-[0px] text-[var(--text-muted)]">{caption}</p>
-          <div className="h-[42px] rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-surface)] px-[10px]">
-            <div className="flex h-full items-center gap-2 text-[12px] font-semibold text-[var(--text-secondary)]">
-              <Trophy size={16} strokeWidth={1.9} className="text-[var(--text-muted)]" />
-              Sin grupo activo
-            </div>
+      <section className="px-4 pt-2">
+        <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface-1)] p-2.5">
+          <p className="mb-1.5 text-[10px] font-semibold tracking-[1.1px] text-[var(--text-secondary)]">{caption}</p>
+          <div className="flex min-h-11 items-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-2)] px-3 text-[13px] font-semibold text-[var(--text-secondary)]">
+            <Trophy size={15} />
+            Sin grupo activo
           </div>
         </div>
       </section>
@@ -34,15 +32,15 @@ export function CurrentSelectionSelector({
   const value = selected?.groupId || options[0].groupId;
 
   return (
-    <section className="bg-[var(--bg-body)] pb-2">
-      <div className="flex flex-col gap-2 px-5 pt-2 pb-[10px]">
-        <p className="pl-[10px] text-[10px] font-bold tracking-[0px] text-[var(--text-muted)]">{caption}</p>
-        <div className="relative h-[42px] rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-surface)] px-[10px]">
-          <Trophy size={16} strokeWidth={1.9} className="pointer-events-none absolute top-[12px] left-[10px] text-[var(--accent)]" />
+    <section className="px-4 pt-2">
+      <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-surface-1)] p-2.5">
+        <p className="mb-1.5 text-[10px] font-semibold tracking-[1.1px] text-[var(--text-secondary)]">{caption}</p>
+        <div className="relative rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface-2)] px-3">
+          <Trophy size={15} className="pointer-events-none absolute top-[14px] left-3 text-[var(--accent-primary)]" />
           <select
             value={value}
             onChange={(event) => onChange(event.target.value)}
-            className="h-full w-full appearance-none bg-transparent pl-6 pr-8 text-[12px] font-bold text-[#f4f4f5] outline-none"
+            className="h-11 w-full appearance-none bg-transparent pl-6 pr-8 text-[13px] font-semibold text-[var(--text-primary)] outline-none"
             aria-label="Seleccion actual"
           >
             {options.map((option) => (
@@ -51,7 +49,7 @@ export function CurrentSelectionSelector({
               </option>
             ))}
           </select>
-          <ChevronDown size={16} strokeWidth={1.9} className="pointer-events-none absolute top-[12px] right-[10px] text-[var(--text-secondary)]" />
+          <ChevronDown size={16} className="pointer-events-none absolute top-[13px] right-3 text-[var(--text-secondary)]" />
         </div>
       </div>
     </section>
