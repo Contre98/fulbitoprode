@@ -379,7 +379,7 @@ export function HomeScreen() {
 
         <main className="mt-6 space-y-4 no-scrollbar">
           {memberships.length > 0 ? (
-            <div className="-mx-4 flex gap-4 overflow-x-auto px-4 no-scrollbar">
+            <div className="flex gap-4 overflow-x-auto px-4 no-scrollbar">
               {groupCards.map((group) => (
                 <button
                   key={group.id}

@@ -89,7 +89,7 @@ describe("Perfil screen", () => {
     expect(screen.queryByText(/Ranking/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/SELECCIÓN ACTUAL/i)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Estadísticas y actividad" }));
+    fireEvent.click(screen.getByRole("button", { name: "Actividad del perfil" }));
     expect(screen.getByRole("button", { name: "Editar Perfil" })).toBeInTheDocument();
 
     fireEvent.click(screen.getAllByRole("button", { name: "Editar Perfil" })[0]);

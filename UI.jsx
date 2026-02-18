@@ -7,7 +7,7 @@ import {
   Share2, 
   Trash2, 
   Shield, 
-  ShieldAlert,
+  ShieldAlert, 
   MoreVertical, 
   X, 
   Search, 
@@ -50,30 +50,47 @@ import {
   Flame,
   Zap,
   CloudRain,
-  Ruler
+  Ruler,
+  BrainCircuit,
+  MessageSquareQuote,
+  Camera,
+  Mail,
+  AtSign
 } from 'lucide-react';
 
 // --- STYLES ---
 const GlobalStyles = () => (
   <style>{`
-    /* Ocultar scrollbars agresivamente */
+    /* Ocultar scrollbars agresivamente para estética de App nativa */
     ::-webkit-scrollbar {
       width: 0px;
       height: 0px;
-      display: none;
+      display: none !important;
     }
     * {
-      -ms-overflow-style: none; /* IE and Edge */
-      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none !important; /* IE and Edge */
+      scrollbar-width: none !important; /* Firefox */
       -webkit-tap-highlight-color: transparent;
     }
     html, body {
-      overscroll-behavior-y: none; /* Evitar rebote en pull-to-refresh nativo */
+      overscroll-behavior-y: none;
+      scrollbar-gutter: paged;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none !important;
+    }
+    /* Animations for Auth Screen */
+    @keyframes fade-in-up {
+        0% { opacity: 0; transform: translateY(10px); }
+        100% { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in-up {
+        animation: fade-in-up 0.5s ease-out forwards;
     }
   `}</style>
 );
 
-// --- AUXILIARY COMPONENTS (Defined outside App to avoid re-renders/scope issues) ---
+// --- AUXILIARY COMPONENTS ---
 
 const NavIcon = ({ icon, label, isActive, onClick }) => (
   <button 
@@ -88,7 +105,7 @@ const NavIcon = ({ icon, label, isActive, onClick }) => (
 );
 
 const Header = ({ title, subtitle, icon: Icon, onConfigClick, onProfileClick }) => (
-  <header className="px-5 pt-12 pb-6 bg-white shadow-sm rounded-b-3xl z-10 sticky top-0">
+  <header className="px-5 pt-12 pb-6 bg-white shadow-sm rounded-b-3xl z-20 sticky top-0">
     <div className="flex justify-between items-center mb-6">
       <div className="flex items-center gap-2">
         <div className="bg-slate-900 p-1.5 rounded-lg text-lime-400 shadow-sm">
@@ -217,12 +234,207 @@ const PredictionModal = ({ match, tempScores, handleScoreChange, onSave, onCance
     </div>
 );
 
+const EditProfileModal = ({ user, onClose, onSave }) => {
+  const [formData, setFormData] = useState({
+    name: user.name || '',
+    username: user.username || '',
+    email: user.email || '',
+    avatar: user.avatar || 'FC'
+  });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = () => {
+    onSave(formData);
+    onClose();
+  };
+
+  return (
+    <div className="absolute inset-0 z-50 flex items-end justify-center sm:rounded-[32px] overflow-hidden no-scrollbar">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
+      
+      {/* Modal Content */}
+      <div className="bg-white w-full rounded-t-3xl p-6 relative shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[90%] overflow-y-auto no-scrollbar">
+        {/* Drag Handle */}
+        <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6"></div>
+        
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="font-bold text-slate-800 text-lg">Editar Perfil</h3>
+          <button onClick={onClose} className="p-2 bg-slate-50 rounded-full text-slate-400 hover:bg-slate-100 transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Avatar Edit Section */}
+        <div className="flex flex-col items-center mb-8">
+            <div className="relative group cursor-pointer">
+                <div className="w-24 h-24 bg-lime-100 text-lime-600 rounded-full flex items-center justify-center text-3xl font-black border-4 border-white shadow-lg">
+                    {formData.avatar}
+                </div>
+                <button className="absolute bottom-0 right-0 p-2 bg-slate-800 text-white rounded-full shadow-md hover:bg-slate-700 transition-colors border-2 border-white">
+                    <Camera size={14} />
+                </button>
+            </div>
+            <p className="text-xs font-bold text-slate-400 mt-3">Cambiar foto</p>
+        </div>
+
+        {/* Form Fields */}
+        <div className="space-y-4 mb-8">
+            <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 ml-1">Nombre Completo</label>
+                <div className="relative">
+                    <input 
+                        type="text" 
+                        name="name"
+                        value={formData.name} 
+                        onChange={handleChange}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-all placeholder:text-slate-400"
+                        placeholder="Tu nombre"
+                    />
+                    <User size={18} className="absolute left-3 top-3 text-slate-400" />
+                </div>
+            </div>
+
+            <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 ml-1">Nombre de Usuario</label>
+                <div className="relative">
+                    <input 
+                        type="text" 
+                        name="username"
+                        value={formData.username} 
+                        onChange={handleChange}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-all placeholder:text-slate-400"
+                        placeholder="@usuario"
+                    />
+                    <AtSign size={18} className="absolute left-3 top-3 text-slate-400" />
+                </div>
+            </div>
+
+            <div className="space-y-1">
+                <label className="text-xs font-bold text-slate-500 ml-1">Email</label>
+                <div className="relative">
+                    <input 
+                        type="email" 
+                        name="email"
+                        value={formData.email} 
+                        onChange={handleChange}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-3 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-lime-400 transition-all placeholder:text-slate-400"
+                        placeholder="correo@ejemplo.com"
+                    />
+                    <Mail size={18} className="absolute left-3 top-3 text-slate-400" />
+                </div>
+            </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3">
+            <button onClick={onClose} className="flex-1 py-3.5 rounded-2xl border border-slate-200 font-bold text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                Cancelar
+            </button>
+            <button onClick={handleSubmit} className="flex-[2] py-3.5 rounded-2xl bg-lime-400 font-bold text-sm text-slate-900 hover:bg-lime-500 shadow-lg shadow-lime-200 transition-all active:scale-95">
+                Guardar Cambios
+            </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AuthView = ({ onLogin }) => {
+  const [mode, setMode] = useState('login'); // 'login' or 'signup'
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleAuth = (e) => {
+     e.preventDefault();
+     setIsLoading(true);
+     // Simulate API call
+     setTimeout(() => {
+        setIsLoading(false);
+        onLogin();
+     }, 1500);
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-white relative overflow-hidden">
+       {/* Decorative Background Elements */}
+       <div className="absolute top-[-50px] right-[-50px] w-64 h-64 bg-lime-200 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
+       <div className="absolute bottom-[-20px] left-[-20px] w-48 h-48 bg-blue-100 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
+
+       <div className="flex-1 flex flex-col justify-center px-8 z-10 overflow-y-auto no-scrollbar">
+          <div className="mb-10 text-center animate-fade-in-up">
+             <div className="inline-flex items-center justify-center w-20 h-20 bg-slate-900 rounded-2xl mb-6 shadow-xl shadow-lime-200/50">
+                <Trophy size={40} className="text-lime-400" strokeWidth={2.5} />
+             </div>
+             <h1 className="text-4xl font-black text-slate-900 tracking-tighter italic uppercase mb-2">
+                Fulbito<span className="text-lime-500">Prode</span>
+             </h1>
+             <p className="text-slate-400 font-medium text-sm">
+                {mode === 'login' ? '¡Bienvenido de nuevo, crack!' : 'Únete y demostrá cuánto sabes de fútbol'}
+             </p>
+          </div>
+
+          <form onSubmit={handleAuth} className="space-y-4 w-full">
+             {mode === 'signup' && (
+                <div className="relative animate-fade-in-up" style={{animationDelay: '0.1s'}}>
+                    <User className="absolute left-4 top-3.5 text-slate-400" size={20} />
+                    <input required type="text" placeholder="Nombre completo" className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-12 pr-4 font-bold text-slate-700 focus:outline-none focus:border-lime-400 focus:ring-4 focus:ring-lime-100 transition-all placeholder:font-medium placeholder:text-slate-400" />
+                </div>
+             )}
+
+             <div className="relative animate-fade-in-up" style={{animationDelay: '0.2s'}}>
+                <Mail className="absolute left-4 top-3.5 text-slate-400" size={20} />
+                <input required type="email" placeholder="Correo electrónico" className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-12 pr-4 font-bold text-slate-700 focus:outline-none focus:border-lime-400 focus:ring-4 focus:ring-lime-100 transition-all placeholder:font-medium placeholder:text-slate-400" />
+             </div>
+
+             <div className="relative animate-fade-in-up" style={{animationDelay: '0.3s'}}>
+                <Lock className="absolute left-4 top-3.5 text-slate-400" size={20} />
+                <input required type="password" placeholder="Contraseña" className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3.5 pl-12 pr-4 font-bold text-slate-700 focus:outline-none focus:border-lime-400 focus:ring-4 focus:ring-lime-100 transition-all placeholder:font-medium placeholder:text-slate-400" />
+             </div>
+
+             {mode === 'login' && (
+                <div className="flex justify-end animate-fade-in-up" style={{animationDelay: '0.4s'}}>
+                   <button type="button" className="text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors">
+                      ¿Olvidaste tu contraseña?
+                   </button>
+                </div>
+             )}
+
+             <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full bg-lime-400 hover:bg-lime-500 text-slate-900 font-black py-4 rounded-xl shadow-lg shadow-lime-200 transform transition-all active:scale-95 flex items-center justify-center gap-2 mt-6 animate-fade-in-up" style={{animationDelay: '0.5s'}}
+             >
+                {isLoading ? <RefreshCw className="animate-spin" size={20}/> : (mode === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta')}
+             </button>
+          </form>
+       </div>
+
+       <div className="py-8 text-center z-10 bg-white/50 backdrop-blur-sm border-t border-slate-50">
+          <p className="text-sm font-medium text-slate-500">
+             {mode === 'login' ? '¿No tienes cuenta?' : '¿Ya tienes cuenta?'}
+             <button
+                onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+                className="ml-2 text-lime-600 font-bold hover:underline"
+             >
+                {mode === 'login' ? 'Regístrate' : 'Inicia Sesión'}
+             </button>
+          </p>
+       </div>
+    </div>
+  )
+}
+
 // --- MAIN APP COMPONENT ---
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentView, setCurrentView] = useState('home'); 
   
-  // SHARED STATE (Mock Data)
+  // SHARED STATE
   const [groups, setGroups] = useState([
     { 
         id: 1, 
@@ -281,6 +493,11 @@ export default function App() {
     }
   };
 
+  const handleLogout = () => {
+      setIsAuthenticated(false);
+      setCurrentView('home'); // Reset view on logout
+  };
+
   // --- VIEW COMPONENTS ---
 
   const HomeView = () => {
@@ -308,8 +525,8 @@ export default function App() {
                   <div className="bg-slate-50 p-1.5 rounded-lg border border-slate-100"><Shield size={16} className="text-slate-400" /></div>
                </div>
                <div className="flex gap-3">
-                 <div className="flex-1 bg-slate-50 rounded-xl p-2.5 border border-slate-100"><p className="text-[10px] text-slate-400 font-semibold mb-0.5">RANKING</p><p className="text-2xl font-black text-slate-800">#{group.myRank}</p></div>
-                 <div className="flex-1 bg-lime-50 rounded-xl p-2.5 border border-lime-100"><p className="text-[10px] text-lime-700 font-semibold mb-0.5">PUNTOS</p><div className="flex items-baseline gap-1"><p className="text-2xl font-black text-lime-700">{group.myPoints}</p><Trophy size={12} className="text-lime-600 mb-1" /></div></div>
+                  <div className="flex-1 bg-slate-50 rounded-xl p-2.5 border border-slate-100"><p className="text-[10px] text-slate-400 font-semibold mb-0.5">RANKING</p><p className="text-2xl font-black text-slate-800">#{group.myRank}</p></div>
+                  <div className="flex-1 bg-lime-50 rounded-xl p-2.5 border border-lime-100"><p className="text-[10px] text-lime-700 font-semibold mb-0.5">PUNTOS</p><div className="flex items-baseline gap-1"><p className="text-2xl font-black text-lime-700">{group.myPoints}</p><Trophy size={12} className="text-lime-600 mb-1" /></div></div>
                </div>
             </div>
           ))}
@@ -688,18 +905,18 @@ export default function App() {
                 <div className="divide-y divide-slate-50">
                    {day.matches.map(match => (
                       <div key={match.id} className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors group">
-                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 ${match.homeColor}`}>{match.home.substring(0,1)}</div>
-                            <span className="text-xs font-bold text-slate-800 truncate">{match.home}</span>
-                         </div>
-                         <div className="px-2 text-center flex-shrink-0">
-                            {match.isLive ? (<div className="flex flex-col items-center"><span className="text-[8px] font-black text-red-500 animate-pulse bg-red-50 px-1 rounded uppercase mb-0.5 border border-red-100">VIVO</span><span className="text-sm font-black text-slate-800">{match.homeScore} - {match.awayScore}</span><span className="text-[9px] text-red-400 font-bold">{match.info}</span></div>) : (<div className="flex flex-col items-center"><span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">{match.status === 'upcoming' ? 'VS' : 'FINAL'}</span><span className="text-sm font-bold text-slate-800">{match.status === 'upcoming' ? match.info : `${match.homeScore} - ${match.awayScore}`}</span></div>)}
-                         </div>
-                         <div className="flex items-center justify-end gap-3 flex-1 min-w-0">
-                             <span className="text-xs font-bold text-slate-800 text-right truncate">{match.away}</span>
-                             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${match.awayColor}`}>{match.away.substring(0,1)}</div>
-                             <ChevronRight size={16} className="text-slate-300 group-hover:text-slate-500 flex-shrink-0" />
-                         </div>
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 ${match.homeColor}`}>{match.home.substring(0,1)}</div>
+                             <span className="text-xs font-bold text-slate-800 truncate">{match.home}</span>
+                          </div>
+                          <div className="px-2 text-center flex-shrink-0">
+                             {match.isLive ? (<div className="flex flex-col items-center"><span className="text-[8px] font-black text-red-500 animate-pulse bg-red-50 px-1 rounded uppercase mb-0.5 border border-red-100">VIVO</span><span className="text-sm font-black text-slate-800">{match.homeScore} - {match.awayScore}</span><span className="text-[9px] text-red-400 font-bold">{match.info}</span></div>) : (<div className="flex flex-col items-center"><span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">{match.status === 'upcoming' ? 'VS' : 'FINAL'}</span><span className="text-sm font-bold text-slate-800">{match.status === 'upcoming' ? match.info : `${match.homeScore} - ${match.awayScore}`}</span></div>)}
+                          </div>
+                          <div className="flex items-center justify-end gap-3 flex-1 min-w-0">
+                              <span className="text-xs font-bold text-slate-800 text-right truncate">{match.away}</span>
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${match.awayColor}`}>{match.away.substring(0,1)}</div>
+                              <ChevronRight size={16} className="text-slate-300 group-hover:text-slate-500 flex-shrink-0" />
+                          </div>
                       </div>
                    ))}
                 </div>
@@ -727,42 +944,14 @@ export default function App() {
     return (
       <div className="space-y-4 px-4 pb-6 no-scrollbar">
         <div className="space-y-3 no-scrollbar">
-            <div className="bg-white p-2 rounded-xl border border-slate-100 shadow-sm relative">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-2 mb-1">Seleccion Actual</p>
-                <button onClick={() => setIsSelectorOpen(true)} className="w-full bg-slate-50 rounded-lg p-3 flex items-center justify-between hover:bg-slate-100 transition-colors text-left">
-                    <div className="flex items-center gap-2 text-slate-800 font-bold text-sm truncate pr-2"><Trophy size={16} className="text-lime-600 flex-shrink-0" /> <span className="truncate">{activeGroup.competition} · {activeGroup.name}</span></div>
-                    <ChevronDown size={16} className="text-slate-400 flex-shrink-0" />
-                </button>
-            </div>
-            
-            <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-2 flex items-center justify-between">
-                <button className="w-8 h-8 flex items-center justify-center bg-slate-50 rounded-lg text-slate-400 hover:text-slate-600"><ChevronLeft size={16} /></button>
-                <div className="text-center"><h3 className="text-base font-bold text-lime-600">Fecha 6</h3><p className="text-[10px] text-slate-400 font-medium">Cierra en 3 días</p></div>
-                <button className="w-8 h-8 flex items-center justify-center bg-slate-50 rounded-lg text-slate-400 hover:text-slate-600"><ChevronRight size={16} /></button>
-            </div>
-
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-slate-100 shadow-sm flex-1 mr-2">
-                  <span className="text-[10px] font-bold text-slate-400 whitespace-nowrap">{pendingMatches.filter(m => m.homeScore !== null).length}/15</span>
-                  <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-lime-500 rounded-full transition-all duration-500" style={{ width: `${(pendingMatches.filter(m => m.homeScore !== null).length / 15) * 100}%` }}></div></div>
-                </div>
-                <div className="flex bg-slate-100 p-0.5 rounded-lg flex-shrink-0">
-                    <button onClick={() => setActiveTab('upcoming')} className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${activeTab === 'upcoming' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>Por Jugar</button>
-                    <button onClick={() => setActiveTab('history')} className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${activeTab === 'history' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>Historial</button>
-                </div>
-            </div>
+            <div className="bg-white p-2 rounded-xl border border-slate-100 shadow-sm relative"><button onClick={() => setIsSelectorOpen(true)} className="w-full bg-slate-50 rounded-lg p-3 flex items-center justify-between hover:bg-slate-100 transition-colors text-left text-[10px]"><div className="flex items-center gap-2 text-slate-800 font-bold truncate pr-1"><Trophy size={14} className="text-lime-600 flex-shrink-0" /> <span className="truncate">{activeGroup.competition}</span></div><ChevronDown size={14} className="text-slate-400 flex-shrink-0" /></button></div>
+            <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-2 flex items-center justify-between"><button className="w-8 h-8 flex items-center justify-center bg-slate-50 rounded-lg text-slate-400 hover:text-slate-600"><ChevronLeft size={16} /></button><div className="text-center"><h3 className="text-base font-bold text-lime-600">Fecha 6</h3><p className="text-[10px] text-slate-400 font-medium">Cierra en 3 días</p></div><button className="w-8 h-8 flex items-center justify-center bg-slate-50 rounded-lg text-slate-400 hover:text-slate-600"><ChevronRight size={16} /></button></div>
+            <div className="flex items-center justify-between"><div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-full border border-slate-100 shadow-sm flex-1 mr-2"><span className="text-[10px] font-bold text-slate-400 whitespace-nowrap">{pendingMatches.filter(m => m.homeScore !== null).length}/15</span><div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden"><div className="h-full bg-lime-500 rounded-full transition-all duration-500" style={{ width: `${(pendingMatches.filter(m => m.homeScore !== null).length / 15) * 100}%` }}></div></div></div><div className="flex bg-slate-100 p-0.5 rounded-lg flex-shrink-0"><button onClick={() => setActiveTab('upcoming')} className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${activeTab === 'upcoming' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>Por Jugar</button><button onClick={() => setActiveTab('history')} className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${activeTab === 'history' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-400'}`}>Historial</button></div></div>
         </div>
         {isSelectorOpen && <GroupSelectorModal activeGroup={activeGroup} setActiveGroup={setActiveGroup} onClose={() => setIsSelectorOpen(false)} groups={groups} />}
         <div className="space-y-2 no-scrollbar">
             {activeTab === 'upcoming' ? pendingMatches.map(match => (
-                <div key={match.id} className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden py-3 px-3 relative group no-scrollbar">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 flex-1 min-w-0"><div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 ${match.homeLogo}`}>{match.home.substring(0,1)}</div><span className="text-lg font-black text-slate-800 truncate">{match.home}</span></div>
-                        <button onClick={() => openPredictionModal(match)} className={`flex items-center justify-center px-3 py-1.5 gap-2 mx-1 rounded-lg border transition-all active:scale-95 ${match.homeScore !== null ? 'bg-lime-50 border-lime-200 text-slate-900' : 'bg-slate-50 border-transparent text-slate-300 hover:bg-slate-100'}`}><span className="font-black text-lg w-6 text-center">{match.homeScore !== null ? match.homeScore : '-'}</span><span className="font-black text-lg opacity-20 text-slate-400">:</span><span className="font-black text-lg w-6 text-center">{match.awayScore !== null ? match.awayScore : '-'}</span></button>
-                        <div className="flex items-center justify-end gap-2 flex-1 min-w-0"><span className="text-lg font-black text-slate-800 truncate text-right">{match.away}</span><div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 ${match.awayLogo}`}>{match.away.substring(0,1)}</div></div>
-                    </div>
-                    <div className="flex justify-center mt-2"><span className="text-[9px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">{match.date} • {match.time}</span></div>
-                </div>
+                <div key={match.id} className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden py-3 px-3 relative group no-scrollbar"><div className="flex items-center justify-between"><div className="flex items-center gap-2 flex-1 min-w-0"><div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 ${match.homeLogo}`}>{match.home.substring(0,1)}</div><span className="text-lg font-black text-slate-800 truncate">{match.home}</span></div><button onClick={() => openPredictionModal(match)} className={`flex items-center justify-center px-3 py-1.5 gap-2 mx-1 rounded-lg border transition-all active:scale-95 ${match.homeScore !== null ? 'bg-lime-50 border-lime-200 text-slate-900' : 'bg-slate-50 border-transparent text-slate-300 hover:bg-slate-100'}`}><span className="font-black text-lg w-6 text-center">{match.homeScore !== null ? match.homeScore : '-'}</span><span className="font-black text-lg opacity-20 text-slate-400">:</span><span className="font-black text-lg w-6 text-center">{match.awayScore !== null ? match.awayScore : '-'}</span></button><div className="flex items-center justify-end gap-2 flex-1 min-w-0"><span className="text-lg font-black text-slate-800 truncate text-right">{match.away}</span><div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 ${match.awayLogo}`}>{match.away.substring(0,1)}</div></div></div><div className="flex justify-center mt-2"><span className="text-[9px] font-bold text-slate-400 bg-slate-50 px-2 py-0.5 rounded-full">{match.date} • {match.time}</span></div></div>
             )) : historyMatches.map(match => (
                 <div key={match.id} className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden py-3 px-3 opacity-80 no-scrollbar"><div className="flex items-center justify-between"><div className="flex items-center gap-2 flex-1 min-w-0"><div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 ${match.homeLogo}`}>{match.home.substring(0,1)}</div><span className="text-sm font-bold text-slate-600 truncate">{match.home}</span></div><div className="flex flex-col items-center px-2"><div className="flex items-center gap-2 bg-white px-2 py-1 rounded border border-slate-200 mb-0.5"><span className="font-black text-sm text-slate-800">{match.homeScore}</span><span className="text-[10px] text-slate-300">-</span><span className="font-black text-sm text-slate-800">{match.awayScore}</span></div><span className="text-[9px] text-slate-400 font-medium">Tú: {match.prediction.h}-{match.prediction.a}</span></div><div className="flex items-center justify-end gap-2 flex-1 min-w-0"><span className="text-sm font-bold text-slate-600 truncate text-right">{match.away}</span><div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0 ${match.awayLogo}`}>{match.away.substring(0,1)}</div></div></div><div className="flex justify-center mt-2 gap-2"><span className={`inline-flex items-center px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide ${match.status === 'live' ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-slate-200 text-slate-500'}`}>{match.status === 'live' ? 'EN VIVO' : 'FINAL'}</span></div></div>
             ))}
@@ -855,7 +1044,10 @@ export default function App() {
                 </div>
             </div>
 
-            <button className="w-full flex items-center justify-center gap-2 text-red-500 font-bold py-3 bg-red-50 hover:bg-red-100 rounded-xl transition-colors mt-4">
+            <button 
+                onClick={handleLogout}
+                className="w-full flex items-center justify-center gap-2 text-red-500 font-bold py-3 bg-red-50 hover:bg-red-100 rounded-xl transition-colors mt-4"
+            >
                 <LogOut size={18} /> Cerrar Sesión
             </button>
             
@@ -867,7 +1059,8 @@ export default function App() {
   };
 
   const ProfileView = () => {
-    const user = {
+    // 1. Convert user object to State so it can be updated
+    const [user, setUser] = useState({
         name: "Facundo Contreras",
         username: "@facucontreras",
         email: "facundo@example.com",
@@ -878,41 +1071,74 @@ export default function App() {
             { id: 2, type: 'group_join', group: 'Los Galácticos', date: 'Ayer' },
             { id: 3, type: 'prediction', match: 'Racing vs Independiente', points: 1, date: 'Hace 2d' }
         ]
+    });
+
+    // 2. State for Modal visibility
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+    // 3. Function to save changes
+    const handleSaveProfile = (updatedData) => {
+        setUser(prev => ({
+            ...prev,
+            ...updatedData
+        }));
     };
 
     return (
-        <div className="px-4 pb-6 space-y-6 no-scrollbar">
-            <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col items-center text-center relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-20 bg-gradient-to-r from-lime-200 to-lime-400 opacity-20"></div>
+      <div className="px-4 pb-6 space-y-6 no-scrollbar relative">
+        {/* 4. Render the Modal conditionally */}
+        {isEditModalOpen && (
+            <EditProfileModal 
+                user={user} 
+                onClose={() => setIsEditModalOpen(false)} 
+                onSave={handleSaveProfile} 
+            />
+        )}
+
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col items-center text-center relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-20 bg-gradient-to-r from-lime-200 to-lime-400 opacity-20"></div>
+            <div className="relative group cursor-pointer" onClick={() => setIsEditModalOpen(true)}>
                 <div className="w-24 h-24 bg-lime-100 text-lime-600 rounded-full flex items-center justify-center text-3xl font-black border-4 border-white shadow-md relative z-10 mb-3">
                     {user.avatar}
-                    <button className="absolute bottom-0 right-0 p-1.5 bg-slate-800 text-white rounded-full shadow-sm hover:bg-slate-700 transition-colors"><Edit3 size={12} /></button>
                 </div>
-                <h2 className="text-xl font-black text-slate-800">{user.name}</h2>
-                <p className="text-sm text-slate-400 font-medium mb-4">{user.username}</p>
-                <button className="px-6 py-2 bg-slate-900 text-white text-xs font-bold rounded-full hover:bg-slate-800 transition-colors">Editar Perfil</button>
+                <button 
+                    className="absolute bottom-3 right-0 p-1.5 bg-slate-800 text-white rounded-full shadow-sm hover:bg-slate-700 transition-colors z-20"
+                >
+                    <Edit3 size={12} />
+                </button>
             </div>
+            <h2 className="text-xl font-black text-slate-800">{user.name}</h2>
+            <p className="text-sm text-slate-400 font-medium mb-4">{user.username}</p>
+            
+            {/* Added onClick to trigger modal */}
+            <button 
+                onClick={() => setIsEditModalOpen(true)}
+                className="px-6 py-2 bg-slate-900 text-white text-xs font-bold rounded-full hover:bg-slate-800 transition-colors"
+            >
+                Editar Perfil
+            </button>
+        </div>
 
-            <div className="grid grid-cols-2 gap-3">
-                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div className="flex items-center gap-2 mb-2 text-slate-400"><Trophy size={16} /><span className="text-xs font-bold uppercase">Puntos</span></div><p className="text-2xl font-black text-slate-800">{user.stats.totalPoints}</p></div>
-                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div className="flex items-center gap-2 mb-2 text-slate-400"><TrendingUp size={16} /><span className="text-xs font-bold uppercase">Ranking</span></div><p className="text-2xl font-black text-slate-800">#{user.stats.globalRank}</p></div>
-                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div className="flex items-center gap-2 mb-2 text-slate-400"><Target size={16} /><span className="text-xs font-bold uppercase">Precisión</span></div><p className="text-2xl font-black text-slate-800">{user.stats.accuracy}</p></div>
-                <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div className="flex items-center gap-2 mb-2 text-slate-400"><Users size={16} /><span className="text-xs font-bold uppercase">Grupos</span></div><p className="text-2xl font-black text-slate-800">{user.stats.groups}</p></div>
-            </div>
+        <div className="grid grid-cols-2 gap-3">
+            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div className="flex items-center gap-2 mb-2 text-slate-400"><Trophy size={16} /><span className="text-xs font-bold uppercase">Puntos</span></div><p className="text-2xl font-black text-slate-800">{user.stats.totalPoints}</p></div>
+            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div className="flex items-center gap-2 mb-2 text-slate-400"><TrendingUp size={16} /><span className="text-xs font-bold uppercase">Ranking</span></div><p className="text-2xl font-black text-slate-800">#{user.stats.globalRank}</p></div>
+            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div className="flex items-center gap-2 mb-2 text-slate-400"><Target size={16} /><span className="text-xs font-bold uppercase">Precisión</span></div><p className="text-2xl font-black text-slate-800">{user.stats.accuracy}</p></div>
+            <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div className="flex items-center gap-2 mb-2 text-slate-400"><Users size={16} /><span className="text-xs font-bold uppercase">Grupos</span></div><p className="text-2xl font-black text-slate-800">{user.stats.groups}</p></div>
+        </div>
 
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center"><h3 className="font-bold text-slate-800 text-sm">Actividad Reciente</h3></div>
-                <div className="divide-y divide-slate-50">
-                    {user.recentActivity.map(activity => (
-                        <div key={activity.id} className="p-4 flex items-center gap-3 hover:bg-slate-50 transition-colors">
-                            <div className={`p-2 rounded-full ${activity.type === 'prediction' ? 'bg-indigo-50 text-indigo-500' : 'bg-lime-50 text-lime-600'}`}>{activity.type === 'prediction' ? <Activity size={16} /> : <Users size={16} />}</div>
-                            <div className="flex-1 min-w-0"><p className="text-xs font-bold text-slate-800 truncate">{activity.type === 'prediction' ? `Pronóstico: ${activity.match}` : `Te uniste a ${activity.group}`}</p><p className="text-[10px] text-slate-400">{activity.date}</p></div>
-                            {activity.points && <span className="text-xs font-bold text-lime-600">+{activity.points} pts</span>}
-                        </div>
-                    ))}
-                </div>
+        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 flex justify-between items-center"><h3 className="font-bold text-slate-800 text-sm">Actividad Reciente</h3></div>
+            <div className="divide-y divide-slate-50">
+                {user.recentActivity.map(activity => (
+                    <div key={activity.id} className="p-4 flex items-center gap-3 hover:bg-slate-50 transition-colors">
+                        <div className={`p-2 rounded-full ${activity.type === 'prediction' ? 'bg-indigo-50 text-indigo-500' : 'bg-lime-50 text-lime-600'}`}>{activity.type === 'prediction' ? <Activity size={16} /> : <Users size={16} />}</div>
+                        <div className="flex-1 min-w-0"><p className="text-xs font-bold text-slate-800 truncate">{activity.type === 'prediction' ? `Pronóstico: ${activity.match}` : `Te uniste a ${activity.group}`}</p><p className="text-[10px] text-slate-400">{activity.date}</p></div>
+                        {activity.points && <span className="text-xs font-bold text-lime-600">+{activity.points} pts</span>}
+                    </div>
+                ))}
             </div>
         </div>
+      </div>
     );
   };
 
@@ -924,10 +1150,21 @@ export default function App() {
       case 'fixture': return { title: 'Fixture', subtitle: 'Partidos por fecha', icon: CalendarDays };
       case 'pronosticos': return { title: 'Pronósticos', subtitle: 'Resultados y carga', icon: Activity };
       case 'config': return { title: 'Configuración', subtitle: 'Ajustes de la cuenta', icon: Settings };
-      case 'profile': return { title: 'Perfil', subtitle: 'Estadísticas y actividad', icon: User };
+      case 'profile': return { title: 'Perfil', subtitle: 'Actividad del perfil', icon: User };
       default: return { title: 'App', subtitle: '', icon: null };
     }
   };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="bg-slate-200 min-h-screen flex justify-center items-start sm:py-6 font-sans">
+        <GlobalStyles />
+        <div className="w-full max-w-md bg-white min-h-screen sm:min-h-[850px] sm:h-[850px] sm:rounded-[32px] shadow-2xl relative overflow-hidden sm:border-[8px] sm:border-slate-900 ring-4 ring-black/5 flex flex-col no-scrollbar">
+            <AuthView onLogin={() => setIsAuthenticated(true)} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-slate-200 min-h-screen flex justify-center items-start sm:py-6 font-sans">

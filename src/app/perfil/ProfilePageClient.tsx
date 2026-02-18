@@ -286,7 +286,7 @@ export default function ProfilePageClient() {
               onClick={() => setMode("stats")}
               className={`text-sm font-medium ml-auto transition-colors ${mode === "stats" ? "text-slate-600" : "text-slate-400"}`}
             >
-              Estadísticas y actividad
+              Actividad del perfil
             </button>
           </div>
         </header>
