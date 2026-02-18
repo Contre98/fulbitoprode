@@ -1,0 +1,1107 @@
+{
+  "version": "2.8",
+  "children": [
+    {
+      "type": "frame",
+      "id": "ou6TP",
+      "x": 0,
+      "y": 0,
+      "name": "Fulbito Prode - Inicio (Dev Current)",
+      "clip": true,
+      "width": 469,
+      "height": 844,
+      "fill": "$--bg-body",
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "FzZHD",
+          "name": "Header",
+          "width": "fill_container",
+          "padding": [
+            16,
+            20
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "xKSIN",
+              "name": "headerLeft",
+              "gap": 12,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "2qcbi",
+                  "name": "avatarB",
+                  "width": 40,
+                  "height": 40,
+                  "fill": "$--bg-surface-elevated",
+                  "cornerRadius": 20,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "$--border-light"
+                  },
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "xi80x",
+                      "x": 10,
+                      "y": 10,
+                      "name": "avatarIconB",
+                      "width": 20,
+                      "height": 20,
+                      "iconFontName": "user",
+                      "iconFontFamily": "lucide",
+                      "fill": "$--text-muted"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "s0OBC",
+                  "name": "headerTextB",
+                  "layout": "vertical",
+                  "gap": 2,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "TZGeM",
+                      "name": "userLabelB",
+                      "fill": "$--text-secondary",
+                      "content": "USER",
+                      "fontFamily": "Manrope",
+                      "fontSize": 10,
+                      "fontWeight": "600",
+                      "letterSpacing": 1.5
+                    },
+                    {
+                      "type": "text",
+                      "id": "eYVbA",
+                      "name": "headerTitleB",
+                      "fill": "#ffffff",
+                      "content": "Inicio",
+                      "fontFamily": "Manrope",
+                      "fontSize": 20,
+                      "fontWeight": "700"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "I4vzz",
+              "name": "headerRightB",
+              "gap": 12,
+              "padding": [
+                0,
+                12
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "JYUpU",
+                  "name": "themeBtnB",
+                  "width": 20,
+                  "height": 20,
+                  "iconFontName": "sun",
+                  "iconFontFamily": "lucide",
+                  "fill": "$--text-secondary"
+                },
+                {
+                  "type": "icon_font",
+                  "id": "h7BFC",
+                  "name": "bellBtnB",
+                  "width": 20,
+                  "height": 20,
+                  "iconFontName": "bell",
+                  "iconFontFamily": "lucide",
+                  "fill": "$--text-secondary"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "ZPS5W",
+          "name": "MainScroll",
+          "width": "fill_container",
+          "height": "fill_container",
+          "layout": "vertical",
+          "gap": 14,
+          "padding": [
+            10,
+            20,
+            0,
+            20
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "5gcyi",
+              "name": "GroupCardCarousel",
+              "width": "fill_container",
+              "gap": 16,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "7aGnw",
+                  "name": "GroupCardPrimary",
+                  "width": 290,
+                  "height": 170,
+                  "fill": "#0b0b0d",
+                  "cornerRadius": 6,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "$--border-dim"
+                  },
+                  "layout": "vertical",
+                  "padding": 20,
+                  "justifyContent": "space_between",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "rwBLj",
+                      "name": "card1TopC",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "XnOLo",
+                          "name": "card1HeadLeftC",
+                          "gap": 10,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "V4Tpk",
+                              "name": "card1IconWrapC",
+                              "width": 36,
+                              "height": 36,
+                              "layout": "none",
+                              "children": [
+                                {
+                                  "type": "ellipse",
+                                  "id": "QIYPu",
+                                  "x": 0,
+                                  "y": 0,
+                                  "name": "card1IconBgC",
+                                  "fill": "$--accent",
+                                  "width": 36,
+                                  "height": 36
+                                },
+                                {
+                                  "type": "icon_font",
+                                  "id": "VEpye",
+                                  "x": 9,
+                                  "y": 9,
+                                  "name": "card1CrownC",
+                                  "width": 18,
+                                  "height": 18,
+                                  "iconFontName": "crown",
+                                  "iconFontFamily": "lucide",
+                                  "fill": "#000000"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "eSTXX",
+                              "name": "card1TextsC",
+                              "layout": "vertical",
+                              "gap": 2,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "9CmTZ",
+                                  "name": "card1SubC",
+                                  "fill": "$--text-muted",
+                                  "content": "TEMP 2026 · 12 JUG",
+                                  "fontFamily": "Manrope",
+                                  "fontSize": 10,
+                                  "fontWeight": "700",
+                                  "letterSpacing": 0.8
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "lOTGq",
+                                  "name": "card1TitleC",
+                                  "fill": "#ffffff",
+                                  "content": "Grupo Amigos",
+                                  "lineHeight": 1,
+                                  "fontFamily": "Manrope",
+                                  "fontSize": 15,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "icon_font",
+                          "id": "oYKqm",
+                          "name": "card1DotsC",
+                          "width": 18,
+                          "height": 18,
+                          "iconFontName": "ellipsis",
+                          "iconFontFamily": "lucide",
+                          "fill": "$--text-tertiary"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "ToPav",
+                      "name": "card1BottomC",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "end",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "wRdee",
+                          "name": "card1RankColC",
+                          "layout": "vertical",
+                          "gap": 2,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "HQDlH",
+                              "name": "card1RankLblC",
+                              "fill": "$--text-tertiary",
+                              "content": "RANKING",
+                              "fontFamily": "Manrope",
+                              "fontSize": 10,
+                              "fontWeight": "700",
+                              "letterSpacing": 1.2
+                            },
+                            {
+                              "type": "text",
+                              "id": "OSAHi",
+                              "name": "card1RankNumC",
+                              "fill": "#ffffff",
+                              "content": "#4",
+                              "fontFamily": "JetBrains Mono",
+                              "fontSize": 36,
+                              "fontWeight": "700",
+                              "letterSpacing": -1
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "FzaJW",
+                          "name": "card1PtsColC",
+                          "layout": "vertical",
+                          "gap": 2,
+                          "alignItems": "end",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "3MQGF",
+                              "name": "card1PtsLblC",
+                              "fill": "$--text-tertiary",
+                              "content": "PUNTOS",
+                              "fontFamily": "Manrope",
+                              "fontSize": 10,
+                              "fontWeight": "700",
+                              "letterSpacing": 1.2
+                            },
+                            {
+                              "type": "text",
+                              "id": "iM4bx",
+                              "name": "card1PtsNumC",
+                              "fill": "$--accent",
+                              "content": "128",
+                              "fontFamily": "JetBrains Mono",
+                              "fontSize": 30,
+                              "fontWeight": "700",
+                              "letterSpacing": -0.5
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "xVEuD",
+                  "name": "GroupCardSecondary",
+                  "opacity": 0.8,
+                  "width": 290,
+                  "height": 170,
+                  "fill": "#0b0b0d",
+                  "cornerRadius": 6,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "$--border-dim"
+                  },
+                  "layout": "vertical",
+                  "padding": 20,
+                  "justifyContent": "space_between",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "HgbJL",
+                      "name": "card2TopC",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "YbGwk",
+                          "name": "card2HeadLeftC",
+                          "gap": 10,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "punmx",
+                              "name": "card2IconWrapC",
+                              "width": 36,
+                              "height": 36,
+                              "layout": "none",
+                              "children": [
+                                {
+                                  "type": "ellipse",
+                                  "id": "7X9mM",
+                                  "x": 0,
+                                  "y": 0,
+                                  "name": "card2IconBgC",
+                                  "fill": "$--bg-surface-elevated",
+                                  "width": 36,
+                                  "height": 36,
+                                  "stroke": {
+                                    "thickness": 1,
+                                    "fill": "$--border-light"
+                                  }
+                                },
+                                {
+                                  "type": "icon_font",
+                                  "id": "q3zeh",
+                                  "x": 9,
+                                  "y": 9,
+                                  "name": "card2BagC",
+                                  "width": 18,
+                                  "height": 18,
+                                  "iconFontName": "briefcase",
+                                  "iconFontFamily": "lucide",
+                                  "fill": "#ffffff"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "b4szq",
+                              "name": "card2TextsC",
+                              "layout": "vertical",
+                              "gap": 2,
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "5Jkrn",
+                                  "name": "card2SubC",
+                                  "fill": "$--text-muted",
+                                  "content": "TEMP 2026 · 14 JUG",
+                                  "fontFamily": "Manrope",
+                                  "fontSize": 10,
+                                  "fontWeight": "700",
+                                  "letterSpacing": 0.8
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "Vfd6m",
+                                  "name": "card2TitleC",
+                                  "fill": "#d4d4d8",
+                                  "content": "Prode Laboral",
+                                  "lineHeight": 1,
+                                  "fontFamily": "Manrope",
+                                  "fontSize": 15,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            }
+                          ]
+                        },
+                        {
+                          "type": "icon_font",
+                          "id": "jY6NC",
+                          "name": "card2GhostC",
+                          "width": 18,
+                          "height": 18,
+                          "iconFontName": "shield",
+                          "iconFontFamily": "lucide",
+                          "fill": "#00000000"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "VoRFD",
+                      "name": "card2BottomC",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "end",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "PcrYd",
+                          "name": "card2RankColC",
+                          "layout": "vertical",
+                          "gap": 2,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "hvdr7",
+                              "name": "card2RankLblC",
+                              "fill": "$--text-tertiary",
+                              "content": "RANKING",
+                              "fontFamily": "Manrope",
+                              "fontSize": 10,
+                              "fontWeight": "700",
+                              "letterSpacing": 1.2
+                            },
+                            {
+                              "type": "text",
+                              "id": "LoYRF",
+                              "name": "card2RankNumC",
+                              "fill": "$--text-secondary",
+                              "content": "#1",
+                              "fontFamily": "JetBrains Mono",
+                              "fontSize": 36,
+                              "fontWeight": "700",
+                              "letterSpacing": -1
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "g9pWq",
+                          "name": "card2PtsColC",
+                          "layout": "vertical",
+                          "gap": 2,
+                          "alignItems": "end",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "XgeQk",
+                              "name": "card2PtsLblC",
+                              "fill": "$--text-tertiary",
+                              "content": "PUNTOS",
+                              "fontFamily": "Manrope",
+                              "fontSize": 10,
+                              "fontWeight": "700",
+                              "letterSpacing": 1.2
+                            },
+                            {
+                              "type": "text",
+                              "id": "959sI",
+                              "name": "card2PtsNumC",
+                              "fill": "#ffffff",
+                              "content": "142",
+                              "fontFamily": "JetBrains Mono",
+                              "fontSize": 30,
+                              "fontWeight": "700",
+                              "letterSpacing": -0.5
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "sxRWB",
+              "name": "UpcomingSection",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 10,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "yeIoD",
+                  "name": "upHeaderC",
+                  "width": "fill_container",
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "HI0ZQ",
+                      "name": "upTitleC",
+                      "fill": "#ffffff",
+                      "content": "Próximos Partidos",
+                      "fontFamily": "Manrope",
+                      "fontSize": 17,
+                      "fontWeight": "700"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "H26xz",
+                  "name": "upDividerC",
+                  "width": "fill_container",
+                  "height": 1,
+                  "fill": "$--bg-surface"
+                },
+                {
+                  "type": "frame",
+                  "id": "Wkmoo",
+                  "name": "cardsStackC",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 10,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "XVweW",
+                      "name": "cardLiveC",
+                      "width": "fill_container",
+                      "fill": "#0b0d09",
+                      "cornerRadius": 6,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#324429"
+                      },
+                      "layout": "vertical",
+                      "gap": 8,
+                      "padding": [
+                        6,
+                        8,
+                        14,
+                        8
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "TOtaz",
+                          "name": "cardLiveDateC",
+                          "fill": "#d8dbe3",
+                          "content": "Sábado, 14 de Febrero",
+                          "fontFamily": "Manrope",
+                          "fontSize": 13,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "TkzU2",
+                          "name": "cardLiveRowC",
+                          "width": "fill_container",
+                          "padding": [
+                            8,
+                            0
+                          ],
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "0cbo8",
+                              "name": "liveHomeC",
+                              "fill": "$--text-primary",
+                              "content": "Boca Juniors",
+                              "fontFamily": "Manrope",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "iqypE",
+                              "name": "liveScoreC",
+                              "fill": "#b7cf92",
+                              "content": "EN VIVO · 0 - 0",
+                              "fontFamily": "JetBrains Mono",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "TvN2t",
+                              "name": "liveAwayC",
+                              "fill": "$--text-primary",
+                              "content": "Rosario Central",
+                              "fontFamily": "Manrope",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "D1VWx",
+                      "name": "cardUp1D",
+                      "width": "fill_container",
+                      "fill": "#0b0b0d",
+                      "cornerRadius": 6,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#4c4c55"
+                      },
+                      "layout": "vertical",
+                      "gap": 8,
+                      "padding": [
+                        6,
+                        8,
+                        14,
+                        8
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "jz3Jv",
+                          "name": "cardUp1DateD",
+                          "fill": "#d8dbe3",
+                          "content": "Domingo, 15 de Febrero",
+                          "fontFamily": "Manrope",
+                          "fontSize": 13,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "WI9rW",
+                          "name": "cardUp1Row1D",
+                          "width": "fill_container",
+                          "padding": [
+                            8,
+                            0
+                          ],
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "6aXtY",
+                              "name": "up1Home1D",
+                              "fill": "$--text-primary",
+                              "content": "Platense",
+                              "fontFamily": "Manrope",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "Vuooe",
+                              "name": "up1Score1D",
+                              "fill": "$--text-primary",
+                              "content": "POR JUGAR · 16:00",
+                              "fontFamily": "JetBrains Mono",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "ucHKu",
+                              "name": "up1Away1D",
+                              "fill": "$--text-primary",
+                              "content": "Godoy Cruz",
+                              "fontFamily": "Manrope",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "lp7cR",
+                          "name": "up1DivD",
+                          "width": "fill_container",
+                          "height": 1,
+                          "fill": "#2a2e35"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "yH7bb",
+                          "name": "cardUp1Row2D",
+                          "width": "fill_container",
+                          "padding": [
+                            8,
+                            0
+                          ],
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "4EQO3",
+                              "name": "up1Home2D",
+                              "fill": "$--text-primary",
+                              "content": "Instituto",
+                              "fontFamily": "Manrope",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "aFnp7",
+                              "name": "up1Score2D",
+                              "fill": "$--text-primary",
+                              "content": "POR JUGAR · 18:30",
+                              "fontFamily": "JetBrains Mono",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "lwjed",
+                              "name": "up1Away2D",
+                              "fill": "$--text-primary",
+                              "content": "Atl. Tucumán",
+                              "fontFamily": "Manrope",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "7ODiw",
+                      "name": "cardUp2D",
+                      "width": "fill_container",
+                      "fill": "#0b0b0d",
+                      "cornerRadius": 6,
+                      "stroke": {
+                        "thickness": 1,
+                        "fill": "#4c4c55"
+                      },
+                      "layout": "vertical",
+                      "gap": 8,
+                      "padding": [
+                        6,
+                        8,
+                        14,
+                        8
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "fvGBi",
+                          "name": "cardUp2DateD",
+                          "fill": "#d8dbe3",
+                          "content": "Lunes, 16 de Febrero",
+                          "fontFamily": "Manrope",
+                          "fontSize": 13,
+                          "fontWeight": "700"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "itNSL",
+                          "name": "cardUp2Row1D",
+                          "width": "fill_container",
+                          "padding": [
+                            8,
+                            0
+                          ],
+                          "justifyContent": "space_between",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "YrZ8s",
+                              "name": "up2Home1D",
+                              "fill": "$--text-primary",
+                              "content": "Racing Club",
+                              "fontFamily": "Manrope",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            },
+                            {
+                              "type": "text",
+                              "id": "vhJw9",
+                              "name": "up2Score1D",
+                              "fill": "#facc15",
+                              "content": "POR JUGAR · 22:15",
+                              "fontFamily": "JetBrains Mono",
+                              "fontSize": 11,
+                              "fontWeight": "700"
+                            },
+                            {
+                              "type": "text",
+                              "id": "67jKw",
+                              "name": "up2Away1D",
+                              "fill": "$--text-primary",
+                              "content": "Estudiantes",
+                              "fontFamily": "Manrope",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "iJ9lK",
+          "name": "BottomNav",
+          "width": "fill_container",
+          "height": 68,
+          "fill": "$--bg-body",
+          "stroke": {
+            "align": "inside",
+            "thickness": {
+              "top": 1
+            },
+            "fill": "$--bg-surface"
+          },
+          "padding": [
+            8,
+            16,
+            12,
+            16
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "end",
+          "children": [
+            {
+              "type": "frame",
+              "id": "SftPl",
+              "name": "navItem1E",
+              "width": 64,
+              "layout": "vertical",
+              "gap": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "OVqr9",
+                  "name": "nav1IconE",
+                  "width": 20,
+                  "height": 20,
+                  "iconFontName": "trophy",
+                  "iconFontFamily": "lucide",
+                  "fill": "$--accent"
+                },
+                {
+                  "type": "text",
+                  "id": "z1J8Z",
+                  "name": "nav1TextE",
+                  "fill": "$--accent",
+                  "content": "Inicio",
+                  "fontFamily": "Manrope",
+                  "fontSize": 10,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "C6jeg",
+              "name": "navItem2E",
+              "width": 64,
+              "layout": "vertical",
+              "gap": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "1cc4N",
+                  "name": "nav2IconE",
+                  "width": 20,
+                  "height": 20,
+                  "iconFontName": "rows-3",
+                  "iconFontFamily": "lucide",
+                  "fill": "$--text-tertiary"
+                },
+                {
+                  "type": "text",
+                  "id": "6pU14",
+                  "name": "nav2TextE",
+                  "fill": "$--text-tertiary",
+                  "content": "Posiciones",
+                  "fontFamily": "Manrope",
+                  "fontSize": 10,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "ixrYv",
+              "name": "navItem3E",
+              "width": 64,
+              "layout": "vertical",
+              "gap": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "jQOwJ",
+                  "name": "nav3BubbleE",
+                  "width": 34,
+                  "height": 34,
+                  "fill": "$--bg-body",
+                  "cornerRadius": 17,
+                  "stroke": {
+                    "thickness": 1,
+                    "fill": "$--text-secondary"
+                  },
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "khoRK",
+                      "name": "nav3IconE",
+                      "width": 18,
+                      "height": 18,
+                      "iconFontName": "list-checks",
+                      "iconFontFamily": "lucide",
+                      "fill": "$--text-secondary"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "cEjWo",
+                  "name": "nav3TextE",
+                  "fill": "$--text-secondary",
+                  "content": "Pronósticos",
+                  "fontFamily": "Manrope",
+                  "fontSize": 10,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "8vGC5",
+              "name": "navItem4E",
+              "width": 64,
+              "layout": "vertical",
+              "gap": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "bvStn",
+                  "name": "nav4IconE",
+                  "width": 20,
+                  "height": 20,
+                  "iconFontName": "calendar-days",
+                  "iconFontFamily": "lucide",
+                  "fill": "$--text-tertiary"
+                },
+                {
+                  "type": "text",
+                  "id": "FWpIz",
+                  "name": "nav4TextE",
+                  "fill": "$--text-tertiary",
+                  "content": "Fixture",
+                  "fontFamily": "Manrope",
+                  "fontSize": 10,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "cbKzW",
+              "name": "navItem5E",
+              "width": 64,
+              "layout": "vertical",
+              "gap": 4,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "Glwvw",
+                  "name": "nav5IconE",
+                  "width": 20,
+                  "height": 20,
+                  "iconFontName": "contact-round",
+                  "iconFontFamily": "lucide",
+                  "fill": "$--text-tertiary"
+                },
+                {
+                  "type": "text",
+                  "id": "XSMGl",
+                  "name": "nav5TextE",
+                  "fill": "$--text-tertiary",
+                  "content": "Grupos",
+                  "fontFamily": "Manrope",
+                  "fontSize": 10,
+                  "fontWeight": "600"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "variables": {
+    "--accent": {
+      "type": "color",
+      "value": "#ccff00"
+    },
+    "--accent-dim": {
+      "type": "color",
+      "value": "#1a2600"
+    },
+    "--bg-body": {
+      "type": "color",
+      "value": "#09090b"
+    },
+    "--bg-surface": {
+      "type": "color",
+      "value": "#18181b"
+    },
+    "--bg-surface-elevated": {
+      "type": "color",
+      "value": "#27272a"
+    },
+    "--border-dim": {
+      "type": "color",
+      "value": "#27272a"
+    },
+    "--border-light": {
+      "type": "color",
+      "value": "#3f3f46"
+    },
+    "--font-mono": {
+      "type": "string",
+      "value": "JetBrains Mono"
+    },
+    "--font-primary": {
+      "type": "string",
+      "value": "Manrope"
+    },
+    "--text-muted": {
+      "type": "color",
+      "value": "#71717a"
+    },
+    "--text-primary": {
+      "type": "color",
+      "value": "#e4e4e7"
+    },
+    "--text-secondary": {
+      "type": "color",
+      "value": "#a1a1aa"
+    },
+    "--text-tertiary": {
+      "type": "color",
+      "value": "#52525b"
+    }
+  }
+}

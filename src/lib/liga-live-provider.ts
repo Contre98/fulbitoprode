@@ -137,13 +137,18 @@ type CompetitionStage = "apertura" | "clausura" | "general";
 type ProviderLeagueStatus = "ongoing" | "upcoming" | "expired";
 
 const PROVIDER_CACHE_TTL_MS = {
-  fixtures: 60_000,
-  fechas: 60_000,
+  fixturesLive: 60_000,
+  fixturesStable: 3 * 60 * 60 * 1000,
+  fixturesEmpty: 60_000,
+  fechas: 3 * 60 * 60 * 1000,
+  defaultFecha: 60_000,
   leagues: 60_000,
   standings: 60_000
 } as const;
 
 const providerCache = new Map<string, { expiresAt: number; value: unknown }>();
+const providerInFlightCache = new Map<string, Promise<unknown>>();
+const providerPrewarmCache = new Map<string, number>();
 
 async function withProviderCache<T>(key: string, ttlMs: number, loader: () => Promise<T>): Promise<T> {
   const now = Date.now();
@@ -152,12 +157,100 @@ async function withProviderCache<T>(key: string, ttlMs: number, loader: () => Pr
     return cached.value as T;
   }
 
-  const value = await loader();
-  providerCache.set(key, {
-    expiresAt: now + ttlMs,
-    value
+  const inFlight = providerInFlightCache.get(key);
+  if (inFlight) {
+    return inFlight as Promise<T>;
+  }
+
+  const loadPromise = loader()
+    .then((value) => {
+      providerCache.set(key, {
+        expiresAt: Date.now() + ttlMs,
+        value
+      });
+      return value;
+    })
+    .finally(() => {
+      providerInFlightCache.delete(key);
+    });
+
+  providerInFlightCache.set(key, loadPromise);
+  return loadPromise;
+}
+
+async function withProviderCacheDynamicTtl<T>(
+  key: string,
+  fallbackTtlMs: number,
+  loader: () => Promise<{ value: T; ttlMs?: number }>
+): Promise<T> {
+  const now = Date.now();
+  const cached = providerCache.get(key);
+  if (cached && cached.expiresAt > now) {
+    return cached.value as T;
+  }
+
+  const inFlight = providerInFlightCache.get(key);
+  if (inFlight) {
+    return inFlight as Promise<T>;
+  }
+
+  const loadPromise = loader()
+    .then((result) => {
+      const ttlMs = result.ttlMs ?? fallbackTtlMs;
+      providerCache.set(key, {
+        expiresAt: Date.now() + ttlMs,
+        value: result.value
+      });
+      return result.value;
+    })
+    .finally(() => {
+      providerInFlightCache.delete(key);
+    });
+
+  providerInFlightCache.set(key, loadPromise);
+  return loadPromise;
+}
+
+function isLiveFixtureSet(fixtures: LiveFixture[]) {
+  return fixtures.some((fixture) => LIVE_STATUS_SHORT.has(fixture.statusShort));
+}
+
+function fixtureCacheTtl(fixtures: LiveFixture[]) {
+  if (fixtures.length === 0) {
+    return PROVIDER_CACHE_TTL_MS.fixturesEmpty;
+  }
+  return isLiveFixtureSet(fixtures) ? PROVIDER_CACHE_TTL_MS.fixturesLive : PROVIDER_CACHE_TTL_MS.fixturesStable;
+}
+
+function scheduleFechasPrewarm(input: {
+  config: LiveProviderConfig;
+  leagueId?: number | string;
+  season: string;
+  competitionStage?: CompetitionStage;
+  fechas: MatchPeriod[];
+}) {
+  const key = `provider:prewarm:${input.config.baseUrl}:${input.leagueId || input.config.leagueId}:${input.season}:${
+    input.competitionStage || "general"
+  }`;
+  const now = Date.now();
+  const last = providerPrewarmCache.get(key) || 0;
+  if (now - last < PROVIDER_CACHE_TTL_MS.fixturesStable) {
+    return;
+  }
+
+  providerPrewarmCache.set(key, now);
+  queueMicrotask(() => {
+    void Promise.allSettled(
+      input.fechas.map((fecha) =>
+        fetchLigaArgentinaFixtures({
+          period: fecha,
+          leagueId: input.leagueId,
+          season: input.season,
+          competitionStage: input.competitionStage
+        })
+      )
+    );
   });
-  return value;
 }
 
 function normalizeSeason(value?: string) {
@@ -596,6 +689,12 @@ function formatLiveLabel(fixture: LiveFixture) {
   return `EN VIVO · ${elapsed}' ${secondHalf ? "ST" : "PT"}`;
 }
 
+function formatLiveCompactLabel(fixture: LiveFixture) {
+  const elapsed = fixture.elapsed ?? 0;
+  const secondHalf = fixture.statusShort === "2H" || fixture.statusShort === "ET" || elapsed > 45;
+  return `${secondHalf ? "ST" : "PT"} ${elapsed}'`;
+}
+
 function toProgress(elapsed: number | null) {
   if (elapsed === null) return 50;
   const progress = Math.round((elapsed / 90) * 100);
@@ -903,7 +1002,17 @@ export async function fetchAvailableFechas(input: {
               .filter(Boolean)
           : [];
 
-        return sortFechas(filterRoundsByCompetitionStage(rounds, input.competitionStage));
+        const sorted = sortFechas(filterRoundsByCompetitionStage(rounds, input.competitionStage));
+        if (sorted.length > 0) {
+          scheduleFechasPrewarm({
+            config,
+            leagueId: input.leagueId,
+            season,
+            competitionStage: input.competitionStage,
+            fechas: sorted
+          });
+        }
+        return sorted;
       }
     );
   } catch (error) {
@@ -924,47 +1033,58 @@ export async function resolveDefaultFecha(input: {
     return "";
   }
 
-  const inspection = await Promise.all(
-    fechas.map(async (fecha) => {
-      const fixtures = await fetchLigaArgentinaFixtures({
-        period: fecha,
-        leagueId: input.leagueId,
-        season: input.season,
-        competitionStage: input.competitionStage
-      });
+  const config = parseLiveProviderConfig();
+  const season = normalizeSeason(input.season || config?.season);
+  const stage = input.competitionStage || "general";
+  const league = String(input.leagueId || config?.leagueId || "");
 
-      let hasLive = false;
-      let hasUpcoming = false;
+  return withProviderCache(
+    `provider:default-fecha:${league}:${season}:${stage}:${fechas.join("|")}`,
+    PROVIDER_CACHE_TTL_MS.defaultFecha,
+    async () => {
+      let firstUpcoming = "";
+      let lastWithFixtures = "";
 
-      fixtures.forEach((fixture) => {
-        const status = classifyFixtureStatus(fixture.statusShort);
-        if (status === "live") {
-          hasLive = true;
+      for (const fecha of fechas) {
+        const fixtures = await fetchLigaArgentinaFixtures({
+          period: fecha,
+          leagueId: input.leagueId,
+          season: input.season,
+          competitionStage: input.competitionStage
+        });
+
+        if (fixtures.length > 0) {
+          lastWithFixtures = fecha;
         }
-        if (status === "upcoming") {
-          hasUpcoming = true;
-        }
-      });
 
-      return {
-        fecha,
-        hasLive,
-        hasUpcoming
-      };
-    })
+        let hasLive = false;
+        let hasUpcoming = false;
+
+        fixtures.forEach((fixture) => {
+          const status = classifyFixtureStatus(fixture.statusShort);
+          if (status === "live") {
+            hasLive = true;
+          }
+          if (status === "upcoming") {
+            hasUpcoming = true;
+          }
+        });
+
+        if (hasLive) {
+          return fecha;
+        }
+        if (!firstUpcoming && hasUpcoming) {
+          firstUpcoming = fecha;
+        }
+      }
+
+      if (firstUpcoming) {
+        return firstUpcoming;
+      }
+
+      return lastWithFixtures || fechas[0] || "";
+    }
   );
-
-  const ongoingFecha = inspection.find((item) => item.hasLive)?.fecha;
-  if (ongoingFecha) {
-    return ongoingFecha;
-  }
-
-  const upcomingFecha = inspection.find((item) => item.hasUpcoming)?.fecha;
-  if (upcomingFecha) {
-    return upcomingFecha;
-  }
-
-  return fechas[0] || "";
 }
 
 export async function fetchLigaArgentinaFixtures(
@@ -995,9 +1115,9 @@ export async function fetchLigaArgentinaFixtures(
   try {
     const season = normalizeSeason(input.season || config.season);
     const stage = input.competitionStage || "general";
-    return await withProviderCache(
+    return await withProviderCacheDynamicTtl(
       `provider:fixtures:${config.baseUrl}:${input.leagueId || config.leagueId}:${season}:${stage}:${input.period || "auto"}`,
-      PROVIDER_CACHE_TTL_MS.fixtures,
+      PROVIDER_CACHE_TTL_MS.fixturesStable,
       async () => {
         const fetchByPeriod = async (period: string) => {
           const { url } = buildFixturesUrl(config, {
@@ -1023,17 +1143,49 @@ export async function fetchLigaArgentinaFixtures(
 
         const requestedPeriod = input.period?.trim() || "";
         if (!requestedPeriod) {
-          return fetchByPeriod("");
+          const rows = await fetchByPeriod("");
+          return {
+            value: rows,
+            ttlMs: fixtureCacheTtl(rows)
+          };
         }
 
-        const primaryRows = await fetchByPeriod(requestedPeriod);
+        let primaryRows: LiveFixture[] = [];
+        try {
+          primaryRows = await fetchByPeriod(requestedPeriod);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Unknown provider error";
+          console.error(`[live-provider] Failed to fetch requested period "${requestedPeriod}": ${message}`);
+        }
+
+        if (primaryRows.length === 0) {
+          try {
+            const retriedRows = await fetchByPeriod(requestedPeriod);
+            if (retriedRows.length > 0) {
+              return {
+                value: retriedRows,
+                ttlMs: fixtureCacheTtl(retriedRows)
+              };
+            }
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "Unknown provider error";
+            console.error(`[live-provider] Retry failed for period "${requestedPeriod}": ${message}`);
+          }
+        }
+
         if (primaryRows.length > 0) {
-          return primaryRows;
+          return {
+            value: primaryRows,
+            ttlMs: fixtureCacheTtl(primaryRows)
+          };
         }
 
         const requestedNumber = requestedPeriod.match(/(\d+)/)?.[1];
         if (!requestedNumber) {
-          return primaryRows;
+          return {
+            value: primaryRows,
+            ttlMs: fixtureCacheTtl(primaryRows)
+          };
         }
 
         const candidateFechas = await fetchAvailableFechas({
@@ -1046,13 +1198,26 @@ export async function fetchLigaArgentinaFixtures(
           if (candidate === requestedPeriod) continue;
           const candidateNumber = candidate.match(/(\d+)/)?.[1];
           if (candidateNumber !== requestedNumber) continue;
-          const candidateRows = await fetchByPeriod(candidate);
+          let candidateRows: LiveFixture[] = [];
+          try {
+            candidateRows = await fetchByPeriod(candidate);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : "Unknown provider error";
+            console.error(`[live-provider] Candidate fetch failed for period "${candidate}": ${message}`);
+            continue;
+          }
           if (candidateRows.length > 0) {
-            return candidateRows;
+            return {
+              value: candidateRows,
+              ttlMs: fixtureCacheTtl(candidateRows)
+            };
           }
         }
 
-        return primaryRows;
+        return {
+          value: primaryRows,
+          ttlMs: fixtureCacheTtl(primaryRows)
+        };
       }
     );
   } catch (error) {
@@ -1102,21 +1267,28 @@ export async function fetchLigaArgentinaStandings(input?: { leagueId?: number | 
 export function mapFixturesToPronosticosMatches(fixtures: LiveFixture[]): MatchCardData[] {
   const config = parseLiveProviderConfig();
   const timezone = config?.timezone ?? "America/Argentina/Buenos_Aires";
+  const now = Date.now();
 
   const mapped = fixtures.map((fixture) => {
     const status = classifyFixtureStatus(fixture.statusShort);
+    const kickoffMs = new Date(fixture.kickoffAt).getTime();
+    const isLocked = status === "upcoming" && Number.isFinite(kickoffMs) ? kickoffMs <= now : false;
     const card: MatchCardData = {
       id: fixture.id,
       status,
       homeTeam: { code: formatTeamCode(fixture.homeName), logoUrl: fixture.homeLogoUrl },
       awayTeam: { code: formatTeamCode(fixture.awayName), logoUrl: fixture.awayLogoUrl },
+      kickoffAt: fixture.kickoffAt,
+      deadlineAt: status === "upcoming" ? fixture.kickoffAt : undefined,
+      isLocked,
       meta: {
         label:
           status === "live"
             ? formatLiveLabel(fixture)
             : status === "final"
               ? "FINALIZADO"
-              : formatKickoffLabel(fixture.kickoffAt, timezone)
+              : `${isLocked ? "CERRADO · " : ""}${formatKickoffLabel(fixture.kickoffAt, timezone)}`,
+        venue: fixture.venue || undefined
       }
     };
 
@@ -1146,6 +1318,7 @@ export function mapFixturesToPronosticosMatches(fixtures: LiveFixture[]): MatchC
 export function mapFixturesToFixtureCards(fixtures: LiveFixture[]): FixtureDateCard[] {
   const config = parseLiveProviderConfig();
   const timezone = config?.timezone ?? "America/Argentina/Buenos_Aires";
+  const now = Date.now();
 
   const grouped = new Map<
     string,
@@ -1171,7 +1344,13 @@ export function mapFixturesToFixtureCards(fixtures: LiveFixture[]): FixtureDateC
     if (!entry) return;
 
     const tone: FixtureMatchRow["tone"] =
-      status === "live" ? "live" : status === "final" ? "final" : "upcoming";
+      status === "live"
+        ? "live"
+        : status === "final"
+          ? "final"
+          : new Date(fixture.kickoffAt).getTime() - now <= 90 * 60 * 1000
+            ? "warning"
+            : "upcoming";
 
     const scoreLabel =
       status === "live"
@@ -1186,7 +1365,10 @@ export function mapFixturesToFixtureCards(fixtures: LiveFixture[]): FixtureDateC
       homeLogoUrl: fixture.homeLogoUrl,
       awayLogoUrl: fixture.awayLogoUrl,
       scoreLabel,
-      tone
+      tone,
+      kickoffAt: fixture.kickoffAt,
+      venue: fixture.venue || undefined,
+      statusDetail: status === "live" ? formatLiveCompactLabel(fixture) : fixture.statusLong || undefined
     });
   });
 
@@ -1204,9 +1386,22 @@ export function mapFixturesToHomeLiveMatches(fixtures: LiveFixture[]): MatchCard
 }
 
 export function mapFixturesToHomeUpcomingMatches(fixtures: LiveFixture[]): FixtureDateCard[] {
-  const limitedFixtures = sortByKickoff(fixtures)
-    .filter((fixture) => classifyFixtureStatus(fixture.statusShort) !== "final")
-    .slice(0, 3);
+  const statusOrder: Record<MatchStatus, number> = {
+    upcoming: 0,
+    live: 1,
+    final: 2
+  };
+
+  const limitedFixtures = [...fixtures]
+    .sort((a, b) => {
+      const statusDiff = statusOrder[classifyFixtureStatus(a.statusShort)] - statusOrder[classifyFixtureStatus(b.statusShort)];
+      if (statusDiff !== 0) {
+        return statusDiff;
+      }
+
+      return new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime();
+    })
+    .slice(0, 8);
 
   return mapFixturesToFixtureCards(limitedFixtures);
 }

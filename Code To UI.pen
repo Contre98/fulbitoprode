@@ -1,0 +1,75 @@
+{
+  "version": "2.8",
+  "children": [
+    {
+      "type": "rectangle",
+      "id": "e0LjH",
+      "x": -1420,
+      "y": -849,
+      "fill": {
+        "type": "image",
+        "enabled": true,
+        "url": "images/Screenshot 2026-02-16 at 01-25-12 Fulbito Prode.png",
+        "mode": "fill"
+      },
+      "width": 3024,
+      "height": 1898
+    },
+    {
+      "type": "rectangle",
+      "id": "MKeuY",
+      "x": -4538,
+      "y": -849,
+      "fill": {
+        "type": "image",
+        "enabled": true,
+        "url": "images/Screenshot 2026-02-16 at 01-25-07 Fulbito Prode.png",
+        "mode": "fill"
+      },
+      "width": 3024,
+      "height": 1898
+    },
+    {
+      "type": "rectangle",
+      "id": "BH8L4",
+      "x": -4444,
+      "y": -2959,
+      "fill": {
+        "type": "image",
+        "enabled": true,
+        "url": "images/Screenshot 2026-02-16 at 01-25-04 Fulbito Prode.png",
+        "mode": "fill"
+      },
+      "width": 3024,
+      "height": 1898
+    },
+    {
+      "type": "rectangle",
+      "id": "fnwcA",
+      "x": -1152,
+      "y": -2959,
+      "fill": {
+        "type": "image",
+        "enabled": true,
+        "url": "images/Screenshot 2026-02-16 at 01-25-00 Fulbito Prode.png",
+        "mode": "fill"
+      },
+      "width": 3024,
+      "height": 1898
+    },
+    {
+      "type": "rectangle",
+      "id": "kW61W",
+      "x": 1872,
+      "y": -651,
+      "fill": {
+        "type": "image",
+        "enabled": true,
+        "url": "images/Screenshot 2026-02-16 at 01-24-54 Fulbito Prode.png",
+        "mode": "fill"
+      },
+      "width": 3024,
+      "height": 1898
+    }
+  ]
+}

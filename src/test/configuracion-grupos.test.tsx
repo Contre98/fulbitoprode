@@ -88,10 +88,9 @@ describe("Configuracion grupos screen", () => {
     await waitFor(() => expect(global.fetch).toHaveBeenCalled());
 
     expect(screen.getByText("Crear grupo")).toBeInTheDocument();
-    expect(screen.getByText("Unirme por invitación")).toBeInTheDocument();
-    expect(screen.getByText("Mis grupos")).toBeInTheDocument();
-    expect(screen.getByText("Invitación activa")).toBeInTheDocument();
-    expect(screen.getByText("ABC12345")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Código o token de invitación")).toBeInTheDocument();
+    expect(screen.getByText("Mis Grupos")).toBeInTheDocument();
+    expect(screen.getByText("Grupo Amigos")).toBeInTheDocument();
     expect(screen.queryByText("Perfil")).not.toBeInTheDocument();
     expect(screen.queryByText("SELECCION ACTUAL")).not.toBeInTheDocument();
     expect(screen.queryByText("Reglas del Prode")).not.toBeInTheDocument();

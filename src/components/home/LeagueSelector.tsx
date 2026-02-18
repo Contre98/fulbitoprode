@@ -12,7 +12,7 @@ export function LeagueSelector({ label, caption = "SELECCION ACTUAL" }: LeagueSe
         <div className="pl-[10px]">
           <p className="text-[10px] font-bold tracking-[0px] text-[var(--text-muted)]">{caption}</p>
         </div>
-        <div className="h-[42px] rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-surface)] px-[10px]">
+        <div className="h-[42px] rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-surface)] px-[10px]">
           <div className="flex h-full items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Trophy size={16} strokeWidth={1.9} className="text-[var(--accent)]" />

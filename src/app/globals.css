@@ -1,21 +1,59 @@
 @import "tailwindcss";
 
-:root {
-  --accent: #ccff00;
-  --accent-dim: #1a2600;
-  --bg-body: #09090b;
-  --bg-surface: #18181b;
-  --bg-surface-elevated: #27272a;
-  --border-dim: #27272a;
-  --border-light: #3f3f46;
-  --text-primary: #e4e4e7;
-  --text-secondary: #a1a1aa;
-  --text-muted: #71717a;
-  --text-tertiary: #52525b;
-  --font-primary: var(--font-manrope), "Segoe UI", sans-serif;
-  --font-mono: var(--font-jetbrains-mono), "SFMono-Regular", ui-monospace, monospace;
-  --font-team: var(--font-archivo), var(--font-manrope), sans-serif;
+:root,
+html[data-theme="dark"] {
+  --accent-primary: #ccff00;
+  --accent-soft: rgba(204, 255, 0, 0.14);
+  --bg-app: #050507;
+  --bg-surface-1: #0b0c0f;
+  --bg-surface-2: #13161c;
+  --border-subtle: #262b34;
+  --text-primary: #f4f6fa;
+  --text-secondary: #a8b0bd;
+  --text-muted: #7f8998;
+  --text-on-accent: #0b111a;
+  --success: #74e27a;
+  --warning: #ffb454;
+  --danger: #ff6b7d;
+
+  /* Backward compatibility for existing classes/components. */
+  --accent: var(--accent-primary);
+  --accent-dim: rgba(204, 255, 0, 0.2);
+  --bg-body: var(--bg-app);
+  --bg-surface: var(--bg-surface-1);
+  --bg-surface-elevated: var(--bg-surface-2);
+  --border-dim: var(--border-subtle);
+  --border-light: #37404f;
+  --text-tertiary: var(--text-muted);
+
   color-scheme: dark;
+}
+
+html[data-theme="light"] {
+  --accent-primary: #b6d900;
+  --accent-soft: rgba(182, 217, 0, 0.14);
+  --bg-app: #f5f6f8;
+  --bg-surface-1: #ffffff;
+  --bg-surface-2: #eef1f5;
+  --border-subtle: #d8dee8;
+  --text-primary: #0b111a;
+  --text-secondary: #5d6675;
+  --text-muted: #7f8998;
+  --text-on-accent: #101923;
+  --success: #1f8a3d;
+  --warning: #b96a00;
+  --danger: #b42336;
+
+  --accent: var(--accent-primary);
+  --accent-dim: rgba(182, 217, 0, 0.2);
+  --bg-body: var(--bg-app);
+  --bg-surface: var(--bg-surface-1);
+  --bg-surface-elevated: var(--bg-surface-2);
+  --border-dim: var(--border-subtle);
+  --border-light: #c8d0dd;
+  --text-tertiary: var(--text-muted);
+
+  color-scheme: light;
 }
 
 * {
@@ -26,20 +64,13 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  background: #000000;
+  background: var(--bg-app);
   color: var(--text-primary);
 }
 
 body {
-  font-family: var(--font-primary);
-}
-
-.font-mono {
-  font-family: var(--font-mono);
-}
-
-.font-team {
-  font-family: var(--font-team);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  text-rendering: optimizeLegibility;
 }
 
 a {
@@ -49,6 +80,34 @@ a {
 
 button {
   font: inherit;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  button:hover {
+    filter: brightness(1.02);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 .no-scrollbar::-webkit-scrollbar {

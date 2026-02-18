@@ -23,7 +23,7 @@ export function GroupSwitcher({ options, activeGroupId, onChange }: GroupSwitche
       <select
         value={activeGroupId || options[0].id}
         onChange={(event) => onChange(event.target.value)}
-        className="h-[38px] w-full rounded-[10px] border border-[var(--border-light)] bg-[var(--bg-surface)] px-3 text-[12px] font-semibold text-white outline-none"
+        className="h-[38px] w-full rounded-[6px] border border-[var(--border-light)] bg-[var(--bg-surface)] px-3 text-[12px] font-semibold text-white outline-none"
       >
         {options.map((option) => (
           <option key={option.id} value={option.id}>

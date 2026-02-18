@@ -3,6 +3,9 @@ import { getUserById, listGroupsForUser, updateUserProfile } from "@/lib/m3-repo
 import { fetchProviderLeagues } from "@/lib/liga-live-provider";
 import { getSessionPocketBaseTokenFromRequest, getSessionUserIdFromRequest } from "@/lib/request-auth";
 
+const USERNAME_PATTERN = /^[a-zA-Z0-9._-]+$/;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export async function GET(request: Request) {
   const userId = getSessionUserIdFromRequest(request);
   const pbToken = getSessionPocketBaseTokenFromRequest(request);
@@ -50,6 +53,7 @@ export async function GET(request: Request) {
         id: user.id,
         email: user.email,
         name: user.name,
+        username: user.username ?? null,
         favoriteTeam: user.favoriteTeam ?? null
       },
       memberships
@@ -68,15 +72,58 @@ export async function PATCH(request: Request) {
   try {
     const body = (await request.json()) as {
       name?: string | null;
+      username?: string | null;
+      email?: string | null;
       favoriteTeam?: string | null;
     };
 
     const nextName = typeof body.name === "string" || body.name === null ? body.name : undefined;
+    const nextUsername = typeof body.username === "string" || body.username === null ? body.username : undefined;
+    const nextEmail = typeof body.email === "string" || body.email === null ? body.email : undefined;
     const nextFavoriteTeam =
       typeof body.favoriteTeam === "string" || body.favoriteTeam === null ? body.favoriteTeam : undefined;
+    let normalizedUsername: string | undefined;
+    let normalizedEmail: string | undefined;
 
     if (nextName !== undefined && nextName !== null && nextName.trim().length > 120) {
       return NextResponse.json({ error: "Name is too long" }, { status: 400 });
+    }
+
+    if (nextUsername === null) {
+      return NextResponse.json({ error: "Username is required" }, { status: 400 });
+    }
+
+    if (nextUsername !== undefined) {
+      normalizedUsername = nextUsername.trim().replace(/^@+/, "");
+      if (!normalizedUsername) {
+        return NextResponse.json({ error: "Username is required" }, { status: 400 });
+      }
+      if (normalizedUsername.length > 40) {
+        return NextResponse.json({ error: "Username is too long" }, { status: 400 });
+      }
+      if (!USERNAME_PATTERN.test(normalizedUsername)) {
+        return NextResponse.json(
+          { error: "Username can only include letters, numbers, dot, underscore and dash" },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (nextEmail === null) {
+      return NextResponse.json({ error: "Email is required" }, { status: 400 });
+    }
+
+    if (nextEmail !== undefined) {
+      normalizedEmail = nextEmail.trim().toLowerCase();
+      if (!normalizedEmail) {
+        return NextResponse.json({ error: "Email is required" }, { status: 400 });
+      }
+      if (normalizedEmail.length > 190) {
+        return NextResponse.json({ error: "Email is too long" }, { status: 400 });
+      }
+      if (!EMAIL_PATTERN.test(normalizedEmail)) {
+        return NextResponse.json({ error: "Email is invalid" }, { status: 400 });
+      }
     }
 
     if (nextFavoriteTeam !== undefined && nextFavoriteTeam !== null && nextFavoriteTeam.trim().length > 120) {
@@ -87,6 +134,8 @@ export async function PATCH(request: Request) {
       userId,
       {
         name: nextName,
+        username: normalizedUsername,
+        email: normalizedEmail,
         favoriteTeam: nextFavoriteTeam
       },
       pbToken
@@ -99,6 +148,7 @@ export async function PATCH(request: Request) {
           id: updated.id,
           email: updated.email,
           name: updated.name,
+          username: updated.username ?? null,
           favoriteTeam: updated.favoriteTeam ?? null
         }
       },

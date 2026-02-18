@@ -33,6 +33,9 @@ export interface MatchCardData {
   meta: MatchMeta;
   points?: MatchPoints;
   progress?: number;
+  kickoffAt?: string;
+  deadlineAt?: string;
+  isLocked?: boolean;
 }
 
 export interface PredictionStepperState {
@@ -58,11 +61,43 @@ export interface LeaderboardRow {
   record: string;
   points: number;
   highlight?: boolean;
+  deltaRank?: number;
+  streak?: number;
 }
 
 export type LeaderboardMode = "posiciones" | "stats";
 export type MatchPeriod = string;
 export type LeaderboardPeriod = "global" | MatchPeriod;
+
+export interface LeaderboardBestFecha {
+  period: MatchPeriod;
+  periodLabel: string;
+  userId?: string;
+  userName: string;
+  points: number;
+}
+
+export interface LeaderboardWorldBenchmark {
+  leagueName: string;
+  leaderPoints: number;
+  groupTotalPoints: number;
+  averageMemberPoints: number;
+  ratioVsLeaderPct: number;
+}
+
+export interface LeaderboardGroupStats {
+  memberCount: number;
+  scoredPredictions: number;
+  correctPredictions: number;
+  exactPredictions: number;
+  resultPredictions: number;
+  missPredictions: number;
+  accuracyPct: number;
+  totalPoints: number;
+  averageMemberPoints: number;
+  bestFecha: LeaderboardBestFecha | null;
+  worldBenchmark: LeaderboardWorldBenchmark | null;
+}
 
 export interface LeaderboardPayload {
   groupLabel: string;
@@ -71,6 +106,7 @@ export interface LeaderboardPayload {
   periodLabel: string;
   updatedAt: string;
   rows: LeaderboardRow[];
+  groupStats?: LeaderboardGroupStats | null;
 }
 
 export type FixtureScoreTone = "final" | "live" | "upcoming" | "warning";
@@ -82,6 +118,9 @@ export interface FixtureMatchRow {
   awayLogoUrl?: string;
   scoreLabel: string;
   tone: FixtureScoreTone;
+  kickoffAt?: string;
+  venue?: string;
+  statusDetail?: string;
 }
 
 export interface FixtureDateCard {
@@ -109,6 +148,40 @@ export interface FixturePayload {
   period: MatchPeriod;
   periodLabel: string;
   cards: FixtureDateCard[];
+  updatedAt: string;
+}
+
+export interface HomeSummary {
+  pendingPredictions?: number;
+  liveMatches?: number;
+  myRank?: number;
+  myPoints?: number;
+}
+
+export interface HomePayload {
+  groupCards: GroupCard[];
+  liveCards: FixtureDateCard[];
+  updatedAt: string;
+  summary?: HomeSummary;
+}
+
+export interface ProfileStats {
+  totalPoints: number;
+  accuracyPct: number;
+  groups: number;
+}
+
+export interface ProfileActivityItem {
+  id: string;
+  type: "prediction" | "group_join";
+  label: string;
+  occurredAt: string;
+  points?: number;
+}
+
+export interface ProfilePayload {
+  stats: ProfileStats;
+  recentActivity: ProfileActivityItem[];
   updatedAt: string;
 }
 
@@ -166,6 +239,7 @@ export interface GroupInvite {
 export interface GroupInvitePayload {
   invite: GroupInvite | null;
   canRefresh: boolean;
+  inviteUrl?: string;
 }
 
 export interface CreateGroupResponse {

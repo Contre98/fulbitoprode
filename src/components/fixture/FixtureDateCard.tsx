@@ -1,16 +1,17 @@
 import Image from "next/image";
-import { Shield } from "lucide-react";
+import { Clock3, MapPin, Shield } from "lucide-react";
 import type { FixtureDateCard as FixtureDateCardType, FixtureMatchRow } from "@/lib/types";
 
 interface FixtureDateCardProps {
   card: FixtureDateCardType;
+  onRowClick?: (row: FixtureMatchRow, context: { dateLabel: string }) => void;
 }
 
 const toneClassMap: Record<FixtureMatchRow["tone"], string> = {
-  final: "text-[#9ca3af]",
-  live: "text-[#b7cf92]",
+  final: "text-[var(--text-secondary)]",
+  live: "text-[var(--success)]",
   upcoming: "text-[var(--text-primary)]",
-  warning: "text-[#facc15]"
+  warning: "text-[var(--warning)]"
 };
 
 function TeamLogo({ logoUrl, teamName }: { logoUrl?: string; teamName: string }) {
@@ -19,50 +20,84 @@ function TeamLogo({ logoUrl, teamName }: { logoUrl?: string; teamName: string })
       <Image
         src={logoUrl}
         alt={`${teamName} logo`}
-        width={20}
-        height={20}
+        width={22}
+        height={22}
         unoptimized
-        className="h-5 w-5 object-contain"
+        className="h-[22px] w-[22px] object-contain"
       />
     );
   }
 
-  return <Shield size={16} strokeWidth={1.9} className="text-[var(--border-light)]" />;
+  return <Shield size={17} strokeWidth={1.8} className="text-[var(--text-secondary)]" />;
 }
 
-export function FixtureDateCard({ card }: FixtureDateCardProps) {
+export function FixtureDateCard({ card, onRowClick }: FixtureDateCardProps) {
   const isLiveAccent = card.accent === "live";
 
   return (
     <article
-      className={`w-full rounded-md border px-2 pt-[6px] pb-[14px] ${
-        isLiveAccent ? "border-[#324429] bg-[#0b0d09]" : "border-[#4c4c55] bg-[#0b0b0d]"
+      className={`w-full rounded-2xl border px-3 py-3 ${
+        isLiveAccent
+          ? "border-[rgba(116,226,122,0.35)] bg-[linear-gradient(155deg,rgba(116,226,122,0.1)_0%,var(--bg-surface-1)_56%)]"
+          : "border-[var(--border-subtle)] bg-[var(--bg-surface-1)]"
       }`}
     >
-      <div className="flex flex-col gap-3">
-        <h3 className="text-[13px] font-bold text-[#d8dbe3]">{card.dateLabel}</h3>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-[13px] font-bold text-[var(--text-primary)]">{card.dateLabel}</h3>
+          {isLiveAccent ? (
+            <span className="inline-flex min-h-7 items-center gap-1 rounded-full border border-[rgba(116,226,122,0.36)] bg-[rgba(116,226,122,0.12)] px-2 text-[10px] font-semibold text-[var(--success)]">
+              <Clock3 size={11} />
+              En vivo
+            </span>
+          ) : null}
+        </div>
 
-        {card.rows.map((row, index) => (
-          <div key={`${row.home}-${row.away}`}>
-            <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 py-2">
-              <div className="flex min-w-0 items-center gap-2">
-                <TeamLogo logoUrl={row.homeLogoUrl} teamName={row.home} />
-                <span className="truncate text-xs font-semibold text-[var(--text-primary)]">{row.home}</span>
-              </div>
+        {card.rows.map((row, index) => {
+          const interactive = Boolean(onRowClick);
+          return (
+            <div key={`${row.home}-${row.away}-${index}`}>
+              {interactive ? (
+                <button
+                  type="button"
+                  onClick={() => onRowClick?.(row, { dateLabel: card.dateLabel })}
+                  className="grid min-h-12 w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-xl px-2 py-2 text-left active:bg-[var(--bg-surface-2)]"
+                >
+                  <div className="flex min-w-0 items-center gap-2">
+                    <TeamLogo logoUrl={row.homeLogoUrl} teamName={row.home} />
+                    <span className="truncate text-[12px] font-semibold text-[var(--text-primary)]">{row.home}</span>
+                  </div>
+                  <span className={`px-1 text-center text-[11px] font-black tracking-tighter ${toneClassMap[row.tone]}`}>{row.scoreLabel}</span>
+                  <div className="flex min-w-0 items-center justify-end gap-2">
+                    <span className="truncate text-[12px] font-semibold text-[var(--text-primary)]">{row.away}</span>
+                    <TeamLogo logoUrl={row.awayLogoUrl} teamName={row.away} />
+                  </div>
+                </button>
+              ) : (
+                <div className="grid min-h-12 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded-xl px-2 py-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <TeamLogo logoUrl={row.homeLogoUrl} teamName={row.home} />
+                    <span className="truncate text-[12px] font-semibold text-[var(--text-primary)]">{row.home}</span>
+                  </div>
+                  <span className={`px-1 text-center text-[11px] font-black tracking-tighter ${toneClassMap[row.tone]}`}>{row.scoreLabel}</span>
+                  <div className="flex min-w-0 items-center justify-end gap-2">
+                    <span className="truncate text-[12px] font-semibold text-[var(--text-primary)]">{row.away}</span>
+                    <TeamLogo logoUrl={row.awayLogoUrl} teamName={row.away} />
+                  </div>
+                </div>
+              )}
 
-              <span className={`px-1 text-center font-mono text-[11px] font-bold tracking-[0px] ${toneClassMap[row.tone]}`}>
-                {row.scoreLabel}
-              </span>
+              {(row.venue || row.kickoffAt) && !interactive ? (
+                <p className="mt-1 inline-flex items-center gap-1 px-2 text-[10px] text-[var(--text-secondary)]">
+                  <MapPin size={10} />
+                  {row.venue || "Sede por confirmar"}
+                </p>
+              ) : null}
 
-              <div className="flex min-w-0 items-center justify-end gap-2">
-                <span className="truncate text-xs font-semibold text-[var(--text-primary)]">{row.away}</span>
-                <TeamLogo logoUrl={row.awayLogoUrl} teamName={row.away} />
-              </div>
+              {index < card.rows.length - 1 ? <div className="mx-2 h-px bg-[var(--border-subtle)]" /> : null}
             </div>
-
-            {index < card.rows.length - 1 ? <div className="h-px w-full bg-[#2a2e35]" /> : null}
-          </div>
-        ))}
+          );
+        })}
       </div>
     </article>
   );
