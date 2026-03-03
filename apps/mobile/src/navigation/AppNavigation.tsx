@@ -10,6 +10,7 @@ import { PronosticosScreen } from "@/screens/PronosticosScreen";
 import { PosicionesScreen } from "@/screens/PosicionesScreen";
 import { FixtureScreen } from "@/screens/FixtureScreen";
 import { ConfiguracionScreen } from "@/screens/ConfiguracionScreen";
+import { GroupProvider } from "@/state/GroupContext";
 
 const RootStack = createNativeStackNavigator();
 const Tabs = createBottomTabNavigator();
@@ -51,11 +52,13 @@ function RootNavigator() {
 export function AppNavigation() {
   return (
     <AuthProvider>
-      <PeriodProvider>
-        <NavigationContainer>
-          <RootNavigator />
-        </NavigationContainer>
-      </PeriodProvider>
+      <GroupProvider>
+        <PeriodProvider>
+          <NavigationContainer>
+            <RootNavigator />
+          </NavigationContainer>
+        </PeriodProvider>
+      </GroupProvider>
     </AuthProvider>
   );
 }

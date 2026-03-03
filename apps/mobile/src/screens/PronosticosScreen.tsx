@@ -5,21 +5,22 @@ import type { Fixture, Prediction } from "@fulbito/domain";
 import { colors, spacing } from "@fulbito/design-tokens";
 import { isPredictionInputComplete, normalizePredictionInput } from "@fulbito/domain";
 import { FechaSelector } from "@/components/FechaSelector";
+import { GroupSelector } from "@/components/GroupSelector";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { fixtureRepository, predictionsRepository } from "@/repositories";
-import { useAuth } from "@/state/AuthContext";
+import { useGroupSelection } from "@/state/GroupContext";
 import { usePeriod } from "@/state/PeriodContext";
 
 type DraftByFixture = Record<string, { home: string; away: string }>;
 
 export function PronosticosScreen() {
   const queryClient = useQueryClient();
-  const { session } = useAuth();
+  const { memberships, selectedGroupId } = useGroupSelection();
   const { fecha } = usePeriod();
-  const groupId = session?.memberships[0]?.groupId ?? "grupo-1";
+  const groupId = memberships.find((membership) => membership.groupId === selectedGroupId)?.groupId ?? memberships[0]?.groupId ?? "grupo-1";
   const [draftByFixture, setDraftByFixture] = useState<DraftByFixture>({});
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
@@ -192,6 +193,7 @@ export function PronosticosScreen() {
 
   return (
     <ScreenFrame title="Pronósticos" subtitle="Ingresa y guarda tus predicciones">
+      <GroupSelector />
       <FechaSelector />
       {upcomingFixtures.length === 0 ? (
         <EmptyState title="Sin partidos próximos" description="Volvé más tarde para cargar tus próximos pronósticos." />

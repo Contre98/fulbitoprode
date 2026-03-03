@@ -5,12 +5,13 @@ import { compareFixturesByStatusAndKickoff, groupFixturesByDate } from "@fulbito
 import type { Fixture } from "@fulbito/domain";
 import { colors, spacing } from "@fulbito/design-tokens";
 import { FechaSelector } from "@/components/FechaSelector";
+import { GroupSelector } from "@/components/GroupSelector";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { fixtureRepository } from "@/repositories";
-import { useAuth } from "@/state/AuthContext";
+import { useGroupSelection } from "@/state/GroupContext";
 import { usePeriod } from "@/state/PeriodContext";
 function statusLabel(status: Fixture["status"]) {
   if (status === "live") {
@@ -33,9 +34,9 @@ function statusTone(status: Fixture["status"]) {
 }
 
 export function FixtureScreen() {
-  const { session } = useAuth();
+  const { memberships, selectedGroupId } = useGroupSelection();
   const { fecha } = usePeriod();
-  const groupId = session?.memberships[0]?.groupId ?? "grupo-1";
+  const groupId = memberships.find((membership) => membership.groupId === selectedGroupId)?.groupId ?? memberships[0]?.groupId ?? "grupo-1";
   const fixtureQuery = useQuery({
     queryKey: ["fixture", groupId, fecha],
     queryFn: () =>
@@ -52,6 +53,7 @@ export function FixtureScreen() {
 
   return (
     <ScreenFrame title="Fixture" subtitle="Partidos por fecha y resultados">
+      <GroupSelector />
       <FechaSelector />
       {fixtureQuery.isLoading ? <LoadingState message="Cargando fixture..." /> : null}
       {fixtureQuery.isError ? (

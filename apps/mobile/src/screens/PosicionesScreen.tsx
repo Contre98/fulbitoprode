@@ -2,18 +2,19 @@ import { StyleSheet, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { colors, spacing } from "@fulbito/design-tokens";
 import { FechaSelector } from "@/components/FechaSelector";
+import { GroupSelector } from "@/components/GroupSelector";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { leaderboardRepository } from "@/repositories";
-import { useAuth } from "@/state/AuthContext";
+import { useGroupSelection } from "@/state/GroupContext";
 import { usePeriod } from "@/state/PeriodContext";
 
 export function PosicionesScreen() {
-  const { session } = useAuth();
+  const { memberships, selectedGroupId } = useGroupSelection();
   const { fecha } = usePeriod();
-  const groupId = session?.memberships[0]?.groupId ?? "grupo-1";
+  const groupId = memberships.find((membership) => membership.groupId === selectedGroupId)?.groupId ?? memberships[0]?.groupId ?? "grupo-1";
   const leaderboardQuery = useQuery({
     queryKey: ["leaderboard", groupId, fecha],
     queryFn: () =>
@@ -25,6 +26,7 @@ export function PosicionesScreen() {
 
   return (
     <ScreenFrame title="Posiciones" subtitle="Tabla del grupo y métricas clave">
+      <GroupSelector />
       <FechaSelector />
       {leaderboardQuery.isLoading ? <LoadingState message="Cargando posiciones..." /> : null}
       {leaderboardQuery.isError ? (
