@@ -18,6 +18,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const baseUrl = getApiBaseUrl();
   const response = await fetch(`${baseUrl}${path}`, {
     ...init,
+    credentials: "include",
     headers: {
       "content-type": "application/json",
       ...(init?.headers ?? {})

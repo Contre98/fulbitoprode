@@ -1,6 +1,9 @@
-import type { FixtureRepository, GroupsRepository, LeaderboardRepository, PredictionsRepository } from "@fulbito/api-contracts";
+import type { AuthRepository, FixtureRepository, GroupsRepository, LeaderboardRepository, PredictionsRepository } from "@fulbito/api-contracts";
+import { canUseHttpSession, setUseHttpSession } from "@/repositories/authBridgeState";
+import { httpAuthRepository } from "@/repositories/httpAuthRepository";
 import { httpFixtureRepository, httpGroupsRepository, httpLeaderboardRepository, httpPredictionsRepository } from "@/repositories/httpDataRepositories";
 import { mockFixtureRepository, mockGroupsRepository, mockLeaderboardRepository, mockPredictionsRepository } from "@/repositories/mockDataRepositories";
+import { mockAuthRepository } from "@/repositories/mockAuthRepository";
 
 function logFallback(scope: string, error: unknown) {
   const message = error instanceof Error ? error.message : "Unknown error";
@@ -9,6 +12,9 @@ function logFallback(scope: string, error: unknown) {
 
 export const predictionsRepository: PredictionsRepository = {
   async listPredictions(input) {
+    if (!canUseHttpSession()) {
+      return mockPredictionsRepository.listPredictions(input);
+    }
     try {
       return await httpPredictionsRepository.listPredictions(input);
     } catch (error) {
@@ -17,6 +23,9 @@ export const predictionsRepository: PredictionsRepository = {
     }
   },
   async savePrediction(input) {
+    if (!canUseHttpSession()) {
+      return mockPredictionsRepository.savePrediction(input);
+    }
     try {
       return await httpPredictionsRepository.savePrediction(input);
     } catch (error) {
@@ -28,6 +37,9 @@ export const predictionsRepository: PredictionsRepository = {
 
 export const fixtureRepository: FixtureRepository = {
   async listFixture(input) {
+    if (!canUseHttpSession()) {
+      return mockFixtureRepository.listFixture(input);
+    }
     try {
       return await httpFixtureRepository.listFixture(input);
     } catch (error) {
@@ -39,6 +51,9 @@ export const fixtureRepository: FixtureRepository = {
 
 export const leaderboardRepository: LeaderboardRepository = {
   async getLeaderboard(input) {
+    if (!canUseHttpSession()) {
+      return mockLeaderboardRepository.getLeaderboard(input);
+    }
     try {
       return await httpLeaderboardRepository.getLeaderboard(input);
     } catch (error) {
@@ -50,6 +65,9 @@ export const leaderboardRepository: LeaderboardRepository = {
 
 export const groupsRepository: GroupsRepository = {
   async listGroups() {
+    if (!canUseHttpSession()) {
+      return mockGroupsRepository.listGroups();
+    }
     try {
       return await httpGroupsRepository.listGroups();
     } catch (error) {
@@ -58,11 +76,61 @@ export const groupsRepository: GroupsRepository = {
     }
   },
   async listMemberships() {
+    if (!canUseHttpSession()) {
+      return mockGroupsRepository.listMemberships();
+    }
     try {
       return await httpGroupsRepository.listMemberships();
     } catch (error) {
       logFallback("groups.listMemberships", error);
       return mockGroupsRepository.listMemberships();
     }
+  }
+};
+
+export const authRepository: AuthRepository = {
+  async getSession() {
+    try {
+      const session = await httpAuthRepository.getSession();
+      setUseHttpSession(true);
+      return session;
+    } catch (error) {
+      logFallback("auth.getSession", error);
+      setUseHttpSession(false);
+      return mockAuthRepository.getSession();
+    }
+  },
+  async loginWithPassword(email, password) {
+    try {
+      const session = await httpAuthRepository.loginWithPassword(email, password);
+      setUseHttpSession(true);
+      return session;
+    } catch (error) {
+      logFallback("auth.loginWithPassword", error);
+      setUseHttpSession(false);
+      return mockAuthRepository.loginWithPassword(email, password);
+    }
+  },
+  async registerWithPassword(input) {
+    try {
+      const session = await httpAuthRepository.registerWithPassword(input);
+      setUseHttpSession(true);
+      return session;
+    } catch (error) {
+      logFallback("auth.registerWithPassword", error);
+      setUseHttpSession(false);
+      return mockAuthRepository.registerWithPassword(input);
+    }
+  },
+  async logout() {
+    if (canUseHttpSession()) {
+      try {
+        await httpAuthRepository.logout();
+      } catch (error) {
+        logFallback("auth.logout", error);
+      }
+    }
+    setUseHttpSession(false);
+    await mockAuthRepository.logout();
   }
 };
