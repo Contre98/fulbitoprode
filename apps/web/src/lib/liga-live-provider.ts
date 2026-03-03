@@ -1,4 +1,5 @@
 import type { FixtureDateCard, FixtureMatchRow, LeagueOption, MatchCardData, MatchPeriod, MatchStatus } from "@/lib/types";
+import { fixtureDateKey, fixtureDateLabel } from "@fulbito/domain";
 import { getFootballProviderCoreConfig } from "@/lib/env";
 
 type JsonObject = Record<string, unknown>;
@@ -108,24 +109,10 @@ function readNumber(value: unknown): number | null {
   return null;
 }
 
-function toYmd(date: Date, timezone: string) {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: timezone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit"
-  }).format(date);
-}
-
 function shiftDate(base: Date, days: number) {
   const shifted = new Date(base);
   shifted.setDate(shifted.getDate() + days);
   return shifted;
-}
-
-function capitalize(value: string) {
-  if (!value) return value;
-  return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
 function normalizeAscii(value: string) {
@@ -585,8 +572,8 @@ function buildFixturesUrl(
 
   const now = new Date();
   const window = LEGACY_PERIOD_WINDOWS.fecha14;
-  const from = toYmd(shiftDate(now, window.fromDays), config.timezone);
-  const to = toYmd(shiftDate(now, window.toDays), config.timezone);
+  const from = fixtureDateKey(shiftDate(now, window.fromDays), { timeZone: config.timezone });
+  const to = fixtureDateKey(shiftDate(now, window.toDays), { timeZone: config.timezone });
 
   url.searchParams.set("from", from);
   url.searchParams.set("to", to);
@@ -655,9 +642,9 @@ export function formatTeamCode(name: string): string {
 function formatKickoffLabel(kickoffAt: string, timezone: string) {
   const kickoffDate = new Date(kickoffAt);
   const now = new Date();
-  const todayYmd = toYmd(now, timezone);
-  const tomorrowYmd = toYmd(shiftDate(now, 1), timezone);
-  const kickoffYmd = toYmd(kickoffDate, timezone);
+  const todayYmd = fixtureDateKey(now, { timeZone: timezone });
+  const tomorrowYmd = fixtureDateKey(shiftDate(now, 1), { timeZone: timezone });
+  const kickoffYmd = fixtureDateKey(kickoffDate, { timeZone: timezone });
 
   const timeLabel = new Intl.DateTimeFormat("es-AR", {
     timeZone: timezone,
@@ -699,28 +686,6 @@ function toProgress(elapsed: number | null) {
   if (elapsed === null) return 50;
   const progress = Math.round((elapsed / 90) * 100);
   return Math.max(8, Math.min(100, progress));
-}
-
-function dateLabelFromKickoff(kickoffAt: string, timezone: string) {
-  const date = new Date(kickoffAt);
-  const weekday = capitalize(
-    new Intl.DateTimeFormat("es-AR", {
-      weekday: "long",
-      timeZone: timezone
-    }).format(date)
-  );
-  const day = new Intl.DateTimeFormat("es-AR", {
-    day: "numeric",
-    timeZone: timezone
-  }).format(date);
-  const month = capitalize(
-    new Intl.DateTimeFormat("es-AR", {
-      month: "long",
-      timeZone: timezone
-    }).format(date)
-  );
-
-  return `${weekday}, ${day} de ${month}`;
 }
 
 function formatFixtureUpcomingLabel(kickoffAt: string, timezone: string) {
@@ -1330,11 +1295,11 @@ export function mapFixturesToFixtureCards(fixtures: LiveFixture[]): FixtureDateC
 
   fixtures.forEach((fixture) => {
     const kickoff = new Date(fixture.kickoffAt);
-    const key = toYmd(kickoff, timezone);
+    const key = fixtureDateKey(kickoff, { timeZone: timezone });
 
     if (!grouped.has(key)) {
       grouped.set(key, {
-        dateLabel: dateLabelFromKickoff(fixture.kickoffAt, timezone),
+        dateLabel: fixtureDateLabel(fixture.kickoffAt, { locale: "es-AR", timeZone: timezone }),
         rows: []
       });
     }

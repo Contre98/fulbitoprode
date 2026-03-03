@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
+import { compareFixturesByStatusAndKickoff, groupFixturesByDate } from "@fulbito/domain";
 import type { Fixture } from "@fulbito/domain";
 import { colors, spacing } from "@fulbito/design-tokens";
 import { EmptyState } from "@/components/EmptyState";
@@ -11,8 +12,6 @@ import { fixtureRepository } from "@/repositories";
 import { useAuth } from "@/state/AuthContext";
 
 const DEFAULT_FECHA = "2026-01";
-const STATUS_ORDER = ["live", "upcoming", "final"] as const;
-
 function statusLabel(status: Fixture["status"]) {
   if (status === "live") {
     return "EN VIVO";
@@ -46,25 +45,8 @@ export function FixtureScreen() {
   });
 
   const grouped = useMemo(() => {
-    const byDate = new Map<string, Fixture[]>();
-    (fixtureQuery.data ?? []).forEach((fixture) => {
-      const dateLabel = new Date(fixture.kickoffAt).toLocaleDateString();
-      const rows = byDate.get(dateLabel) ?? [];
-      byDate.set(dateLabel, [...rows, fixture]);
-    });
-
-    return [...byDate.entries()]
-      .sort((a, b) => {
-        const dateA = new Date(a[1][0]?.kickoffAt ?? "").getTime();
-        const dateB = new Date(b[1][0]?.kickoffAt ?? "").getTime();
-        return dateA - dateB;
-      })
-      .map(([dateLabel, fixtures]) => ({
-        dateLabel,
-        fixtures: [...fixtures].sort(
-          (a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status) || new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime()
-        )
-      }));
+    const sorted = [...(fixtureQuery.data ?? [])].sort(compareFixturesByStatusAndKickoff);
+    return groupFixturesByDate(sorted, { locale: "es-AR" });
   }, [fixtureQuery.data]);
 
   return (
@@ -81,7 +63,7 @@ export function FixtureScreen() {
         <EmptyState title="Sin partidos disponibles" description="No hay partidos cargados para esta fecha." />
       ) : null}
       {grouped.map((group) => (
-        <View key={group.dateLabel} style={styles.group}>
+        <View key={group.dateKey} style={styles.group}>
           <Text style={styles.dateLabel}>{group.dateLabel}</Text>
           {group.fixtures.map((fixture) => (
             <View key={fixture.id} style={styles.row}>

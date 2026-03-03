@@ -70,12 +70,23 @@ export interface MatchScoreValue {
   away: number;
 }
 
+export interface FixtureDateGroup<T> {
+  dateKey: string;
+  dateLabel: string;
+  fixtures: T[];
+}
+
 export const MAX_PREDICTION_GOALS = 99;
 export const SCORE_RULES = {
   exact: 3,
   outcome: 1,
   miss: 0
 } as const;
+export const FIXTURE_STATUS_ORDER: Record<Fixture["status"], number> = {
+  live: 0,
+  upcoming: 1,
+  final: 2
+};
 
 function normalizeGoalValue(raw: string): number | null {
   const value = raw.trim();
@@ -114,4 +125,87 @@ export function calculatePredictionPoints(prediction: MatchScoreValue, score: Ma
   const predictionDiff = Math.sign(prediction.home - prediction.away);
   const scoreDiff = Math.sign(score.home - score.away);
   return predictionDiff === scoreDiff ? SCORE_RULES.outcome : SCORE_RULES.miss;
+}
+
+function capitalize(value: string) {
+  if (!value) return value;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+export function fixtureDateKey(kickoffAt: string | Date, options?: { timeZone?: string }) {
+  const date = kickoffAt instanceof Date ? kickoffAt : new Date(kickoffAt);
+  return new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: options?.timeZone
+  }).format(date);
+}
+
+export function fixtureDateLabel(
+  kickoffAt: string | Date,
+  options?: {
+    locale?: string;
+    timeZone?: string;
+  }
+) {
+  const date = kickoffAt instanceof Date ? kickoffAt : new Date(kickoffAt);
+  const locale = options?.locale ?? "es-AR";
+  const weekday = capitalize(
+    new Intl.DateTimeFormat(locale, {
+      weekday: "long",
+      timeZone: options?.timeZone
+    }).format(date)
+  );
+  const day = new Intl.DateTimeFormat(locale, {
+    day: "numeric",
+    timeZone: options?.timeZone
+  }).format(date);
+  const month = capitalize(
+    new Intl.DateTimeFormat(locale, {
+      month: "long",
+      timeZone: options?.timeZone
+    }).format(date)
+  );
+
+  return `${weekday}, ${day} de ${month}`;
+}
+
+export function compareFixturesByStatusAndKickoff<T extends { status: Fixture["status"]; kickoffAt: string }>(a: T, b: T) {
+  const statusDiff = FIXTURE_STATUS_ORDER[a.status] - FIXTURE_STATUS_ORDER[b.status];
+  if (statusDiff !== 0) {
+    return statusDiff;
+  }
+
+  return new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime();
+}
+
+export function groupFixturesByDate<T extends { kickoffAt: string }>(
+  fixtures: T[],
+  options?: {
+    locale?: string;
+    timeZone?: string;
+  }
+): FixtureDateGroup<T>[] {
+  const grouped = new Map<string, FixtureDateGroup<T>>();
+
+  fixtures.forEach((fixture) => {
+    const key = fixtureDateKey(fixture.kickoffAt, { timeZone: options?.timeZone });
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.fixtures.push(fixture);
+      return;
+    }
+
+    grouped.set(key, {
+      dateKey: key,
+      dateLabel: fixtureDateLabel(fixture.kickoffAt, {
+        locale: options?.locale,
+        timeZone: options?.timeZone
+      }),
+      fixtures: [fixture]
+    });
+  });
+
+  return [...grouped.values()].sort((a, b) => a.dateKey.localeCompare(b.dateKey));
 }
