@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { ScreenFrame } from "@/components/ScreenFrame";
-import { mockFixtureRepository } from "@/repositories/mockDataRepositories";
+import { fixtureRepository } from "@/repositories";
 import { useAuth } from "@/state/AuthContext";
 
 const DEFAULT_FECHA = "2026-01";
@@ -39,7 +39,7 @@ export function FixtureScreen() {
   const fixtureQuery = useQuery({
     queryKey: ["fixture", groupId, DEFAULT_FECHA],
     queryFn: () =>
-      mockFixtureRepository.listFixture({
+      fixtureRepository.listFixture({
         groupId,
         fecha: DEFAULT_FECHA
       })

@@ -8,7 +8,7 @@ import { ScreenFrame } from "@/components/ScreenFrame";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
-import { mockFixtureRepository, mockPredictionsRepository } from "@/repositories/mockDataRepositories";
+import { fixtureRepository, predictionsRepository } from "@/repositories";
 import { useAuth } from "@/state/AuthContext";
 
 type DraftByFixture = Record<string, { home: string; away: string }>;
@@ -25,7 +25,7 @@ export function PronosticosScreen() {
   const fixtureQuery = useQuery({
     queryKey: ["fixture", groupId, DEFAULT_FECHA],
     queryFn: () =>
-      mockFixtureRepository.listFixture({
+      fixtureRepository.listFixture({
         groupId,
         fecha: DEFAULT_FECHA
       })
@@ -34,7 +34,7 @@ export function PronosticosScreen() {
   const predictionsQuery = useQuery({
     queryKey: ["predictions", groupId, DEFAULT_FECHA],
     queryFn: () =>
-      mockPredictionsRepository.listPredictions({
+      predictionsRepository.listPredictions({
         groupId,
         fecha: DEFAULT_FECHA
       })
@@ -60,7 +60,7 @@ export function PronosticosScreen() {
 
   const savePredictionMutation = useMutation({
     mutationFn: async (input: Prediction) => {
-      await mockPredictionsRepository.savePrediction({
+      await predictionsRepository.savePrediction({
         groupId,
         fecha: DEFAULT_FECHA,
         prediction: input

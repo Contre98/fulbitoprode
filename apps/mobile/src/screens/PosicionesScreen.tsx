@@ -5,7 +5,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { ScreenFrame } from "@/components/ScreenFrame";
-import { mockLeaderboardRepository } from "@/repositories/mockDataRepositories";
+import { leaderboardRepository } from "@/repositories";
 import { useAuth } from "@/state/AuthContext";
 
 const DEFAULT_FECHA = "2026-01";
@@ -16,7 +16,7 @@ export function PosicionesScreen() {
   const leaderboardQuery = useQuery({
     queryKey: ["leaderboard", groupId, DEFAULT_FECHA],
     queryFn: () =>
-      mockLeaderboardRepository.getLeaderboard({
+      leaderboardRepository.getLeaderboard({
         groupId,
         fecha: DEFAULT_FECHA
       })

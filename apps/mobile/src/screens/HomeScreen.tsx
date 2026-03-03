@@ -5,15 +5,15 @@ import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { EmptyState } from "@/components/EmptyState";
 import { ScreenFrame } from "@/components/ScreenFrame";
+import { leaderboardRepository } from "@/repositories";
 import { useAuth } from "@/state/AuthContext";
-import { mockLeaderboardRepository } from "@/repositories/mockDataRepositories";
 
 export function HomeScreen() {
   const { session } = useAuth();
   const leaderboardQuery = useQuery({
     queryKey: ["leaderboard", session?.memberships[0]?.groupId],
     queryFn: () =>
-      mockLeaderboardRepository.getLeaderboard({
+      leaderboardRepository.getLeaderboard({
         groupId: session?.memberships[0]?.groupId ?? "grupo-1",
         fecha: "2026-01"
       })

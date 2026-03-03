@@ -47,7 +47,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Implement `Posiciones` screen using contract-backed leaderboard repository.
 - [x] Implement `Fixture` screen with date/status grouping and loading/error states.
 - [x] Expand shared domain extraction for scoring and prediction utilities.
-- [ ] Add HTTP repository adapters in mobile behind existing interfaces (keep mock fallback).
+- [x] Add HTTP repository adapters in mobile behind existing interfaces (keep mock fallback).
 - [x] Add reusable loading/error/empty state components in `apps/mobile/src/components` and apply to core tabs.
 - [ ] Add mobile smoke run log for iOS simulator.
 - [ ] Add mobile smoke run log for Android emulator.
@@ -64,6 +64,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-03 | Reuse dedicated mobile async state components across core tabs. | Keep loading/error/empty UX consistent and avoid ad-hoc per-screen placeholders. | `apps/mobile/src/components/*State.tsx`, `apps/mobile/src/screens/*Screen.tsx` |
 | 2026-03-03 | Move scoring rules (`SCORE_RULES`, `calculatePredictionPoints`) to `@fulbito/domain` and consume from web APIs/tests. | Ensure scoring behavior is shared and reusable by mobile without duplicating logic in app-specific layers. | `packages/domain/src/index.ts`, `apps/web/src/app/api/*`, `apps/web/src/test/scoring.test.ts` |
 | 2026-03-03 | Use explicit Expo root entry file (`apps/mobile/index.js`) instead of `expo/AppEntry` in monorepo. | Prevent pnpm workspace path resolution failures like `Unable to resolve ../../App` on Android bundling. | `apps/mobile/package.json`, `apps/mobile/index.js` |
+| 2026-03-03 | Route mobile repositories through HTTP adapters with per-method mock fallback. | Enable incremental backend connectivity without blocking mobile flows when auth/network/backend is unavailable. | `apps/mobile/src/repositories/httpDataRepositories.ts`, `apps/mobile/src/repositories/index.ts`, `apps/mobile/src/screens/*Screen.tsx` |
 
 ## Validation Log
 
@@ -93,6 +94,9 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-03 | `pnpm run typecheck:web` | Pass | After mobile entrypoint fix (`index.js`) for Expo bundler stability. |
 | 2026-03-03 | `pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile types unaffected by entrypoint switch from `expo/AppEntry` to local `index.js`. |
 | 2026-03-03 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by mobile entrypoint fix. |
+| 2026-03-03 | `pnpm run typecheck:web` | Pass | After HTTP adapter integration and repository composition wiring. |
+| 2026-03-03 | `pnpm --filter @fulbito/mobile typecheck` | Fail then pass | Initial failure from generic fallback typing in repository composition. Resolved by explicit typed repository wrappers and reran successfully. |
+| 2026-03-03 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by mobile repository changes. |
 | 2026-03-03 | iOS smoke | Not run yet | Pending simulator run logging in Phase 3+. |
 | 2026-03-03 | Android smoke | Not run yet | Pending emulator run logging in Phase 3+. |
 
@@ -106,8 +110,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Add HTTP repository adapters in mobile behind existing interfaces while preserving mock fallback.
-2. Execute and log first iOS + Android smoke runs in the Validation Log.
-3. Add shared domain utilities for fixture grouping/date labeling and consume them in mobile + web where duplicated.
-4. Add lightweight mobile screen tests once React Native test tooling is introduced in workspace.
-5. Wire mobile period/fecha selection state across `Pronósticos`, `Posiciones`, and `Fixture` for consistent filtering.
+1. Execute and log first iOS + Android smoke runs in the Validation Log.
+2. Add shared domain utilities for fixture grouping/date labeling and consume them in mobile + web where duplicated.
+3. Add lightweight mobile screen tests once React Native test tooling is introduced in workspace.
+4. Wire mobile period/fecha selection state across `Pronósticos`, `Posiciones`, and `Fixture` for consistent filtering.
+5. Add membership/group selection wiring on mobile and connect it to repository query keys.
