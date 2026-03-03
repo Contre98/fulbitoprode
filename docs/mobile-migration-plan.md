@@ -45,7 +45,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 ### Phase 3+
 - [x] Implement real `Pronósticos` feature flow (fixture load + prediction save + optimistic UI).
 - [x] Implement `Posiciones` screen using contract-backed leaderboard repository.
-- [ ] Implement `Fixture` screen with date/status grouping and loading/error states.
+- [x] Implement `Fixture` screen with date/status grouping and loading/error states.
 - [x] Expand shared domain extraction for scoring and prediction utilities.
 - [ ] Add HTTP repository adapters in mobile behind existing interfaces (keep mock fallback).
 - [x] Add reusable loading/error/empty state components in `apps/mobile/src/components` and apply to core tabs.
@@ -85,6 +85,9 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-03 | `pnpm run typecheck:web` | Pass | After implementing contract-backed `Posiciones` mobile screen. |
 | 2026-03-03 | `pnpm --filter @fulbito/mobile typecheck` | Pass | `PosicionesScreen` query/state rendering validated. |
 | 2026-03-03 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by mobile `Posiciones` changes. |
+| 2026-03-03 | `pnpm run typecheck:web` | Pass | After implementing grouped/status-aware `Fixture` mobile screen and mock adapter data expansion. |
+| 2026-03-03 | `pnpm --filter @fulbito/mobile typecheck` | Pass | `FixtureScreen` grouping/rendering logic compiles with repository integration. |
+| 2026-03-03 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by mobile fixture updates. |
 | 2026-03-03 | iOS smoke | Not run yet | Pending simulator run logging in Phase 3+. |
 | 2026-03-03 | Android smoke | Not run yet | Pending emulator run logging in Phase 3+. |
 
@@ -98,8 +101,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Implement `Fixture` mobile screen with grouped dates/status using repository interfaces.
-2. Add HTTP repository adapters in mobile behind existing interfaces while preserving mock fallback.
-3. Execute and log first iOS + Android smoke runs in the Validation Log.
-4. Add shared domain utilities for fixture grouping/date labeling and consume them in mobile + web where duplicated.
-5. Add lightweight mobile screen tests once React Native test tooling is introduced in workspace.
+1. Add HTTP repository adapters in mobile behind existing interfaces while preserving mock fallback.
+2. Execute and log first iOS + Android smoke runs in the Validation Log.
+3. Add shared domain utilities for fixture grouping/date labeling and consume them in mobile + web where duplicated.
+4. Add lightweight mobile screen tests once React Native test tooling is introduced in workspace.
+5. Wire mobile period/fecha selection state across `Pronósticos`, `Posiciones`, and `Fixture` for consistent filtering.

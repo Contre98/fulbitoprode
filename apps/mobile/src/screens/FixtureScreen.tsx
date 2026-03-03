@@ -1,10 +1,140 @@
+import { useMemo } from "react";
+import { StyleSheet, Text, View } from "react-native";
+import { useQuery } from "@tanstack/react-query";
+import type { Fixture } from "@fulbito/domain";
+import { colors, spacing } from "@fulbito/design-tokens";
 import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
+import { LoadingState } from "@/components/LoadingState";
 import { ScreenFrame } from "@/components/ScreenFrame";
+import { mockFixtureRepository } from "@/repositories/mockDataRepositories";
+import { useAuth } from "@/state/AuthContext";
+
+const DEFAULT_FECHA = "2026-01";
+const STATUS_ORDER = ["live", "upcoming", "final"] as const;
+
+function statusLabel(status: Fixture["status"]) {
+  if (status === "live") {
+    return "EN VIVO";
+  }
+  if (status === "final") {
+    return "FINAL";
+  }
+  return "PRÓXIMO";
+}
+
+function statusTone(status: Fixture["status"]) {
+  if (status === "live") {
+    return "#FBBF24";
+  }
+  if (status === "final") {
+    return colors.textSecondary;
+  }
+  return colors.primary;
+}
 
 export function FixtureScreen() {
+  const { session } = useAuth();
+  const groupId = session?.memberships[0]?.groupId ?? "grupo-1";
+  const fixtureQuery = useQuery({
+    queryKey: ["fixture", groupId, DEFAULT_FECHA],
+    queryFn: () =>
+      mockFixtureRepository.listFixture({
+        groupId,
+        fecha: DEFAULT_FECHA
+      })
+  });
+
+  const grouped = useMemo(() => {
+    const byDate = new Map<string, Fixture[]>();
+    (fixtureQuery.data ?? []).forEach((fixture) => {
+      const dateLabel = new Date(fixture.kickoffAt).toLocaleDateString();
+      const rows = byDate.get(dateLabel) ?? [];
+      byDate.set(dateLabel, [...rows, fixture]);
+    });
+
+    return [...byDate.entries()]
+      .sort((a, b) => {
+        const dateA = new Date(a[1][0]?.kickoffAt ?? "").getTime();
+        const dateB = new Date(b[1][0]?.kickoffAt ?? "").getTime();
+        return dateA - dateB;
+      })
+      .map(([dateLabel, fixtures]) => ({
+        dateLabel,
+        fixtures: [...fixtures].sort(
+          (a, b) => STATUS_ORDER.indexOf(a.status) - STATUS_ORDER.indexOf(b.status) || new Date(a.kickoffAt).getTime() - new Date(b.kickoffAt).getTime()
+        )
+      }));
+  }, [fixtureQuery.data]);
+
   return (
     <ScreenFrame title="Fixture" subtitle="Partidos por fecha y resultados">
-      <EmptyState title="Fixture en progreso" description="El calendario por fecha se implementa en el próximo slice." />
+      {fixtureQuery.isLoading ? <LoadingState message="Cargando fixture..." /> : null}
+      {fixtureQuery.isError ? (
+        <ErrorState
+          message="No se pudo cargar el fixture."
+          retryLabel="Reintentar"
+          onRetry={() => void fixtureQuery.refetch()}
+        />
+      ) : null}
+      {!fixtureQuery.isLoading && !fixtureQuery.isError && grouped.length === 0 ? (
+        <EmptyState title="Sin partidos disponibles" description="No hay partidos cargados para esta fecha." />
+      ) : null}
+      {grouped.map((group) => (
+        <View key={group.dateLabel} style={styles.group}>
+          <Text style={styles.dateLabel}>{group.dateLabel}</Text>
+          {group.fixtures.map((fixture) => (
+            <View key={fixture.id} style={styles.row}>
+              <View style={styles.teamsColumn}>
+                <Text style={styles.teams}>
+                  {fixture.homeTeam} vs {fixture.awayTeam}
+                </Text>
+                <Text style={styles.kickoff}>{new Date(fixture.kickoffAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</Text>
+              </View>
+              <Text style={[styles.status, { color: statusTone(fixture.status) }]}>{statusLabel(fixture.status)}</Text>
+            </View>
+          ))}
+        </View>
+      ))}
     </ScreenFrame>
   );
 }
+
+const styles = StyleSheet.create({
+  group: {
+    backgroundColor: colors.surface,
+    borderRadius: 14,
+    padding: spacing.md,
+    gap: spacing.sm
+  },
+  dateLabel: {
+    color: colors.textPrimary,
+    fontWeight: "700"
+  },
+  row: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.md,
+    backgroundColor: colors.background,
+    borderRadius: 10,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm
+  },
+  teamsColumn: {
+    flex: 1,
+    gap: spacing.xs
+  },
+  teams: {
+    color: colors.textPrimary,
+    fontWeight: "600"
+  },
+  kickoff: {
+    color: colors.textSecondary,
+    fontSize: 12
+  },
+  status: {
+    fontWeight: "700",
+    fontSize: 12
+  }
+});

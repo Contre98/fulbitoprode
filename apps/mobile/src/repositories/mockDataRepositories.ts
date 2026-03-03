@@ -51,13 +51,28 @@ export const mockPredictionsRepository: PredictionsRepository = {
 
 export const mockFixtureRepository: FixtureRepository = {
   async listFixture() {
+    const now = Date.now();
     return [
       {
         id: "fx-1",
         homeTeam: "River Plate",
         awayTeam: "Boca Juniors",
-        kickoffAt: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(),
+        kickoffAt: new Date(now + 1000 * 60 * 60 * 24).toISOString(),
         status: "upcoming"
+      },
+      {
+        id: "fx-2",
+        homeTeam: "Racing Club",
+        awayTeam: "San Lorenzo",
+        kickoffAt: new Date(now - 1000 * 60 * 20).toISOString(),
+        status: "live"
+      },
+      {
+        id: "fx-3",
+        homeTeam: "Independiente",
+        awayTeam: "Huracán",
+        kickoffAt: new Date(now - 1000 * 60 * 60 * 30).toISOString(),
+        status: "final"
       }
     ];
   }
