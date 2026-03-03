@@ -1,12 +1,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { AuthSession } from "@fulbito/api-contracts";
+import { canUseHttpSession } from "@/repositories/authBridgeState";
 import { authRepository } from "@/repositories";
 
 interface AuthContextValue {
   loading: boolean;
   session: AuthSession | null;
   isAuthenticated: boolean;
+  dataMode: "http" | "mock";
   refresh: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   register: (input: { email: string; password: string; name: string }) => Promise<void>;
@@ -18,12 +20,14 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<AuthSession | null>(null);
+  const [dataMode, setDataMode] = useState<"http" | "mock">("mock");
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
       const nextSession = await authRepository.getSession();
       setSession(nextSession);
+      setDataMode(canUseHttpSession() ? "http" : "mock");
     } finally {
       setLoading(false);
     }
@@ -36,16 +40,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     const nextSession = await authRepository.loginWithPassword(email, password);
     setSession(nextSession);
+    setDataMode(canUseHttpSession() ? "http" : "mock");
   }, []);
 
   const register = useCallback(async (input: { email: string; password: string; name: string }) => {
     const nextSession = await authRepository.registerWithPassword(input);
     setSession(nextSession);
+    setDataMode(canUseHttpSession() ? "http" : "mock");
   }, []);
 
   const logout = useCallback(async () => {
     await authRepository.logout();
     setSession(null);
+    setDataMode("mock");
   }, []);
 
   const value = useMemo(
@@ -53,12 +60,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       session,
       isAuthenticated: Boolean(session),
+      dataMode,
       refresh,
       login,
       register,
       logout
     }),
-    [loading, session, refresh, login, register, logout]
+    [loading, session, dataMode, refresh, login, register, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
