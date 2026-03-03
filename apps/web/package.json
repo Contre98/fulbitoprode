@@ -16,6 +16,7 @@
     "benchmark:private": "bash scripts/perf/benchmark-private.sh"
   },
   "dependencies": {
+    "@fulbito/domain": "workspace:*",
     "framer-motion": "^12.0.0",
     "lucide-react": "^0.469.0",
     "next": "^15.0.0",

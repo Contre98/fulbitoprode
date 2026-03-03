@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Fulbito Prode",
+    "slug": "fulbito-prode",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fulbito.prode"
+    },
+    "android": {
+      "package": "com.fulbito.prode"
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}

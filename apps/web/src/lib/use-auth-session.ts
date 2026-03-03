@@ -2,34 +2,14 @@
 
 import type { ReactNode } from "react";
 import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import type { Membership, SessionPayload, User } from "@fulbito/domain";
 
 const ACTIVE_GROUP_STORAGE_KEY = "fulbito.activeGroupId";
-
-interface Membership {
-  groupId: string;
-  groupName: string;
-  leagueId: number;
-  leagueName: string;
-  season: string;
-  competitionKey?: string;
-  competitionName?: string;
-  competitionStage?: "apertura" | "clausura" | "general";
-  role: "owner" | "admin" | "member";
-  joinedAt: string;
-}
-
-interface SessionUser {
-  id: string;
-  email: string;
-  name: string;
-  username?: string | null;
-  favoriteTeam?: string | null;
-}
 
 interface AuthSessionValue {
   loading: boolean;
   authenticated: boolean;
-  user: SessionUser | null;
+  user: User | null;
   memberships: Membership[];
   activeGroupId: string | null;
   activeGroup: Membership | null;
@@ -42,7 +22,7 @@ const AuthSessionContext = createContext<AuthSessionValue | null>(null);
 function useAuthSessionState(): AuthSessionValue {
   const [loading, setLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
-  const [user, setUser] = useState<SessionUser | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [memberships, setMemberships] = useState<Membership[]>([]);
   const [activeGroupId, setActiveGroupIdState] = useState<string | null>(null);
 
@@ -58,10 +38,7 @@ function useAuthSessionState(): AuthSessionValue {
         return;
       }
 
-      const payload = (await response.json()) as {
-        user: SessionUser;
-        memberships: Membership[];
-      };
+      const payload = (await response.json()) as SessionPayload;
 
       setAuthenticated(true);
       setUser(payload.user);

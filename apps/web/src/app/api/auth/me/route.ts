@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getUserById, listGroupsForUser, updateUserProfile } from "@/lib/m3-repo";
 import { fetchProviderLeagues } from "@/lib/liga-live-provider";
 import { getSessionPocketBaseTokenFromRequest, getSessionUserIdFromRequest } from "@/lib/request-auth";
+import type { Membership, User } from "@fulbito/domain";
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9._-]+$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -32,7 +33,7 @@ export async function GET(request: Request) {
     })
   );
 
-  const memberships = groupMemberships.map(({ group, membership }) => ({
+  const memberships: Membership[] = groupMemberships.map(({ group, membership }) => ({
     groupId: group.id,
     groupName: group.name,
     role: membership.role,
@@ -47,19 +48,15 @@ export async function GET(request: Request) {
     competitionStage: group.competitionStage
   }));
 
-  return NextResponse.json(
-    {
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        username: user.username ?? null,
-        favoriteTeam: user.favoriteTeam ?? null
-      },
-      memberships
-    },
-    { status: 200 }
-  );
+  const responseUser: User = {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    username: user.username ?? null,
+    favoriteTeam: user.favoriteTeam ?? null
+  };
+
+  return NextResponse.json({ user: responseUser, memberships }, { status: 200 });
 }
 
 export async function PATCH(request: Request) {
