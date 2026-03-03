@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from "react";
 import type { AuthSession } from "@fulbito/api-contracts";
 import { canUseHttpSession } from "@/repositories/authBridgeState";
+import { getFallbackFailure, subscribeFallbackFailure } from "@/repositories/fallbackDiagnostics";
 import { authRepository } from "@/repositories";
 
 interface AuthContextValue {
@@ -9,6 +10,7 @@ interface AuthContextValue {
   session: AuthSession | null;
   isAuthenticated: boolean;
   dataMode: "http" | "mock";
+  fallbackIssue: string | null;
   refresh: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   register: (input: { email: string; password: string; name: string }) => Promise<void>;
@@ -21,6 +23,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<AuthSession | null>(null);
   const [dataMode, setDataMode] = useState<"http" | "mock">("mock");
+  const [fallbackIssue, setFallbackIssue] = useState<string | null>(null);
+
+  useEffect(() => {
+    setFallbackIssue(getFallbackFailure()?.scope ?? null);
+    const unsubscribe = subscribeFallbackFailure((failure) => {
+      if (!failure) {
+        setFallbackIssue(null);
+        return;
+      }
+      setFallbackIssue(`${failure.scope}: ${failure.message}`);
+    });
+    return unsubscribe;
+  }, []);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -61,12 +76,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       isAuthenticated: Boolean(session),
       dataMode,
+      fallbackIssue,
       refresh,
       login,
       register,
       logout
     }),
-    [loading, session, dataMode, refresh, login, register, logout]
+    [loading, session, dataMode, fallbackIssue, refresh, login, register, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

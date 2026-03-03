@@ -3,19 +3,25 @@ import { colors, spacing } from "@fulbito/design-tokens";
 import { useAuth } from "@/state/AuthContext";
 
 export function DataModeBadge() {
-  const { dataMode } = useAuth();
+  const { dataMode, fallbackIssue } = useAuth();
   const httpMode = dataMode === "http";
 
   return (
-    <View style={[styles.badge, httpMode ? styles.httpBadge : styles.mockBadge]}>
-      <Text style={[styles.label, httpMode ? styles.httpLabel : styles.mockLabel]}>
-        {httpMode ? "HTTP Session" : "Mock Fallback"}
-      </Text>
+    <View style={styles.container}>
+      <View style={[styles.badge, httpMode ? styles.httpBadge : styles.mockBadge]}>
+        <Text style={[styles.label, httpMode ? styles.httpLabel : styles.mockLabel]}>
+          {httpMode ? "HTTP Session" : "Mock Fallback"}
+        </Text>
+      </View>
+      {!httpMode && fallbackIssue && __DEV__ ? <Text style={styles.reason}>{fallbackIssue}</Text> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    gap: spacing.xs
+  },
   badge: {
     alignSelf: "flex-start",
     borderRadius: 999,
@@ -40,5 +46,9 @@ const styles = StyleSheet.create({
   },
   mockLabel: {
     color: "#FBBF24"
+  },
+  reason: {
+    color: colors.textSecondary,
+    fontSize: 11
   }
 });

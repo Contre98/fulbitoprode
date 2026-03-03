@@ -1,5 +1,6 @@
 import type { AuthRepository, FixtureRepository, GroupsRepository, LeaderboardRepository, PredictionsRepository } from "@fulbito/api-contracts";
 import { canUseHttpSession, setUseHttpSession } from "@/repositories/authBridgeState";
+import { clearFallbackFailure, reportFallbackFailure } from "@/repositories/fallbackDiagnostics";
 import { httpAuthRepository } from "@/repositories/httpAuthRepository";
 import { httpFixtureRepository, httpGroupsRepository, httpLeaderboardRepository, httpPredictionsRepository } from "@/repositories/httpDataRepositories";
 import { mockFixtureRepository, mockGroupsRepository, mockLeaderboardRepository, mockPredictionsRepository } from "@/repositories/mockDataRepositories";
@@ -7,6 +8,7 @@ import { mockAuthRepository } from "@/repositories/mockAuthRepository";
 
 function logFallback(scope: string, error: unknown) {
   const message = error instanceof Error ? error.message : "Unknown error";
+  reportFallbackFailure(scope, error);
   console.warn(`[repositories] ${scope} HTTP failed, using mock fallback: ${message}`);
 }
 
@@ -16,7 +18,9 @@ export const predictionsRepository: PredictionsRepository = {
       return mockPredictionsRepository.listPredictions(input);
     }
     try {
-      return await httpPredictionsRepository.listPredictions(input);
+      const result = await httpPredictionsRepository.listPredictions(input);
+      clearFallbackFailure();
+      return result;
     } catch (error) {
       logFallback("predictions.listPredictions", error);
       return mockPredictionsRepository.listPredictions(input);
@@ -27,7 +31,9 @@ export const predictionsRepository: PredictionsRepository = {
       return mockPredictionsRepository.savePrediction(input);
     }
     try {
-      return await httpPredictionsRepository.savePrediction(input);
+      const result = await httpPredictionsRepository.savePrediction(input);
+      clearFallbackFailure();
+      return result;
     } catch (error) {
       logFallback("predictions.savePrediction", error);
       return mockPredictionsRepository.savePrediction(input);
@@ -41,7 +47,9 @@ export const fixtureRepository: FixtureRepository = {
       return mockFixtureRepository.listFixture(input);
     }
     try {
-      return await httpFixtureRepository.listFixture(input);
+      const result = await httpFixtureRepository.listFixture(input);
+      clearFallbackFailure();
+      return result;
     } catch (error) {
       logFallback("fixture.listFixture", error);
       return mockFixtureRepository.listFixture(input);
@@ -55,7 +63,9 @@ export const leaderboardRepository: LeaderboardRepository = {
       return mockLeaderboardRepository.getLeaderboard(input);
     }
     try {
-      return await httpLeaderboardRepository.getLeaderboard(input);
+      const result = await httpLeaderboardRepository.getLeaderboard(input);
+      clearFallbackFailure();
+      return result;
     } catch (error) {
       logFallback("leaderboard.getLeaderboard", error);
       return mockLeaderboardRepository.getLeaderboard(input);
@@ -69,7 +79,9 @@ export const groupsRepository: GroupsRepository = {
       return mockGroupsRepository.listGroups();
     }
     try {
-      return await httpGroupsRepository.listGroups();
+      const result = await httpGroupsRepository.listGroups();
+      clearFallbackFailure();
+      return result;
     } catch (error) {
       logFallback("groups.listGroups", error);
       return mockGroupsRepository.listGroups();
@@ -80,7 +92,9 @@ export const groupsRepository: GroupsRepository = {
       return mockGroupsRepository.listMemberships();
     }
     try {
-      return await httpGroupsRepository.listMemberships();
+      const result = await httpGroupsRepository.listMemberships();
+      clearFallbackFailure();
+      return result;
     } catch (error) {
       logFallback("groups.listMemberships", error);
       return mockGroupsRepository.listMemberships();
@@ -93,6 +107,7 @@ export const authRepository: AuthRepository = {
     try {
       const session = await httpAuthRepository.getSession();
       setUseHttpSession(true);
+      clearFallbackFailure();
       return session;
     } catch (error) {
       logFallback("auth.getSession", error);
@@ -104,6 +119,7 @@ export const authRepository: AuthRepository = {
     try {
       const session = await httpAuthRepository.loginWithPassword(email, password);
       setUseHttpSession(true);
+      clearFallbackFailure();
       return session;
     } catch (error) {
       logFallback("auth.loginWithPassword", error);
@@ -115,6 +131,7 @@ export const authRepository: AuthRepository = {
     try {
       const session = await httpAuthRepository.registerWithPassword(input);
       setUseHttpSession(true);
+      clearFallbackFailure();
       return session;
     } catch (error) {
       logFallback("auth.registerWithPassword", error);
@@ -126,6 +143,7 @@ export const authRepository: AuthRepository = {
     if (canUseHttpSession()) {
       try {
         await httpAuthRepository.logout();
+        clearFallbackFailure();
       } catch (error) {
         logFallback("auth.logout", error);
       }

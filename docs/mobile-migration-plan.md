@@ -72,6 +72,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-03 | Bridge mobile auth/session to HTTP first, then fallback to mock and gate data adapters by session mode. | Let mobile use authenticated backend paths when session exists while preserving mock-first resilience for local/dev/offline scenarios. | `apps/mobile/src/repositories/httpAuthRepository.ts`, `apps/mobile/src/repositories/authBridgeState.ts`, `apps/mobile/src/repositories/index.ts`, `apps/mobile/src/state/AuthContext.tsx` |
 | 2026-03-03 | Fetch mobile fecha options from `/api/fechas` based on selected membership, with local fallback defaults. | Replace hardcoded fecha list with backend-driven options while preserving usability when backend/auth is unavailable. | `apps/mobile/src/state/PeriodContext.tsx`, `apps/mobile/src/components/FechaSelector.tsx` |
 | 2026-03-03 | Surface current mobile data mode (`HTTP Session` vs `Mock Fallback`) in screen chrome. | Improve QA/debugging visibility for adapter path selection while rolling out incremental backend auth/session support. | `apps/mobile/src/state/AuthContext.tsx`, `apps/mobile/src/components/DataModeBadge.tsx`, `apps/mobile/src/components/ScreenFrame.tsx` |
+| 2026-03-03 | Capture endpoint-specific fallback failure reason and surface it in dev UI when in mock mode. | Make adapter fallback causes visible during QA/dev to reduce debugging time and clarify backend/session issues. | `apps/mobile/src/repositories/fallbackDiagnostics.ts`, `apps/mobile/src/repositories/index.ts`, `apps/mobile/src/state/AuthContext.tsx`, `apps/mobile/src/components/DataModeBadge.tsx` |
 
 ## Validation Log
 
@@ -123,6 +124,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-03 | `pnpm run typecheck:web` | Pass | After adding mobile data-mode indicator in shared screen frame. |
 | 2026-03-03 | `pnpm --filter @fulbito/mobile typecheck` | Pass | `AuthContext` data-mode state and `DataModeBadge` rendering compile cleanly. |
 | 2026-03-03 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by mobile debug indicator work. |
+| 2026-03-03 | `pnpm --store-dir /Users/contre/Library/pnpm/store/v10 --filter @fulbito/mobile add expo-file-system@~18.0.12` | Fail | Dependency install blocked by offline DNS (`ENOTFOUND registry.npmjs.org`), so device persistence work remains pending until package install is possible. |
+| 2026-03-03 | `pnpm run typecheck:web` | Pass | After endpoint-level fallback diagnostics wiring in repositories/auth UI state. |
+| 2026-03-03 | `pnpm --filter @fulbito/mobile typecheck` | Pass | `fallbackDiagnostics` integration and dev fallback reason badge compile cleanly. |
+| 2026-03-03 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by fallback diagnostics slice. |
 | 2026-03-03 | iOS smoke (`pnpm --filter @fulbito/mobile ios`) | Fail | `expo run:ios` failed creating native directory in this environment (`npm view expo-template-bare-minimum@sdk-52` non-zero), so simulator smoke remains pending. |
 | 2026-03-03 | iOS smoke (`pnpm --filter @fulbito/mobile dev -- --ios` and `expo start --ios --port 8081`) | Fail | Expo CLI crashes before startup on this machine with `ERR_SOCKET_BAD_PORT` under Node `v24.9.0`; manual iOS smoke remains blocked by tooling/runtime issue. |
 | 2026-03-03 | Android smoke | Pass (manual) | User confirmed Android app launched and worked after entrypoint fix (`index.js` replacing `expo/AppEntry`). |
@@ -138,7 +143,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 
 ## Next Actions (Top 5)
 1. Complete iOS smoke run on simulator and log a successful pass in the Validation Log.
-2. Add lightweight mobile screen tests once React Native test tooling is introduced in workspace.
-3. Add group/fecha persistence (device storage) so selections survive app restarts.
-4. Add mobile screen test harness (React Native Testing Library + Jest/Vitest strategy) and first smoke tests for selectors/queries.
-5. Improve fallback diagnostics by surfacing endpoint-specific HTTP failure reason in development builds.
+2. Unblock and add a mobile storage dependency (e.g. AsyncStorage or expo-file-system) to implement persistent group/fecha selections across restarts.
+3. Add mobile screen test harness (React Native Testing Library + Jest/Vitest strategy) and first smoke tests for selectors/queries.
+4. Add lightweight mobile screen tests once React Native test tooling is introduced in workspace.
+5. Add a one-tap “retry HTTP mode” action from mock mode for manual QA of backend re-connect behavior.
