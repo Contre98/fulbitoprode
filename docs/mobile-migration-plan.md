@@ -73,6 +73,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-03 | Fetch mobile fecha options from `/api/fechas` based on selected membership, with local fallback defaults. | Replace hardcoded fecha list with backend-driven options while preserving usability when backend/auth is unavailable. | `apps/mobile/src/state/PeriodContext.tsx`, `apps/mobile/src/components/FechaSelector.tsx` |
 | 2026-03-03 | Surface current mobile data mode (`HTTP Session` vs `Mock Fallback`) in screen chrome. | Improve QA/debugging visibility for adapter path selection while rolling out incremental backend auth/session support. | `apps/mobile/src/state/AuthContext.tsx`, `apps/mobile/src/components/DataModeBadge.tsx`, `apps/mobile/src/components/ScreenFrame.tsx` |
 | 2026-03-03 | Capture endpoint-specific fallback failure reason and surface it in dev UI when in mock mode. | Make adapter fallback causes visible during QA/dev to reduce debugging time and clarify backend/session issues. | `apps/mobile/src/repositories/fallbackDiagnostics.ts`, `apps/mobile/src/repositories/index.ts`, `apps/mobile/src/state/AuthContext.tsx`, `apps/mobile/src/components/DataModeBadge.tsx` |
+| 2026-03-03 | Add one-tap mock-mode action to re-attempt HTTP session mode from UI. | Reduce QA friction by allowing runtime backend reconnect checks without restarting the app or re-authenticating manually. | `apps/mobile/src/state/AuthContext.tsx`, `apps/mobile/src/components/DataModeBadge.tsx` |
 
 ## Validation Log
 
@@ -128,6 +129,9 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-03 | `pnpm run typecheck:web` | Pass | After endpoint-level fallback diagnostics wiring in repositories/auth UI state. |
 | 2026-03-03 | `pnpm --filter @fulbito/mobile typecheck` | Pass | `fallbackDiagnostics` integration and dev fallback reason badge compile cleanly. |
 | 2026-03-03 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by fallback diagnostics slice. |
+| 2026-03-03 | `pnpm run typecheck:web` | Pass | After adding one-tap HTTP retry action in mock mode badge. |
+| 2026-03-03 | `pnpm --filter @fulbito/mobile typecheck` | Pass | `retryHttpMode` wiring compiles cleanly in `AuthContext` and `DataModeBadge`. |
+| 2026-03-03 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by retry action slice. |
 | 2026-03-03 | iOS smoke (`pnpm --filter @fulbito/mobile ios`) | Fail | `expo run:ios` failed creating native directory in this environment (`npm view expo-template-bare-minimum@sdk-52` non-zero), so simulator smoke remains pending. |
 | 2026-03-03 | iOS smoke (`pnpm --filter @fulbito/mobile dev -- --ios` and `expo start --ios --port 8081`) | Fail | Expo CLI crashes before startup on this machine with `ERR_SOCKET_BAD_PORT` under Node `v24.9.0`; manual iOS smoke remains blocked by tooling/runtime issue. |
 | 2026-03-03 | Android smoke | Pass (manual) | User confirmed Android app launched and worked after entrypoint fix (`index.js` replacing `expo/AppEntry`). |
@@ -146,4 +150,4 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 2. Unblock and add a mobile storage dependency (e.g. AsyncStorage or expo-file-system) to implement persistent group/fecha selections across restarts.
 3. Add mobile screen test harness (React Native Testing Library + Jest/Vitest strategy) and first smoke tests for selectors/queries.
 4. Add lightweight mobile screen tests once React Native test tooling is introduced in workspace.
-5. Add a one-tap “retry HTTP mode” action from mock mode for manual QA of backend re-connect behavior.
+5. Add persistence for data-mode diagnostics history in development (last N fallback failures).

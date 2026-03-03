@@ -15,6 +15,7 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   register: (input: { email: string; password: string; name: string }) => Promise<void>;
   logout: () => Promise<void>;
+  retryHttpMode: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -70,6 +71,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setDataMode("mock");
   }, []);
 
+  const retryHttpMode = useCallback(async () => {
+    await refresh();
+  }, [refresh]);
+
   const value = useMemo(
     () => ({
       loading,
@@ -80,9 +85,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refresh,
       login,
       register,
-      logout
+      logout,
+      retryHttpMode
     }),
-    [loading, session, dataMode, fallbackIssue, refresh, login, register, logout]
+    [loading, session, dataMode, fallbackIssue, refresh, login, register, logout, retryHttpMode]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

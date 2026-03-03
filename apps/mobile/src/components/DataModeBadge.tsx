@@ -1,9 +1,9 @@
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, spacing } from "@fulbito/design-tokens";
 import { useAuth } from "@/state/AuthContext";
 
 export function DataModeBadge() {
-  const { dataMode, fallbackIssue } = useAuth();
+  const { dataMode, fallbackIssue, retryHttpMode } = useAuth();
   const httpMode = dataMode === "http";
 
   return (
@@ -14,6 +14,11 @@ export function DataModeBadge() {
         </Text>
       </View>
       {!httpMode && fallbackIssue && __DEV__ ? <Text style={styles.reason}>{fallbackIssue}</Text> : null}
+      {!httpMode ? (
+        <Pressable onPress={() => void retryHttpMode()} style={({ pressed }) => [styles.retryButton, pressed ? styles.retryButtonPressed : null]}>
+          <Text style={styles.retryLabel}>Reintentar HTTP</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -50,5 +55,22 @@ const styles = StyleSheet.create({
   reason: {
     color: colors.textSecondary,
     fontSize: 11
+  },
+  retryButton: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.surfaceMuted,
+    backgroundColor: colors.surface
+  },
+  retryButtonPressed: {
+    opacity: 0.8
+  },
+  retryLabel: {
+    color: colors.textPrimary,
+    fontSize: 11,
+    fontWeight: "700"
   }
 });
