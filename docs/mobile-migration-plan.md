@@ -70,6 +70,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-03 | Add shared mobile `fecha` context + selector and consume it across core tabs. | Keep tab filtering state synchronized across `Pronósticos`, `Posiciones`, and `Fixture` queries. | `apps/mobile/src/state/PeriodContext.tsx`, `apps/mobile/src/components/FechaSelector.tsx`, `apps/mobile/src/screens/*Screen.tsx` |
 | 2026-03-03 | Add shared mobile group selection context + selector and connect repository query keys. | Enable consistent membership-scoped data loading across tabs instead of hardcoded first membership usage. | `apps/mobile/src/state/GroupContext.tsx`, `apps/mobile/src/components/GroupSelector.tsx`, `apps/mobile/src/screens/*Screen.tsx` |
 | 2026-03-03 | Bridge mobile auth/session to HTTP first, then fallback to mock and gate data adapters by session mode. | Let mobile use authenticated backend paths when session exists while preserving mock-first resilience for local/dev/offline scenarios. | `apps/mobile/src/repositories/httpAuthRepository.ts`, `apps/mobile/src/repositories/authBridgeState.ts`, `apps/mobile/src/repositories/index.ts`, `apps/mobile/src/state/AuthContext.tsx` |
+| 2026-03-03 | Fetch mobile fecha options from `/api/fechas` based on selected membership, with local fallback defaults. | Replace hardcoded fecha list with backend-driven options while preserving usability when backend/auth is unavailable. | `apps/mobile/src/state/PeriodContext.tsx`, `apps/mobile/src/components/FechaSelector.tsx` |
 
 ## Validation Log
 
@@ -115,6 +116,9 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-03 | `pnpm run typecheck:web` | Pass | After mobile HTTP auth/session bridging and repository session gating changes. |
 | 2026-03-03 | `pnpm --filter @fulbito/mobile typecheck` | Fail then pass | Initial fail from nullable return in HTTP auth login/register paths; fixed by guaranteeing non-null `AuthSession` return and reran successfully. |
 | 2026-03-03 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by mobile auth/session bridging. |
+| 2026-03-03 | `pnpm run typecheck:web` | Pass | After backend-driven mobile fecha option fetch integration in `PeriodContext`. |
+| 2026-03-03 | `pnpm --filter @fulbito/mobile typecheck` | Pass | `PeriodContext` now consumes `GroupContext` and `/api/fechas` payload safely with fallback defaults. |
+| 2026-03-03 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by mobile fechas integration. |
 | 2026-03-03 | iOS smoke (`pnpm --filter @fulbito/mobile ios`) | Fail | `expo run:ios` failed creating native directory in this environment (`npm view expo-template-bare-minimum@sdk-52` non-zero), so simulator smoke remains pending. |
 | 2026-03-03 | iOS smoke (`pnpm --filter @fulbito/mobile dev -- --ios` and `expo start --ios --port 8081`) | Fail | Expo CLI crashes before startup on this machine with `ERR_SOCKET_BAD_PORT` under Node `v24.9.0`; manual iOS smoke remains blocked by tooling/runtime issue. |
 | 2026-03-03 | Android smoke | Pass (manual) | User confirmed Android app launched and worked after entrypoint fix (`index.js` replacing `expo/AppEntry`). |
@@ -131,6 +135,6 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 ## Next Actions (Top 5)
 1. Complete iOS smoke run on simulator and log a successful pass in the Validation Log.
 2. Add lightweight mobile screen tests once React Native test tooling is introduced in workspace.
-3. Replace static `fecha` options with backend-driven dates (`/api/fechas`) and cache them in mobile state.
-4. Add group/fecha persistence (device storage) so selections survive app restarts.
-5. Add mobile UI indicator for current data mode (HTTP session vs mock fallback) to aid debugging and QA.
+3. Add group/fecha persistence (device storage) so selections survive app restarts.
+4. Add mobile UI indicator for current data mode (HTTP session vs mock fallback) to aid debugging and QA.
+5. Add mobile screen test harness (React Native Testing Library + Jest/Vitest strategy) and first smoke tests for selectors/queries.

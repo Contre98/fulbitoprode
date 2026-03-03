@@ -2,10 +2,6 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, spacing } from "@fulbito/design-tokens";
 import { usePeriod } from "@/state/PeriodContext";
 
-function toLabel(fecha: string) {
-  return `Fecha ${fecha.split("-")[1] ?? fecha}`;
-}
-
 export function FechaSelector() {
   const { fecha, options, setFecha } = usePeriod();
 
@@ -14,14 +10,14 @@ export function FechaSelector() {
       <Text style={styles.label}>Fecha</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.options}>
         {options.map((option) => {
-          const active = option === fecha;
+          const active = option.id === fecha;
           return (
             <Pressable
-              key={option}
-              onPress={() => setFecha(option)}
+              key={option.id}
+              onPress={() => setFecha(option.id)}
               style={({ pressed }) => [styles.option, active ? styles.optionActive : null, pressed ? styles.optionPressed : null]}
             >
-              <Text style={[styles.optionLabel, active ? styles.optionLabelActive : null]}>{toLabel(option)}</Text>
+              <Text style={[styles.optionLabel, active ? styles.optionLabelActive : null]}>{option.label}</Text>
             </Pressable>
           );
         })}
