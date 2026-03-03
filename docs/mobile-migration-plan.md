@@ -50,7 +50,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Add HTTP repository adapters in mobile behind existing interfaces (keep mock fallback).
 - [x] Add reusable loading/error/empty state components in `apps/mobile/src/components` and apply to core tabs.
 - [ ] Add mobile smoke run log for iOS simulator.
-- [ ] Add mobile smoke run log for Android emulator.
+- [x] Add mobile smoke run log for Android emulator.
 
 ## Decisions Log
 
@@ -97,8 +97,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-03 | `pnpm run typecheck:web` | Pass | After HTTP adapter integration and repository composition wiring. |
 | 2026-03-03 | `pnpm --filter @fulbito/mobile typecheck` | Fail then pass | Initial failure from generic fallback typing in repository composition. Resolved by explicit typed repository wrappers and reran successfully. |
 | 2026-03-03 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by mobile repository changes. |
-| 2026-03-03 | iOS smoke | Not run yet | Pending simulator run logging in Phase 3+. |
-| 2026-03-03 | Android smoke | Not run yet | Pending emulator run logging in Phase 3+. |
+| 2026-03-03 | iOS smoke (`pnpm --filter @fulbito/mobile ios`) | Fail | `expo run:ios` failed creating native directory in this environment (`npm view expo-template-bare-minimum@sdk-52` non-zero), so simulator smoke remains pending. |
+| 2026-03-03 | Android smoke | Pass (manual) | User confirmed Android app launched and worked after entrypoint fix (`index.js` replacing `expo/AppEntry`). |
 
 ## Risks & Mitigations
 
@@ -110,7 +110,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Execute and log first iOS + Android smoke runs in the Validation Log.
+1. Complete iOS smoke run on simulator and log a successful pass in the Validation Log.
 2. Add shared domain utilities for fixture grouping/date labeling and consume them in mobile + web where duplicated.
 3. Add lightweight mobile screen tests once React Native test tooling is introduced in workspace.
 4. Wire mobile period/fecha selection state across `Pronósticos`, `Posiciones`, and `Fixture` for consistent filtering.
