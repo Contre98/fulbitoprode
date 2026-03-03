@@ -23,7 +23,10 @@ const tabs: NavTab[] = [
 
 export function BottomNav({ activeTab }: BottomNavProps) {
   return (
-    <nav className="absolute bottom-0 left-0 right-0 bg-white border-t border-slate-100 px-6 py-3 pb-6 flex justify-between items-center z-40 no-scrollbar" aria-label="Navegación principal">
+    <nav
+      className="absolute bottom-0 left-0 right-0 z-40 flex items-center justify-between border-t border-[var(--border-subtle)] bg-[var(--surface-card)] px-6 py-3 pb-6 no-scrollbar"
+      aria-label="Navegación principal"
+    >
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const isActive = activeTab === tab.key;
@@ -31,9 +34,11 @@ export function BottomNav({ activeTab }: BottomNavProps) {
           <Link
             key={tab.key}
             href={tab.href}
-            className={`flex flex-col items-center gap-1 transition-colors ${isActive ? "text-lime-600" : "text-slate-400 hover:text-slate-600"}`}
+            className={`flex flex-col items-center gap-1 transition-colors ${
+              isActive ? "text-[var(--accent-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+            }`}
           >
-            <div className={isActive ? "bg-lime-100 p-1.5 rounded-lg" : ""}>
+            <div className={isActive ? "rounded-lg bg-[var(--accent-soft)] p-1.5" : ""}>
               <Icon size={22} />
             </div>
             <span className="text-[10px] font-medium">{tab.label}</span>

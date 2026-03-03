@@ -9,6 +9,7 @@ import {
   Plus,
   Settings,
   Shield,
+  Sun,
   Trash2,
   Trophy,
   UserMinus,
@@ -97,7 +98,7 @@ export default function ConfiguracionPageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { showToast } = useToast();
-  const { toggleTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const { loading, authenticated, user, memberships, activeGroupId, setActiveGroupId, refresh } = useAuthSession();
 
   const [createName, setCreateName] = useState("");
@@ -678,16 +679,16 @@ export default function ConfiguracionPageClient() {
 
   return (
     <AppShell activeTab="configuracion" showTopGlow={false}>
-      <div className="min-h-full bg-slate-100">
-        <header className="px-5 pt-12 pb-6 bg-white shadow-sm rounded-b-3xl z-10 sticky top-0">
+      <div className="min-h-full bg-[var(--surface-card-muted)]">
+        <header className="px-5 pt-12 pb-6 bg-[var(--surface-card)] shadow-sm rounded-b-3xl z-10 sticky top-0">
           <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-2">
-              <div className="bg-slate-900 p-1.5 rounded-lg text-lime-400 shadow-sm">
+              <div className="bg-[var(--bg-surface-2)] p-1.5 rounded-lg text-[var(--accent-primary)] shadow-sm">
                 <Trophy size={18} strokeWidth={2.5} />
               </div>
-              <h1 className="text-xl font-black text-slate-900 tracking-tighter uppercase">
+              <h1 className="text-xl font-black text-[var(--text-primary)] tracking-tighter uppercase">
                 <span className="italic">Fulbito</span>
-                <span className="text-lime-500">Prode</span>
+                <span className="text-[var(--accent-primary)]">Prode</span>
               </h1>
             </div>
 
@@ -695,23 +696,23 @@ export default function ConfiguracionPageClient() {
               <button
                 type="button"
                 onClick={toggleTheme}
-                className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                className="p-2 rounded-full bg-[var(--surface-card-muted)] hover:bg-[var(--surface-card-muted)] text-[var(--text-secondary)] transition-colors"
                 aria-label="Cambiar tema"
               >
-                <Moon size={18} />
+                {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
               </button>
               <button
                 type="button"
-                className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors relative"
+                className="p-2 rounded-full bg-[var(--surface-card-muted)] hover:bg-[var(--surface-card-muted)] text-[var(--text-secondary)] transition-colors relative"
                 aria-label="Notificaciones"
               >
                 <Bell size={18} />
-                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+                <span className="absolute top-2 right-2 w-2 h-2 bg-[var(--danger)] rounded-full border border-[var(--surface-card)]"></span>
               </button>
               <button
                 type="button"
                 onClick={() => router.push("/configuracion/ajustes")}
-                className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+                className="p-2 rounded-full bg-[var(--surface-card-muted)] hover:bg-[var(--surface-card-muted)] text-[var(--text-secondary)] transition-colors"
                 aria-label="Configuración"
               >
                 <Settings size={18} />
@@ -719,7 +720,7 @@ export default function ConfiguracionPageClient() {
               <button
                 type="button"
                 onClick={() => router.push("/perfil")}
-                className="p-2 rounded-full bg-lime-100 text-lime-700 font-bold text-sm h-9 w-9 flex items-center justify-center"
+                className="p-2 rounded-full bg-[var(--accent-soft)] text-[var(--accent-primary)] font-bold text-sm h-9 w-9 flex items-center justify-center"
                 aria-label="Perfil"
               >
                 {initialsFromText(user?.name || "FC")}
@@ -728,17 +729,17 @@ export default function ConfiguracionPageClient() {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="bg-lime-400 p-1.5 rounded-lg text-white">
+            <div className="bg-[var(--accent-primary)] p-1.5 rounded-lg text-[var(--text-on-accent)]">
               <Users size={18} />
             </div>
-            <h2 className="text-lg font-bold text-slate-800">Grupos</h2>
-            <span className="text-sm text-slate-400 font-medium ml-auto">Gestión social</span>
+            <h2 className="text-lg font-bold text-[var(--text-primary)]">Grupos</h2>
+            <span className="text-sm text-[var(--text-muted)] font-medium ml-auto">Gestión social</span>
           </div>
         </header>
 
         <main className="mt-6 no-scrollbar">
           <div className="px-4 space-y-6 no-scrollbar pb-6">
-            <section className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <section className="bg-[var(--surface-card)] rounded-2xl shadow-sm border border-[var(--border-subtle)] overflow-hidden">
               <span className="sr-only">Crear grupo</span>
               <input
                 readOnly
@@ -748,12 +749,12 @@ export default function ConfiguracionPageClient() {
                 placeholder="Código o token de invitación"
                 className="sr-only"
               />
-              <div className="flex border-b border-slate-100">
+              <div className="flex border-b border-[var(--border-subtle)]">
                 <button
                   type="button"
                   onClick={() => setFormMode("create")}
                   className={`flex-1 py-3 text-sm font-semibold transition-colors ${
-                    formMode === "create" ? "bg-lime-50 text-lime-700 border-b-2 border-lime-400" : "text-slate-400 hover:text-slate-600"
+                    formMode === "create" ? "bg-[var(--accent-soft)] text-[var(--accent-primary)] border-b-2 border-[var(--accent-primary)]" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                   }`}
                 >
                   Crear Grupo
@@ -762,7 +763,7 @@ export default function ConfiguracionPageClient() {
                   type="button"
                   onClick={() => setFormMode("join")}
                   className={`flex-1 py-3 text-sm font-semibold transition-colors ${
-                    formMode === "join" ? "bg-lime-50 text-lime-700 border-b-2 border-lime-400" : "text-slate-400 hover:text-slate-600"
+                    formMode === "join" ? "bg-[var(--accent-soft)] text-[var(--accent-primary)] border-b-2 border-[var(--accent-primary)]" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                   }`}
                 >
                   Unirse
@@ -778,7 +779,7 @@ export default function ConfiguracionPageClient() {
                         value={createName}
                         onChange={(event) => setCreateName(event.target.value)}
                         placeholder="Nombre del nuevo grupo"
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-lime-400 transition-all"
+                        className="w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card-muted)] px-4 py-3 text-sm transition-all focus:outline-none focus:ring-2 focus:ring-[var(--accent-soft)]"
                       />
                     </div>
                     <div className="flex gap-2">
@@ -786,7 +787,7 @@ export default function ConfiguracionPageClient() {
                         <select
                           value={selectedCompetitionKey || ""}
                           onChange={(event) => setSelectedCompetitionKey(event.target.value || null)}
-                          className="w-full appearance-none bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-lime-400 text-slate-600 disabled:opacity-60"
+                          className="w-full appearance-none rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card-muted)] px-4 py-3 text-sm text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-soft)] disabled:opacity-60"
                           disabled={loadingLeagues || leagues.length === 0}
                         >
                           {leagues.map((league) => (
@@ -795,13 +796,13 @@ export default function ConfiguracionPageClient() {
                             </option>
                           ))}
                         </select>
-                        <Trophy size={16} className="absolute right-3 top-3.5 text-slate-400 pointer-events-none" />
+                        <Trophy size={16} className="absolute right-3 top-3.5 text-[var(--text-muted)] pointer-events-none" />
                       </div>
                       <button
                         type="button"
                         onClick={() => void createGroup()}
                         disabled={creating || !createName.trim() || !selectedLeague}
-                        className="bg-lime-400 hover:bg-lime-500 text-slate-900 font-bold rounded-xl px-4 shadow-lg shadow-lime-200 transition-all active:scale-95 disabled:opacity-50 disabled:shadow-none"
+                        className="bg-[var(--accent-primary)] hover:brightness-95 text-[var(--text-on-accent)] font-bold rounded-xl px-4 shadow-lg shadow-[0_10px_24px_var(--accent-soft)] transition-all active:scale-95 disabled:opacity-50 disabled:shadow-none"
                         aria-label="Crear grupo"
                       >
                         {creating ? "..." : <Plus size={20} />}
@@ -815,13 +816,13 @@ export default function ConfiguracionPageClient() {
                       value={joinCodeOrToken}
                       onChange={(event) => setJoinCodeOrToken(event.target.value)}
                       placeholder="Pegar código"
-                      className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-lime-400"
+                      className="flex-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card-muted)] px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-soft)]"
                     />
                     <button
                       type="button"
                       onClick={() => void joinGroup()}
                       disabled={joining || !joinCodeOrToken.trim()}
-                      className="bg-slate-800 hover:bg-slate-900 text-white font-semibold rounded-xl px-5 text-sm transition-all active:scale-95 disabled:opacity-50"
+                      className="bg-[var(--bg-surface-2)] hover:bg-[var(--bg-surface-2)] text-[var(--text-primary)] font-semibold rounded-xl px-5 text-sm transition-all active:scale-95 disabled:opacity-50"
                     >
                       {joining ? "Uniendo..." : "Unirme"}
                     </button>
@@ -831,14 +832,14 @@ export default function ConfiguracionPageClient() {
             </section>
 
             <section>
-              <h3 className="text-slate-800 font-bold text-lg mb-4 flex items-center gap-2">
+              <h3 className="text-[var(--text-primary)] font-bold text-lg mb-4 flex items-center gap-2">
                 Mis Grupos
-                <span className="bg-slate-200 text-slate-600 text-[10px] px-2 py-0.5 rounded-full">{membershipsForDisplay.length}</span>
+                <span className="bg-[var(--surface-card-muted)] text-[var(--text-secondary)] text-[10px] px-2 py-0.5 rounded-full">{membershipsForDisplay.length}</span>
               </h3>
 
               {membershipsForDisplay.length === 0 ? (
-                <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-                  <p className="text-sm text-slate-500">Todavía no estás en ningún grupo.</p>
+                <div className="bg-[var(--surface-card)] rounded-2xl p-4 shadow-sm border border-[var(--border-subtle)]">
+                  <p className="text-sm text-[var(--text-secondary)]">Todavía no estás en ningún grupo.</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -848,7 +849,7 @@ export default function ConfiguracionPageClient() {
                     return (
                       <article
                         key={`${membership.groupId}-${membership.role}`}
-                        className="group bg-white rounded-2xl p-4 shadow-sm border border-slate-100 hover:shadow-md transition-shadow relative"
+                        className="group bg-[var(--surface-card)] rounded-2xl p-4 shadow-sm border border-[var(--border-subtle)] hover:shadow-md transition-shadow relative"
                       >
                         <div className="flex justify-between items-start">
                           <button
@@ -859,7 +860,7 @@ export default function ConfiguracionPageClient() {
                           >
                             <div
                               className={`w-12 h-12 rounded-xl flex items-center justify-center text-lg font-bold overflow-hidden ${
-                                membership.role === "owner" ? "bg-lime-100 text-lime-700" : "bg-slate-100 text-slate-600"
+                                membership.role === "owner" ? "bg-[var(--accent-soft)] text-[var(--accent-primary)]" : "bg-[var(--surface-card-muted)] text-[var(--text-secondary)]"
                               }`}
                             >
                               {logoDataUrl ? (
@@ -869,17 +870,17 @@ export default function ConfiguracionPageClient() {
                               )}
                             </div>
                             <div className="min-w-0">
-                              <h4 className="font-bold text-slate-800 leading-tight truncate">{membership.groupName}</h4>
+                              <h4 className="font-bold text-[var(--text-primary)] leading-tight truncate">{membership.groupName}</h4>
                               <div className="flex items-center gap-1.5 mt-1 min-w-0">
-                                <Trophy size={12} className="text-slate-400 flex-shrink-0" />
-                                <span className="text-xs text-slate-500 truncate">{membership.leagueName}</span>
+                                <Trophy size={12} className="text-[var(--text-muted)] flex-shrink-0" />
+                                <span className="text-xs text-[var(--text-secondary)] truncate">{membership.leagueName}</span>
                               </div>
                             </div>
                           </button>
 
                           <div className="flex items-center gap-1">
                             {membership.role === "owner" ? (
-                              <span className="bg-yellow-100 text-yellow-700 text-[10px] font-bold px-2 py-1 rounded-full mr-1">OWNER</span>
+                              <span className="bg-[var(--status-warning-bg)] text-[var(--warning)] text-[10px] font-bold px-2 py-1 rounded-full mr-1">OWNER</span>
                             ) : null}
                             <button
                               type="button"
@@ -889,7 +890,7 @@ export default function ConfiguracionPageClient() {
                                 }
                                 void openMembersModal(membership.groupId);
                               }}
-                              className="p-2 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-700 transition-colors"
+                              className="p-2 rounded-lg text-[var(--text-muted)] hover:bg-[var(--surface-card-muted)] hover:text-[var(--text-primary)] transition-colors"
                               aria-label={`Administrar ${membership.groupName}`}
                             >
                               <Settings size={18} />
@@ -911,22 +912,22 @@ export default function ConfiguracionPageClient() {
           <button
             type="button"
             onClick={() => setMembersModalGroupId(null)}
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity"
+            className="absolute inset-0 bg-[var(--surface-overlay)] backdrop-blur-sm transition-opacity"
             aria-label="Cerrar"
           ></button>
-          <div className="bg-white w-full max-w-[469px] rounded-t-3xl p-6 relative shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[90%] overflow-y-auto no-scrollbar">
-            <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6"></div>
+          <div className="bg-[var(--surface-card)] w-full max-w-[469px] rounded-t-3xl p-6 relative shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[90%] overflow-y-auto no-scrollbar">
+            <div className="w-12 h-1.5 bg-[var(--surface-card-muted)] rounded-full mx-auto mb-6"></div>
 
             <div className="flex justify-between items-start mb-6">
               <div>
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-wide">Gestionar Grupo</label>
-                <h2 className="text-2xl font-black text-slate-800 mt-1 leading-tight">{modalMembership.groupName}</h2>
-                <p className="text-xs text-slate-500 font-medium">{modalMembership.leagueName}</p>
+                <label className="text-xs font-bold text-[var(--text-muted)] uppercase tracking-wide">Gestionar Grupo</label>
+                <h2 className="text-2xl font-black text-[var(--text-primary)] mt-1 leading-tight">{modalMembership.groupName}</h2>
+                <p className="text-xs text-[var(--text-secondary)] font-medium">{modalMembership.leagueName}</p>
               </div>
               <button
                 type="button"
                 onClick={() => setMembersModalGroupId(null)}
-                className="p-2 bg-slate-100 rounded-full text-slate-500 hover:bg-slate-200"
+                className="p-2 bg-[var(--surface-card-muted)] rounded-full text-[var(--text-secondary)] hover:bg-[var(--surface-card-muted)]"
                 aria-label="Cerrar"
               >
                 <X size={20} />
@@ -937,7 +938,7 @@ export default function ConfiguracionPageClient() {
               type="button"
               onClick={() => void copyInviteLink(modalMembership.groupId)}
               disabled={!canManageModalMembers}
-              className="w-full flex items-center justify-center gap-2 bg-lime-400 hover:bg-lime-500 text-slate-900 font-bold py-3.5 rounded-2xl shadow-lg shadow-lime-200 transition-all active:scale-95 mb-8 disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 bg-[var(--accent-primary)] hover:brightness-95 text-[var(--text-on-accent)] font-bold py-3.5 rounded-2xl shadow-lg shadow-[0_10px_24px_var(--accent-soft)] transition-all active:scale-95 mb-8 disabled:opacity-50"
             >
               <LinkIcon size={18} />
               Copiar link de invitación
@@ -945,21 +946,21 @@ export default function ConfiguracionPageClient() {
 
             <div className="mb-8">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-slate-800 text-sm uppercase tracking-wide">Miembros ({modalMembersForDisplay.length})</h3>
+                <h3 className="font-bold text-[var(--text-primary)] text-sm uppercase tracking-wide">Miembros ({modalMembersForDisplay.length})</h3>
                 <button
                   type="button"
                   onClick={() => void shareInvite(modalMembership.groupId)}
                   disabled={!canManageModalMembers}
-                  className="text-[10px] font-bold text-lime-600 flex items-center gap-1 hover:underline disabled:opacity-45"
+                  className="text-[10px] font-bold text-[var(--accent-primary)] flex items-center gap-1 hover:underline disabled:opacity-45"
                 >
                   <UserPlus size={12} /> Invitar más
                 </button>
               </div>
 
               {modalMembersLoading ? (
-                <p className="text-xs text-slate-500">Cargando miembros...</p>
+                <p className="text-xs text-[var(--text-secondary)]">Cargando miembros...</p>
               ) : modalMembersForDisplay.length === 0 ? (
-                <p className="text-xs text-slate-500">Este grupo no tiene miembros activos.</p>
+                <p className="text-xs text-[var(--text-secondary)]">Este grupo no tiene miembros activos.</p>
               ) : (
                 <div className="space-y-2">
                   {modalMembersForDisplay.map((member) => {
@@ -980,10 +981,10 @@ export default function ConfiguracionPageClient() {
                     return (
                       <div
                         key={member.userId}
-                        className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100 group/member transition-all"
+                        className="flex items-center justify-between p-3 bg-[var(--surface-card-muted)] rounded-2xl border border-[var(--border-subtle)] group/member transition-all"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-9 h-9 rounded-full bg-white shadow-sm border border-slate-100 flex items-center justify-center text-xs font-bold text-slate-600 flex-shrink-0 overflow-hidden">
+                          <div className="w-9 h-9 rounded-full bg-[var(--surface-card)] shadow-sm border border-[var(--border-subtle)] flex items-center justify-center text-xs font-bold text-[var(--text-secondary)] flex-shrink-0 overflow-hidden">
                             {memberLogoDataUrl ? (
                               <img src={memberLogoDataUrl} alt={`${member.name} logo`} className="h-[80%] w-[80%] object-contain" />
                             ) : (
@@ -991,10 +992,10 @@ export default function ConfiguracionPageClient() {
                             )}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-bold text-slate-800 truncate">{isSelf ? user?.name || member.name : member.name}</p>
+                            <p className="text-sm font-bold text-[var(--text-primary)] truncate">{isSelf ? user?.name || member.name : member.name}</p>
                             <div className="flex items-center gap-1">
-                              {role === "admin" ? <Shield size={10} className="text-blue-500 fill-blue-500" /> : null}
-                              <p className="text-[10px] text-slate-400 font-medium capitalize">{role}</p>
+                              {role === "admin" ? <Shield size={10} className="fill-[var(--accent-primary)] text-[var(--accent-primary)]" /> : null}
+                              <p className="text-[10px] text-[var(--text-muted)] font-medium capitalize">{role}</p>
                             </div>
                           </div>
                         </div>
@@ -1006,7 +1007,7 @@ export default function ConfiguracionPageClient() {
                               title="Promover a Admin"
                               onClick={() => void makeMemberAdmin(modalMembership.groupId, member.userId)}
                               disabled={actionBusy}
-                              className="p-2 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-colors disabled:opacity-40"
+                              className="p-2 text-[var(--text-muted)] hover:text-[var(--accent-primary)] hover:bg-[var(--accent-soft)] rounded-xl transition-colors disabled:opacity-40"
                             >
                               <Shield size={16} />
                             </button>
@@ -1017,7 +1018,7 @@ export default function ConfiguracionPageClient() {
                               title="Expulsar del grupo"
                               onClick={() => void kickMember(modalMembership.groupId, member.userId)}
                               disabled={actionBusy}
-                              className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors disabled:opacity-40"
+                              className="p-2 text-[var(--text-muted)] hover:text-[var(--danger)] hover:bg-[var(--status-danger-bg)] rounded-xl transition-colors disabled:opacity-40"
                             >
                               <UserMinus size={16} />
                             </button>
@@ -1030,12 +1031,12 @@ export default function ConfiguracionPageClient() {
               )}
             </div>
 
-            <div className="pt-6 border-t border-slate-100">
+            <div className="pt-6 border-t border-[var(--border-subtle)]">
               {modalMembership.role === "member" ? (
                 <button
                   type="button"
                   onClick={() => setPendingGroupAction({ type: "leave", groupId: modalMembership.groupId })}
-                  className="w-full flex items-center justify-center gap-2 text-red-500 font-bold py-3 hover:bg-red-50 rounded-2xl transition-colors"
+                  className="w-full flex items-center justify-center gap-2 text-[var(--danger)] font-bold py-3 hover:bg-[var(--status-danger-bg)] rounded-2xl transition-colors"
                 >
                   <X size={18} /> Salir del grupo
                 </button>
@@ -1043,7 +1044,7 @@ export default function ConfiguracionPageClient() {
                 <button
                   type="button"
                   onClick={() => setPendingGroupAction({ type: "delete", groupId: modalMembership.groupId })}
-                  className="w-full flex items-center justify-center gap-2 text-red-500 font-bold py-3 hover:bg-red-50 rounded-2xl transition-colors"
+                  className="w-full flex items-center justify-center gap-2 text-[var(--danger)] font-bold py-3 hover:bg-[var(--status-danger-bg)] rounded-2xl transition-colors"
                 >
                   <Trash2 size={18} /> Eliminar Grupo
                 </button>

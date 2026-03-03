@@ -1,31 +1,31 @@
 export const designTokens = {
-  accent: "#ccff00",
-  accentDim: "rgba(204,255,0,0.2)",
-  bgBody: "#050507",
-  bgSurface: "#0b0c0f",
-  bgSurfaceElevated: "#13161c",
-  borderDim: "#262b34",
-  borderLight: "#37404f",
-  textPrimary: "#f4f6fa",
-  textSecondary: "#a8b0bd",
-  textMuted: "#7f8998",
-  textTertiary: "#7f8998"
+  accent: "var(--accent-primary)",
+  accentDim: "var(--accent-soft)",
+  bgBody: "var(--bg-app)",
+  bgSurface: "var(--bg-surface-1)",
+  bgSurfaceElevated: "var(--bg-surface-2)",
+  borderDim: "var(--border-subtle)",
+  borderLight: "var(--border-light)",
+  textPrimary: "var(--text-primary)",
+  textSecondary: "var(--text-secondary)",
+  textMuted: "var(--text-muted)",
+  textTertiary: "var(--text-muted)"
 } as const;
 
 export const pointsToneColors = {
   positive: {
-    badgeBg: "rgba(116,226,122,0.16)",
-    badgeBorder: "rgba(116,226,122,0.44)",
+    badgeBg: "var(--status-success-bg)",
+    badgeBorder: "var(--status-success-border)",
     text: "var(--success)"
   },
   warning: {
-    badgeBg: "rgba(255,180,84,0.16)",
-    badgeBorder: "rgba(255,180,84,0.44)",
+    badgeBg: "var(--status-warning-bg)",
+    badgeBorder: "var(--status-warning-border)",
     text: "var(--warning)"
   },
   danger: {
-    badgeBg: "rgba(255,107,125,0.16)",
-    badgeBorder: "rgba(255,107,125,0.44)",
+    badgeBg: "var(--status-danger-bg)",
+    badgeBorder: "var(--status-danger-border)",
     text: "var(--danger)"
   },
   neutral: {

@@ -17,6 +17,7 @@ import {
   RefreshCw,
   Save,
   Settings,
+  Sun,
   Trophy,
   X
 } from "lucide-react";
@@ -213,13 +214,13 @@ function TeamLogoBadge({
   return (
     <div
       className={`relative ${wrapperClass} flex flex-shrink-0 items-center justify-center overflow-hidden ${
-        hasLogo ? "" : "border border-slate-100 bg-slate-50"
+        hasLogo ? "" : "border border-[var(--border-subtle)] bg-[var(--surface-card-muted)]"
       }`}
     >
       {hasLogo ? (
         <img src={logoUrl} alt={`${code} logo`} className="h-full w-full object-contain" />
       ) : (
-        <span className={`font-bold text-slate-500 ${fallbackTextClass}`}>{code.substring(0, 1)}</span>
+        <span className={`font-bold text-[var(--text-secondary)] ${fallbackTextClass}`}>{code.substring(0, 1)}</span>
       )}
     </div>
   );
@@ -244,12 +245,12 @@ function GroupSelectorModal({
 
   return (
     <div className="fixed inset-0 z-[110] flex items-end justify-center overflow-hidden no-scrollbar">
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
-      <div className="relative max-h-[70%] w-full max-w-[469px] overflow-y-auto rounded-t-3xl bg-white p-6 shadow-2xl no-scrollbar">
-        <div className="mx-auto mb-6 h-1.5 w-12 rounded-full bg-slate-200" />
+      <div className="absolute inset-0 bg-[var(--surface-overlay)] backdrop-blur-sm transition-opacity" onClick={onClose} />
+      <div className="relative max-h-[70%] w-full max-w-[469px] overflow-y-auto rounded-t-3xl bg-[var(--surface-card)] p-6 shadow-2xl no-scrollbar">
+        <div className="mx-auto mb-6 h-1.5 w-12 rounded-full bg-[var(--surface-card-muted)]" />
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-slate-800">Cambiar Grupo</h3>
-          <button type="button" onClick={onClose} className="rounded-full bg-slate-50 p-2 text-slate-400" aria-label="Cerrar selector">
+          <h3 className="text-lg font-bold text-[var(--text-primary)]">Cambiar Grupo</h3>
+          <button type="button" onClick={onClose} className="rounded-full bg-[var(--surface-card-muted)] p-2 text-[var(--text-muted)]" aria-label="Cerrar selector">
             <X size={20} />
           </button>
         </div>
@@ -263,20 +264,20 @@ function GroupSelectorModal({
                 type="button"
                 onClick={() => onSelect(group.id)}
                 className={`flex w-full items-center justify-between rounded-xl p-3 text-left transition-all ${
-                  isActive ? "border-2 border-lime-400 bg-lime-50" : "border border-slate-100 bg-slate-50 hover:bg-slate-100"
+                  isActive ? "border-2 border-[var(--accent-primary)] bg-[var(--accent-soft)]" : "border border-[var(--border-subtle)] bg-[var(--surface-card-muted)] hover:bg-[var(--surface-card-muted)]"
                 }`}
               >
                 <div className="flex min-w-0 items-center gap-3">
-                  <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-sm font-bold ${isActive ? "bg-lime-200 text-lime-800" : "bg-white text-slate-500 shadow-sm"}`}>
+                  <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-sm font-bold ${isActive ? "bg-[var(--accent-soft)] text-[var(--accent-primary)]" : "bg-[var(--surface-card)] text-[var(--text-secondary)] shadow-sm"}`}>
                     {group.name.substring(0, 2).toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <p className={`truncate text-sm font-bold ${isActive ? "text-slate-900" : "text-slate-700"}`}>{group.name}</p>
-                    <p className="truncate text-xs text-slate-500">{group.competition}</p>
+                    <p className={`truncate text-sm font-bold ${isActive ? "text-[var(--text-primary)]" : "text-[var(--text-primary)]"}`}>{group.name}</p>
+                    <p className="truncate text-xs text-[var(--text-secondary)]">{group.competition}</p>
                   </div>
                 </div>
                 {isActive ? (
-                  <div className="flex flex-shrink-0 rounded-full bg-lime-400 p-1 text-white">
+                  <div className="flex flex-shrink-0 rounded-full bg-[var(--accent-primary)] p-1 text-[var(--text-on-accent)]">
                     <Check size={14} strokeWidth={3} />
                   </div>
                 ) : null}
@@ -292,7 +293,7 @@ function GroupSelectorModal({
 export default function PronosticosPage() {
   const router = useRouter();
   const { showToast } = useToast();
-  const { toggleTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const [periods, setPeriods] = useState<FechaOption[]>([]);
   const [periodIndex, setPeriodIndex] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -696,16 +697,16 @@ export default function PronosticosPage() {
 
   return (
     <AppShell activeTab="pronosticos" showTopGlow={false}>
-      <div className="min-h-dvh bg-slate-100">
-        <header className="sticky top-0 z-20 rounded-b-3xl bg-white px-5 pb-6 pt-12 shadow-sm">
+      <div className="min-h-dvh bg-[var(--surface-card-muted)]">
+        <header className="sticky top-0 z-20 rounded-b-3xl bg-[var(--surface-card)] px-5 pb-6 pt-12 shadow-sm">
           <div className="mb-6 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="rounded-lg bg-slate-900 p-1.5 text-lime-400 shadow-sm">
+              <div className="rounded-lg bg-[var(--bg-surface-2)] p-1.5 text-[var(--accent-primary)] shadow-sm">
                 <Trophy size={18} strokeWidth={2.5} />
               </div>
-              <h1 className="text-xl font-black uppercase tracking-tighter text-slate-900">
+              <h1 className="text-xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
                 <span className="italic">Fulbito</span>
-                <span className="text-lime-500">Prode</span>
+                <span className="text-[var(--accent-primary)]">Prode</span>
               </h1>
             </div>
 
@@ -714,21 +715,21 @@ export default function PronosticosPage() {
                 type="button"
                 onClick={toggleTheme}
                 aria-label="Cambiar tema"
-                className="rounded-full bg-slate-100 p-2 text-slate-600 transition-colors hover:bg-slate-200"
+                className="rounded-full bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-card-muted)]"
               >
-                <Moon size={18} />
+                {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
               </button>
-              <button type="button" aria-label="Notificaciones" className="relative rounded-full bg-slate-100 p-2 text-slate-600 transition-colors hover:bg-slate-200">
+              <button type="button" aria-label="Notificaciones" className="relative rounded-full bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-card-muted)]">
                 <Bell size={18} />
-                <span className="absolute right-2 top-2 h-2 w-2 rounded-full border border-white bg-red-500" />
+                <span className="absolute right-2 top-2 h-2 w-2 rounded-full border border-[var(--surface-card)] bg-[var(--danger)]" />
               </button>
-              <Link href="/configuracion/ajustes" aria-label="Configuración" className="rounded-full bg-slate-100 p-2 text-slate-600 transition-colors hover:bg-slate-200">
+              <Link href="/configuracion/ajustes" aria-label="Configuración" className="rounded-full bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-card-muted)]">
                 <Settings size={18} />
               </Link>
               <Link
                 href="/perfil"
                 aria-label="Perfil"
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-lime-100 text-sm font-bold text-lime-700"
+                className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--accent-soft)] text-sm font-bold text-[var(--accent-primary)]"
               >
                 {userBadgeLabel}
               </Link>
@@ -736,61 +737,61 @@ export default function PronosticosPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="rounded-lg bg-lime-400 p-1.5 text-white">
+            <div className="rounded-lg bg-[var(--accent-primary)] p-1.5 text-[var(--text-on-accent)]">
               <Activity size={18} />
             </div>
-            <h2 className="text-lg font-bold text-slate-800">Pronósticos</h2>
-            <span className="ml-auto text-sm font-medium text-slate-400">Resultados y carga</span>
+            <h2 className="text-lg font-bold text-[var(--text-primary)]">Pronósticos</h2>
+            <span className="ml-auto text-sm font-medium text-[var(--text-muted)]">Resultados y carga</span>
           </div>
         </header>
 
         <main className="mt-6 space-y-4 px-4 pb-6 no-scrollbar">
           {memberships.length === 0 ? (
-            <div className="rounded-2xl border border-slate-100 bg-white p-4">
-              <p className="text-sm font-bold text-slate-800">No tenés grupos activos.</p>
-              <p className="mt-1 text-xs text-slate-500">Creá o uníte a un grupo para cargar pronósticos.</p>
-              <Link href="/configuracion" className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-lime-400 px-4 text-xs font-bold text-slate-900">
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4">
+              <p className="text-sm font-bold text-[var(--text-primary)]">No tenés grupos activos.</p>
+              <p className="mt-1 text-xs text-[var(--text-secondary)]">Creá o uníte a un grupo para cargar pronósticos.</p>
+              <Link href="/configuracion" className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-[var(--accent-primary)] px-4 text-xs font-bold text-[var(--text-on-accent)]">
                 Ir a grupos
               </Link>
             </div>
           ) : (
             <>
-              <section className="rounded-xl border border-slate-100 bg-white p-2 shadow-sm">
-                <p className="mb-1 ml-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">SELECCION ACTUAL</p>
+              <section className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-2 shadow-sm">
+                <p className="mb-1 ml-2 text-[10px] font-bold uppercase tracking-wide text-[var(--text-muted)]">SELECCION ACTUAL</p>
                 <button
                   type="button"
                   onClick={() => setIsSelectorOpen(true)}
-                  className="flex w-full items-center justify-between rounded-lg bg-slate-50 p-3 text-left transition-colors hover:bg-slate-100"
+                  className="flex w-full items-center justify-between rounded-lg bg-[var(--surface-card-muted)] p-3 text-left transition-colors hover:bg-[var(--surface-card-muted)]"
                 >
-                  <div className="flex min-w-0 items-center gap-2 pr-2 text-sm font-bold text-slate-800">
-                    <Trophy size={16} className="flex-shrink-0 text-lime-600" />
+                  <div className="flex min-w-0 items-center gap-2 pr-2 text-sm font-bold text-[var(--text-primary)]">
+                    <Trophy size={16} className="flex-shrink-0 text-[var(--accent-primary)]" />
                     <span className="truncate">
                       {activeSelection ? `${activeSelection.leagueName} · ${activeSelection.groupName}` : "Sin grupo activo"}
                     </span>
                   </div>
-                  <ChevronDown size={16} className="flex-shrink-0 text-slate-400" />
+                  <ChevronDown size={16} className="flex-shrink-0 text-[var(--text-muted)]" />
                 </button>
               </section>
 
-              <section className="flex items-center justify-between rounded-xl border border-slate-100 bg-white p-2 shadow-sm">
+              <section className="flex items-center justify-between rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-2 shadow-sm">
                 <button
                   type="button"
                   onClick={() => setPeriodIndex((value) => (value - 1 + Math.max(1, periods.length)) % Math.max(1, periods.length))}
                   aria-label="Fecha anterior"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50 text-slate-400 transition-colors hover:text-slate-600 disabled:opacity-50"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--surface-card-muted)] text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
                   disabled={periods.length === 0 || loading || refreshingPeriod}
                 >
                   <ChevronLeft size={18} />
                 </button>
                 <div className="text-center">
-                  <h3 className="text-base font-black text-lime-600">{periodLabel}</h3>
-                  <p className="mt-1 text-[10px] font-medium text-slate-400">{refreshingPeriod ? "Actualizando..." : periodDeadlineLabel}</p>
+                  <h3 className="text-base font-black text-[var(--accent-primary)]">{periodLabel}</h3>
+                  <p className="mt-1 text-[10px] font-medium text-[var(--text-muted)]">{refreshingPeriod ? "Actualizando..." : periodDeadlineLabel}</p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setPeriodIndex((value) => (value + 1) % Math.max(1, periods.length))}
                   aria-label="Fecha siguiente"
-                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-50 text-slate-400 transition-colors hover:text-slate-600 disabled:opacity-50"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--surface-card-muted)] text-[var(--text-muted)] transition-colors hover:text-[var(--text-primary)] disabled:opacity-50"
                   disabled={periods.length === 0 || loading || refreshingPeriod}
                 >
                   <ChevronRight size={18} />
@@ -798,26 +799,26 @@ export default function PronosticosPage() {
               </section>
 
               <section className="flex items-center justify-between">
-                <div className="mr-2 flex flex-1 items-center gap-2 rounded-full border border-slate-100 bg-white px-3 py-1.5 shadow-sm">
-                  <span className="whitespace-nowrap text-[10px] font-bold text-slate-400">
+                <div className="mr-2 flex flex-1 items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-1.5 shadow-sm">
+                  <span className="whitespace-nowrap text-[10px] font-bold text-[var(--text-muted)]">
                     {completionSummary.completed}/{completionSummary.total}
                   </span>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                    <div className="h-full rounded-full bg-lime-500 transition-all duration-500" style={{ width: `${completionSummary.pct}%` }} />
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-[var(--surface-card-muted)]">
+                    <div className="h-full rounded-full bg-[var(--accent-primary)] transition-all duration-500" style={{ width: `${completionSummary.pct}%` }} />
                   </div>
                 </div>
-                <div className="flex flex-shrink-0 rounded-lg bg-slate-100 p-0.5">
+                <div className="flex flex-shrink-0 rounded-lg bg-[var(--surface-card-muted)] p-0.5">
                   <button
                     type="button"
                     onClick={() => setActiveTab("upcoming")}
-                    className={`rounded-md px-3 py-1 text-[10px] font-bold transition-all ${activeTab === "upcoming" ? "bg-white text-slate-800 shadow-sm" : "text-slate-400"}`}
+                    className={`rounded-md px-3 py-1 text-[10px] font-bold transition-all ${activeTab === "upcoming" ? "bg-[var(--surface-card)] text-[var(--text-primary)] shadow-sm" : "text-[var(--text-muted)]"}`}
                   >
                     Por Jugar
                   </button>
                   <button
                     type="button"
                     onClick={() => setActiveTab("history")}
-                    className={`rounded-md px-3 py-1 text-[10px] font-bold transition-all ${activeTab === "history" ? "bg-white text-slate-800 shadow-sm" : "text-slate-400"}`}
+                    className={`rounded-md px-3 py-1 text-[10px] font-bold transition-all ${activeTab === "history" ? "bg-[var(--surface-card)] text-[var(--text-primary)] shadow-sm" : "text-[var(--text-muted)]"}`}
                   >
                     Jugados
                   </button>
@@ -844,11 +845,11 @@ export default function PronosticosPage() {
 
                       return (
                         <div key={match.id} className="space-y-1.5">
-                          <div className="group relative overflow-hidden rounded-xl border border-slate-100 bg-white px-3 py-3 shadow-sm no-scrollbar">
+                          <div className="group relative overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-3 shadow-sm no-scrollbar">
                             <div className="flex items-center justify-between">
                               <div className="flex min-w-0 flex-1 items-center gap-2">
                                 <TeamLogoBadge code={match.homeTeam.code} logoUrl={homeLogo} />
-                                <span className="truncate text-lg font-black text-slate-800">{match.homeTeam.code}</span>
+                                <span className="truncate text-lg font-black text-[var(--text-primary)]">{match.homeTeam.code}</span>
                               </div>
 
                               <button
@@ -857,24 +858,24 @@ export default function PronosticosPage() {
                                 disabled={locked || savingAll}
                                 className={`mx-1 flex h-10 min-w-[96px] items-center justify-center gap-2 rounded-lg border px-3 transition-all active:scale-95 ${
                                   changed || (draft.home !== null && draft.away !== null)
-                                    ? "border-lime-200 bg-lime-50 text-slate-900"
-                                    : "border-transparent bg-slate-100 text-slate-300 hover:bg-slate-200"
+                                    ? "border-[var(--accent-primary)] bg-[var(--accent-soft)] text-[var(--text-primary)]"
+                                    : "border-transparent bg-[var(--surface-card-muted)] text-[var(--text-muted)] hover:bg-[var(--surface-card-muted)]"
                                 } ${locked || savingAll ? "opacity-50" : ""}`}
                                 aria-label={`Editar pronóstico ${match.homeTeam.code} vs ${match.awayTeam.code}`}
                               >
                                 <span className="w-6 text-center text-lg font-black tracking-tighter">{draft.home !== null ? draft.home : "-"}</span>
-                                <span className="text-lg font-black text-slate-400 opacity-20">:</span>
+                                <span className="text-lg font-black text-[var(--text-muted)] opacity-20">:</span>
                                 <span className="w-6 text-center text-lg font-black tracking-tighter">{draft.away !== null ? draft.away : "-"}</span>
                               </button>
 
                               <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
-                                <span className="truncate text-right text-lg font-black text-slate-800">{match.awayTeam.code}</span>
+                                <span className="truncate text-right text-lg font-black text-[var(--text-primary)]">{match.awayTeam.code}</span>
                                 <TeamLogoBadge code={match.awayTeam.code} logoUrl={awayLogo} />
                               </div>
                             </div>
 
                             <div className="mt-2 flex justify-center">
-                              <span className="rounded-full bg-slate-50 px-2 py-0.5 text-[9px] font-bold text-slate-400">
+                              <span className="rounded-full bg-[var(--surface-card-muted)] px-2 py-0.5 text-[9px] font-bold text-[var(--text-muted)]">
                                 {formatMatchDateBadge(match.kickoffAt, match.meta.label)}
                               </span>
                             </div>
@@ -891,7 +892,7 @@ export default function PronosticosPage() {
                               {saveError}
                             </p>
                           ) : saveState === "saving" ? (
-                            <p className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[11px] text-slate-500">Guardando pronóstico...</p>
+                            <p className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-card-muted)] px-2.5 py-1.5 text-[11px] text-[var(--text-secondary)]">Guardando pronóstico...</p>
                           ) : null}
                         </div>
                       );
@@ -905,28 +906,28 @@ export default function PronosticosPage() {
                       const homeLogo = resolveTeamLogoUrl(match.homeTeam);
                       const awayLogo = resolveTeamLogoUrl(match.awayTeam);
                       return (
-                        <div key={match.id} className="overflow-hidden rounded-xl border border-slate-100 bg-white px-3 py-3 shadow-sm">
+                        <div key={match.id} className="overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-3 shadow-sm">
                           <div className="flex items-center justify-between">
                             <div className="flex min-w-0 flex-1 items-center gap-2">
                               <TeamLogoBadge code={match.homeTeam.code} logoUrl={homeLogo} />
-                              <span className="truncate text-lg font-black text-slate-800">{match.homeTeam.code}</span>
+                              <span className="truncate text-lg font-black text-[var(--text-primary)]">{match.homeTeam.code}</span>
                             </div>
 
-                            <div className="mx-1 min-w-[96px] rounded-lg bg-slate-100 px-3 py-1.5 text-center">
-                              <p className="text-lg font-black tracking-tighter text-slate-800">
+                            <div className="mx-1 min-w-[96px] rounded-lg bg-[var(--surface-card-muted)] px-3 py-1.5 text-center">
+                              <p className="text-lg font-black tracking-tighter text-[var(--text-primary)]">
                                 {homeScore} - {awayScore}
                               </p>
-                              <p className="text-[9px] font-bold uppercase text-slate-400">{match.status === "live" ? match.meta.label : "Finalizado"}</p>
+                              <p className="text-[9px] font-bold uppercase text-[var(--text-muted)]">{match.status === "live" ? match.meta.label : "Finalizado"}</p>
                             </div>
 
                             <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
-                              <span className="truncate text-right text-lg font-black text-slate-800">{match.awayTeam.code}</span>
+                              <span className="truncate text-right text-lg font-black text-[var(--text-primary)]">{match.awayTeam.code}</span>
                               <TeamLogoBadge code={match.awayTeam.code} logoUrl={awayLogo} />
                             </div>
                           </div>
 
                           <div className="mt-2 flex justify-center">
-                            <span className="rounded-full bg-slate-50 px-2 py-0.5 text-[9px] font-bold text-slate-400">
+                            <span className="rounded-full bg-[var(--surface-card-muted)] px-2 py-0.5 text-[9px] font-bold text-[var(--text-muted)]">
                               {formatMatchDateBadge(match.kickoffAt, match.meta.label)}
                             </span>
                           </div>
@@ -936,16 +937,16 @@ export default function PronosticosPage() {
                   : null}
 
                 {!loading && activeTab === "upcoming" && upcomingMatches.length === 0 ? (
-                  <div className="py-12 text-center text-xs text-slate-400">No hay partidos por jugar en esta fecha</div>
+                  <div className="py-12 text-center text-xs text-[var(--text-muted)]">No hay partidos por jugar en esta fecha</div>
                 ) : null}
 
                 {!loading && activeTab === "history" && completedMatches.length === 0 ? (
-                  <div className="py-12 text-center text-xs text-slate-400">No hay jugados por el momento</div>
+                  <div className="py-12 text-center text-xs text-[var(--text-muted)]">No hay jugados por el momento</div>
                 ) : null}
               </section>
 
               {memberships.length > 0 && !loading && matches.length === 0 ? (
-                <p className="rounded-xl border border-dashed border-slate-200 bg-white px-3 py-2.5 text-[12px] text-slate-500">
+                <p className="rounded-xl border border-dashed border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2.5 text-[12px] text-[var(--text-secondary)]">
                   No hay partidos disponibles para esta fecha.
                 </p>
               ) : null}
@@ -981,13 +982,13 @@ export default function PronosticosPage() {
 
       {selectedMatch ? (
         <div className="fixed inset-0 z-[120] flex items-end justify-center overflow-hidden no-scrollbar">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" onClick={closePredictionEditor} />
-          <div className="relative w-full max-w-[469px] rounded-t-3xl bg-white p-5 shadow-2xl animate-in slide-in-from-bottom duration-300 no-scrollbar">
-            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-slate-200" />
+          <div className="absolute inset-0 bg-[var(--surface-overlay)] backdrop-blur-sm transition-opacity" onClick={closePredictionEditor} />
+          <div className="relative w-full max-w-[469px] rounded-t-3xl bg-[var(--surface-card)] p-5 shadow-2xl animate-in slide-in-from-bottom duration-300 no-scrollbar">
+            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[var(--surface-card-muted)]" />
 
             <div className="mb-6 text-center">
-              <h3 className="text-lg font-black uppercase tracking-tight text-slate-800">PRONÓSTICO</h3>
-              <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+              <h3 className="text-lg font-black uppercase tracking-tight text-[var(--text-primary)]">PRONÓSTICO</h3>
+              <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-muted)]">
                 CIERRA: {formatModalCloseTime(selectedMatch.deadlineAt || selectedMatch.kickoffAt)}
               </span>
             </div>
@@ -995,9 +996,9 @@ export default function PronosticosPage() {
             <div className="mb-8 flex items-center justify-between gap-4">
               <div className="flex w-1/3 flex-col items-center">
                 <TeamLogoBadge code={selectedMatch.homeTeam.code} logoUrl={resolveTeamLogoUrl(selectedMatch.homeTeam)} size="lg" />
-                <h4 className="mt-2 text-xl font-black leading-none text-slate-800">{selectedMatch.homeTeam.code}</h4>
+                <h4 className="mt-2 text-xl font-black leading-none text-[var(--text-primary)]">{selectedMatch.homeTeam.code}</h4>
                 {resolveTeamDisplayName(selectedMatch.homeTeam).toUpperCase() !== selectedMatch.homeTeam.code.toUpperCase() ? (
-                  <p className="mt-1 px-1 text-center text-[10px] font-bold leading-tight text-slate-400">{resolveTeamDisplayName(selectedMatch.homeTeam)}</p>
+                  <p className="mt-1 px-1 text-center text-[10px] font-bold leading-tight text-[var(--text-muted)]">{resolveTeamDisplayName(selectedMatch.homeTeam)}</p>
                 ) : null}
               </div>
 
@@ -1006,42 +1007,42 @@ export default function PronosticosPage() {
                   <button
                     type="button"
                     onClick={() => updateEditorDraft("home", 1)}
-                    className="flex h-8 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200"
+                    className="flex h-8 w-10 items-center justify-center rounded-lg bg-[var(--surface-card-muted)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-card-muted)]"
                     aria-label="Incrementar local"
                   >
                     <ChevronUp size={20} />
                   </button>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl border-2 border-slate-200 bg-white shadow-sm">
-                    <span className="text-2xl font-black text-slate-800">{editorDraft.home !== null ? editorDraft.home : "-"}</span>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl border-2 border-[var(--border-subtle)] bg-[var(--surface-card)] shadow-sm">
+                    <span className="text-2xl font-black text-[var(--text-primary)]">{editorDraft.home !== null ? editorDraft.home : "-"}</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => updateEditorDraft("home", -1)}
-                    className="flex h-8 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200"
+                    className="flex h-8 w-10 items-center justify-center rounded-lg bg-[var(--surface-card-muted)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-card-muted)]"
                     aria-label="Disminuir local"
                   >
                     <ChevronDown size={20} />
                   </button>
                 </div>
 
-                <div className="pb-1 text-xl font-black text-slate-300">:</div>
+                <div className="pb-1 text-xl font-black text-[var(--text-muted)]">:</div>
 
                 <div className="flex flex-col items-center gap-1">
                   <button
                     type="button"
                     onClick={() => updateEditorDraft("away", 1)}
-                    className="flex h-8 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200"
+                    className="flex h-8 w-10 items-center justify-center rounded-lg bg-[var(--surface-card-muted)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-card-muted)]"
                     aria-label="Incrementar visitante"
                   >
                     <ChevronUp size={20} />
                   </button>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl border-2 border-slate-200 bg-white shadow-sm">
-                    <span className="text-2xl font-black text-slate-800">{editorDraft.away !== null ? editorDraft.away : "-"}</span>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl border-2 border-[var(--border-subtle)] bg-[var(--surface-card)] shadow-sm">
+                    <span className="text-2xl font-black text-[var(--text-primary)]">{editorDraft.away !== null ? editorDraft.away : "-"}</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => updateEditorDraft("away", -1)}
-                    className="flex h-8 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-500 transition-colors hover:bg-slate-200"
+                    className="flex h-8 w-10 items-center justify-center rounded-lg bg-[var(--surface-card-muted)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-card-muted)]"
                     aria-label="Disminuir visitante"
                   >
                     <ChevronDown size={20} />
@@ -1051,9 +1052,9 @@ export default function PronosticosPage() {
 
               <div className="flex w-1/3 flex-col items-center">
                 <TeamLogoBadge code={selectedMatch.awayTeam.code} logoUrl={resolveTeamLogoUrl(selectedMatch.awayTeam)} size="lg" />
-                <h4 className="mt-2 text-xl font-black leading-none text-slate-800">{selectedMatch.awayTeam.code}</h4>
+                <h4 className="mt-2 text-xl font-black leading-none text-[var(--text-primary)]">{selectedMatch.awayTeam.code}</h4>
                 {resolveTeamDisplayName(selectedMatch.awayTeam).toUpperCase() !== selectedMatch.awayTeam.code.toUpperCase() ? (
-                  <p className="mt-1 px-1 text-center text-[10px] font-bold leading-tight text-slate-400">{resolveTeamDisplayName(selectedMatch.awayTeam)}</p>
+                  <p className="mt-1 px-1 text-center text-[10px] font-bold leading-tight text-[var(--text-muted)]">{resolveTeamDisplayName(selectedMatch.awayTeam)}</p>
                 ) : null}
               </div>
             </div>
@@ -1062,14 +1063,14 @@ export default function PronosticosPage() {
               <button
                 type="button"
                 onClick={closePredictionEditor}
-                className="flex-1 rounded-xl border border-slate-200 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50"
+                className="flex-1 rounded-xl border border-[var(--border-subtle)] py-3 text-sm font-bold text-[var(--text-secondary)] hover:bg-[var(--surface-card-muted)]"
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={applyEditorPrediction}
-                className="flex-[2] rounded-xl bg-lime-400 py-3 text-sm font-bold text-slate-900 shadow-lg shadow-lime-200 transition-all hover:bg-lime-500"
+                className="flex-[2] rounded-xl bg-[var(--accent-primary)] py-3 text-sm font-bold text-[var(--text-on-accent)] shadow-lg shadow-[0_10px_24px_var(--accent-soft)] transition-all hover:brightness-95"
               >
                 Confirmar
               </button>
@@ -1080,11 +1081,11 @@ export default function PronosticosPage() {
 
       {hasPendingChanges ? (
         <div
-          className="fixed inset-x-0 bottom-0 z-[95] mx-auto w-full max-w-[469px] border-t border-slate-100 bg-white px-4 pt-2 backdrop-blur"
+          className="fixed inset-x-0 bottom-0 z-[95] mx-auto w-full max-w-[469px] border-t border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 pt-2 backdrop-blur"
           style={{ paddingBottom: "calc(92px + env(safe-area-inset-bottom, 0px))" }}
         >
-          <div className="mb-2 flex items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2">
-            <p className="text-[11px] text-slate-500" aria-live="polite">
+          <div className="mb-2 flex items-center justify-between gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card-muted)] px-3 py-2">
+            <p className="text-[11px] text-[var(--text-secondary)]" aria-live="polite">
               {pendingSummary.changed} cambio(s) pendiente(s) · {pendingSummary.ready} listo(s)
             </p>
             <p className="inline-flex items-center gap-1 text-[11px] text-[var(--warning)]">
@@ -1096,7 +1097,7 @@ export default function PronosticosPage() {
             type="button"
             onClick={() => void saveAllChanges()}
             disabled={savingAll}
-            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-lime-400 px-4 text-[13px] font-bold text-slate-900 disabled:opacity-60"
+            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent-primary)] px-4 text-[13px] font-bold text-[var(--text-on-accent)] disabled:opacity-60"
           >
             <Save size={16} />
             {savingAll ? "Guardando cambios..." : "Guardar cambios"}

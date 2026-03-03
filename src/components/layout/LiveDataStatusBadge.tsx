@@ -11,14 +11,14 @@ interface ProviderHealthResponse {
 
 function badgeStyles(status: LiveStatus) {
   if (status === "online") {
-    return "border-[#334400] bg-[#1a2600] text-[var(--accent)]";
+    return "border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--success)]";
   }
 
   if (status === "offline") {
-    return "border-[#4a3c1a] bg-[#2a2310] text-[#fbbf24]";
+    return "border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--warning)]";
   }
 
-  return "border-[var(--border-dim)] bg-[var(--bg-surface)] text-[var(--text-secondary)]";
+  return "border-[var(--border-subtle)] bg-[var(--surface-card-muted)] text-[var(--text-secondary)]";
 }
 
 export function LiveDataStatusBadge() {

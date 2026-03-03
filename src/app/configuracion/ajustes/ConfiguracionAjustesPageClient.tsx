@@ -13,6 +13,7 @@ import {
   Moon,
   Settings,
   Smartphone,
+  Sun,
   Trophy,
   User
 } from "lucide-react";
@@ -64,7 +65,7 @@ function resolveLogoDataUrl(source: unknown) {
 export default function ConfiguracionAjustesPageClient() {
   const router = useRouter();
   const { showToast } = useToast();
-  const { toggleTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const { loading, authenticated, user, memberships, activeGroupId, refresh } = useAuthSession();
   const [pushNotificationsEnabled, setPushNotificationsEnabled] = useState(true);
   const [vibrationEnabled, setVibrationEnabled] = useState(true);
@@ -105,16 +106,16 @@ export default function ConfiguracionAjustesPageClient() {
 
   return (
     <AppShell activeTab={null} showTopGlow={false}>
-      <div className="min-h-full bg-slate-100">
-        <header className="sticky top-0 z-10 rounded-b-3xl bg-white px-5 pt-12 pb-6 shadow-sm">
+      <div className="min-h-full bg-[var(--surface-card-muted)]">
+        <header className="sticky top-0 z-10 rounded-b-3xl bg-[var(--surface-card)] px-5 pt-12 pb-6 shadow-sm">
           <div className="mb-6 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="rounded-lg bg-slate-900 p-1.5 text-lime-400 shadow-sm">
+              <div className="rounded-lg bg-[var(--bg-surface-2)] p-1.5 text-[var(--accent-primary)] shadow-sm">
                 <Trophy size={18} strokeWidth={2.5} />
               </div>
-              <h1 className="text-xl font-black uppercase tracking-tighter text-slate-900">
+              <h1 className="text-xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
                 <span className="italic">Fulbito</span>
-                <span className="text-lime-500">Prode</span>
+                <span className="text-[var(--accent-primary)]">Prode</span>
               </h1>
             </div>
 
@@ -122,26 +123,26 @@ export default function ConfiguracionAjustesPageClient() {
               <button
                 type="button"
                 onClick={toggleTheme}
-                className="rounded-full bg-slate-100 p-2 text-slate-600 transition-colors hover:bg-slate-200"
+                className="rounded-full bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-card-muted)]"
                 aria-label="Cambiar tema"
               >
-                <Moon size={18} />
+                {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
               </button>
               <button
                 type="button"
-                className="relative rounded-full bg-slate-100 p-2 text-slate-600 transition-colors hover:bg-slate-200"
+                className="relative rounded-full bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-card-muted)]"
                 aria-label="Notificaciones"
               >
                 <Bell size={18} />
-                <span className="absolute right-2 top-2 h-2 w-2 rounded-full border border-white bg-red-500" />
+                <span className="absolute right-2 top-2 h-2 w-2 rounded-full border border-[var(--surface-card)] bg-[var(--danger)]" />
               </button>
-              <button type="button" className="rounded-full bg-slate-100 p-2 text-slate-600" aria-label="Configuración">
+              <button type="button" className="rounded-full bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)]" aria-label="Configuración">
                 <Settings size={18} />
               </button>
               <button
                 type="button"
                 onClick={() => router.push("/perfil")}
-                className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-lime-100 text-sm font-bold text-lime-700"
+                className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-[var(--accent-soft)] text-sm font-bold text-[var(--accent-primary)]"
                 aria-label="Perfil"
               >
                 {profileBadgeLogo ? (
@@ -154,34 +155,34 @@ export default function ConfiguracionAjustesPageClient() {
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="rounded-lg bg-lime-400 p-1.5 text-white">
+            <div className="rounded-lg bg-[var(--accent-primary)] p-1.5 text-[var(--text-on-accent)]">
               <Settings size={18} />
             </div>
-            <h2 className="text-lg font-bold text-slate-800">Configuración</h2>
-            <span className="ml-auto text-sm font-medium text-slate-400">Ajustes de la cuenta</span>
+            <h2 className="text-lg font-bold text-[var(--text-primary)]">Configuración</h2>
+            <span className="ml-auto text-sm font-medium text-[var(--text-muted)]">Ajustes de la cuenta</span>
           </div>
         </header>
 
         <main className="mt-6 no-scrollbar">
           <div className="space-y-6 px-4 pb-6 no-scrollbar">
-            <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+            <section className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 shadow-sm">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-slate-100 p-2 text-slate-600">
+                    <div className="rounded-lg bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)]">
                       <Bell size={18} />
                     </div>
-                    <span className="text-sm font-bold text-slate-800">Push Notifications</span>
+                    <span className="text-sm font-bold text-[var(--text-primary)]">Push Notifications</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => setPushNotificationsEnabled((value) => !value)}
-                    className={`relative h-6 w-10 rounded-full transition-colors ${pushNotificationsEnabled ? "bg-lime-400" : "bg-slate-200"}`}
+                    className={`relative h-6 w-10 rounded-full transition-colors ${pushNotificationsEnabled ? "bg-[var(--accent-primary)]" : "bg-[var(--surface-card-muted)]"}`}
                     aria-label="Push Notifications"
                     aria-pressed={pushNotificationsEnabled}
                   >
                     <span
-                      className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-all ${
+                      className={`absolute top-1 h-4 w-4 rounded-full bg-[var(--surface-card)] shadow-sm transition-all ${
                         pushNotificationsEnabled ? "right-1" : "left-1"
                       }`}
                     />
@@ -189,20 +190,20 @@ export default function ConfiguracionAjustesPageClient() {
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-slate-100 p-2 text-slate-600">
+                    <div className="rounded-lg bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)]">
                       <Smartphone size={18} />
                     </div>
-                    <span className="text-sm font-bold text-slate-800">Vibración</span>
+                    <span className="text-sm font-bold text-[var(--text-primary)]">Vibración</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => setVibrationEnabled((value) => !value)}
-                    className={`relative h-6 w-10 rounded-full transition-colors ${vibrationEnabled ? "bg-lime-400" : "bg-slate-200"}`}
+                    className={`relative h-6 w-10 rounded-full transition-colors ${vibrationEnabled ? "bg-[var(--accent-primary)]" : "bg-[var(--surface-card-muted)]"}`}
                     aria-label="Vibración"
                     aria-pressed={vibrationEnabled}
                   >
                     <span
-                      className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow-sm transition-all ${
+                      className={`absolute top-1 h-4 w-4 rounded-full bg-[var(--surface-card)] shadow-sm transition-all ${
                         vibrationEnabled ? "right-1" : "left-1"
                       }`}
                     />
@@ -211,41 +212,41 @@ export default function ConfiguracionAjustesPageClient() {
               </div>
             </section>
 
-            <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-              <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-400">Cuenta</h3>
+            <section className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 shadow-sm">
+              <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">Cuenta</h3>
               <div className="space-y-4">
                 <Link href="/perfil" className="group flex w-full items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-slate-100 p-2 text-slate-600 transition-colors group-hover:bg-slate-200">
+                    <div className="rounded-lg bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)] transition-colors group-hover:bg-[var(--surface-card-muted)]">
                       <User size={18} />
                     </div>
-                    <span className="text-sm font-bold text-slate-800">Mi Perfil</span>
+                    <span className="text-sm font-bold text-[var(--text-primary)]">Mi Perfil</span>
                   </div>
-                  <ChevronRight size={16} className="text-slate-300" />
+                  <ChevronRight size={16} className="text-[var(--text-muted)]" />
                 </Link>
                 <button type="button" onClick={() => showUnavailableMessage("Cambiar Contraseña")} className="group flex w-full items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-slate-100 p-2 text-slate-600 transition-colors group-hover:bg-slate-200">
+                    <div className="rounded-lg bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)] transition-colors group-hover:bg-[var(--surface-card-muted)]">
                       <Lock size={18} />
                     </div>
-                    <span className="text-sm font-bold text-slate-800">Cambiar Contraseña</span>
+                    <span className="text-sm font-bold text-[var(--text-primary)]">Cambiar Contraseña</span>
                   </div>
-                  <ChevronRight size={16} className="text-slate-300" />
+                  <ChevronRight size={16} className="text-[var(--text-muted)]" />
                 </button>
               </div>
             </section>
 
-            <section className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-              <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-400">Soporte</h3>
+            <section className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 shadow-sm">
+              <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">Soporte</h3>
               <div className="space-y-4">
                 <button type="button" onClick={() => showUnavailableMessage("Ayuda y FAQ")} className="group flex w-full items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-slate-100 p-2 text-slate-600 transition-colors group-hover:bg-slate-200">
+                    <div className="rounded-lg bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)] transition-colors group-hover:bg-[var(--surface-card-muted)]">
                       <HelpCircle size={18} />
                     </div>
-                    <span className="text-sm font-bold text-slate-800">Ayuda y FAQ</span>
+                    <span className="text-sm font-bold text-[var(--text-primary)]">Ayuda y FAQ</span>
                   </div>
-                  <ChevronRight size={16} className="text-slate-300" />
+                  <ChevronRight size={16} className="text-[var(--text-muted)]" />
                 </button>
                 <button
                   type="button"
@@ -253,12 +254,12 @@ export default function ConfiguracionAjustesPageClient() {
                   className="group flex w-full items-center justify-between"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-slate-100 p-2 text-slate-600 transition-colors group-hover:bg-slate-200">
+                    <div className="rounded-lg bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)] transition-colors group-hover:bg-[var(--surface-card-muted)]">
                       <FileText size={18} />
                     </div>
-                    <span className="text-sm font-bold text-slate-800">Términos y Condiciones</span>
+                    <span className="text-sm font-bold text-[var(--text-primary)]">Términos y Condiciones</span>
                   </div>
-                  <ChevronRight size={16} className="text-slate-300" />
+                  <ChevronRight size={16} className="text-[var(--text-muted)]" />
                 </button>
               </div>
             </section>
@@ -267,13 +268,13 @@ export default function ConfiguracionAjustesPageClient() {
               type="button"
               onClick={() => void logout()}
               disabled={loggingOut}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-red-50 py-5 font-bold text-red-500 transition-colors hover:bg-red-100 disabled:opacity-60"
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--status-danger-bg)] py-5 font-bold text-[var(--danger)] transition-colors hover:bg-[var(--status-danger-bg)] disabled:opacity-60"
             >
               <LogOut size={18} /> {loggingOut ? "Cerrando..." : "Cerrar Sesión"}
             </button>
 
             <div className="mt-4 text-center">
-              <p className="text-[10px] font-bold text-slate-400">Fulbito Prode v1.0.2</p>
+              <p className="text-[10px] font-bold text-[var(--text-muted)]">Fulbito Prode v1.0.2</p>
             </div>
           </div>
         </main>

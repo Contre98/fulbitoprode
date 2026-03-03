@@ -38,7 +38,7 @@ export function BottomSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[100] flex items-end justify-center bg-[var(--surface-overlay)]" role="dialog" aria-modal="true">
       <button
         type="button"
         aria-label="Cerrar"

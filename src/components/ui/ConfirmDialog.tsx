@@ -50,7 +50,7 @@ export function ConfirmDialog({
             disabled={loading}
             className={`min-h-11 flex-1 rounded-xl px-3 text-[13px] font-bold disabled:opacity-50 ${
               tone === "danger"
-                ? "bg-[var(--danger)] text-white"
+                ? "bg-[var(--danger)] text-[var(--text-on-danger)]"
                 : "bg-[var(--accent-primary)] text-[var(--text-on-accent)]"
             }`}
           >

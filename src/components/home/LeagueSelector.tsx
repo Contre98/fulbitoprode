@@ -16,7 +16,7 @@ export function LeagueSelector({ label, caption = "SELECCION ACTUAL" }: LeagueSe
           <div className="flex h-full items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <Trophy size={16} strokeWidth={1.9} className="text-[var(--accent)]" />
-              <span className="text-[12px] font-bold text-[#f4f4f5]">{label}</span>
+              <span className="text-[12px] font-bold text-[var(--text-primary)]">{label}</span>
             </div>
             <ChevronDown size={16} strokeWidth={1.9} className="text-[var(--text-secondary)]" />
           </div>

@@ -20,6 +20,7 @@ import {
   Shield,
   Sparkles,
   Star,
+  Sun,
   Target,
   Trophy,
   X,
@@ -167,12 +168,12 @@ function GroupSelectorModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:rounded-[32px] overflow-hidden no-scrollbar">
-      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" onClick={onClose}></div>
-      <div className="bg-white w-full max-w-[469px] rounded-t-3xl p-6 relative shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[70%] overflow-y-auto no-scrollbar">
-        <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6"></div>
+      <div className="absolute inset-0 bg-[var(--surface-overlay)] backdrop-blur-sm transition-opacity" onClick={onClose}></div>
+      <div className="bg-[var(--surface-card)] w-full max-w-[469px] rounded-t-3xl p-6 relative shadow-2xl animate-in slide-in-from-bottom duration-300 max-h-[70%] overflow-y-auto no-scrollbar">
+        <div className="w-12 h-1.5 bg-[var(--surface-card-muted)] rounded-full mx-auto mb-6"></div>
         <div className="flex justify-between items-center mb-4">
-          <h3 className="font-bold text-slate-800 text-lg">Cambiar Grupo</h3>
-          <button type="button" onClick={onClose} className="p-2 bg-slate-50 rounded-full text-slate-400" aria-label="Cerrar selector">
+          <h3 className="font-bold text-[var(--text-primary)] text-lg">Cambiar Grupo</h3>
+          <button type="button" onClick={onClose} className="p-2 bg-[var(--surface-card-muted)] rounded-full text-[var(--text-muted)]" aria-label="Cerrar selector">
             <X size={20} />
           </button>
         </div>
@@ -189,13 +190,13 @@ function GroupSelectorModal({
                   onClose();
                 }}
                 className={`w-full p-3 rounded-xl flex items-center justify-between transition-all ${
-                  isActive ? "bg-lime-50 border-2 border-lime-400" : "bg-slate-50 border border-slate-100 hover:bg-slate-100"
+                  isActive ? "bg-[var(--accent-soft)] border-2 border-[var(--accent-primary)]" : "bg-[var(--surface-card-muted)] border border-[var(--border-subtle)] hover:bg-[var(--surface-card-muted)]"
                 }`}
               >
                 <div className="flex items-center gap-3 overflow-hidden">
                   <div
                     className={`w-10 h-10 flex-shrink-0 rounded-lg flex items-center justify-center text-sm font-bold overflow-hidden ${
-                      isActive ? "bg-lime-200 text-lime-800" : "bg-white text-slate-500 shadow-sm"
+                      isActive ? "bg-[var(--accent-soft)] text-[var(--accent-primary)]" : "bg-[var(--surface-card)] text-[var(--text-secondary)] shadow-sm"
                     }`}
                   >
                     {logoDataUrl ? (
@@ -205,12 +206,12 @@ function GroupSelectorModal({
                     )}
                   </div>
                   <div className="text-left min-w-0">
-                    <p className={`text-sm font-bold truncate ${isActive ? "text-slate-900" : "text-slate-700"}`}>{option.groupName}</p>
-                    <p className="text-xs text-slate-500 truncate">{competitionLabel(option)}</p>
+                    <p className={`text-sm font-bold truncate ${isActive ? "text-[var(--text-primary)]" : "text-[var(--text-primary)]"}`}>{option.groupName}</p>
+                    <p className="text-xs text-[var(--text-secondary)] truncate">{competitionLabel(option)}</p>
                   </div>
                 </div>
                 {isActive ? (
-                  <div className="bg-lime-400 text-white p-1 rounded-full flex-shrink-0">
+                  <div className="bg-[var(--accent-primary)] text-[var(--text-on-accent)] p-1 rounded-full flex-shrink-0">
                     <Check size={14} strokeWidth={3} />
                   </div>
                 ) : null}
@@ -225,21 +226,23 @@ function GroupSelectorModal({
 
 function PosicionesHeader({
   userName,
+  theme,
   onToggleTheme
 }: {
   userName: string;
+  theme: "dark" | "light";
   onToggleTheme: () => void;
 }) {
   return (
-    <header className="px-5 pt-12 pb-6 bg-white shadow-sm rounded-b-3xl z-10 sticky top-0">
+    <header className="px-5 pt-12 pb-6 bg-[var(--surface-card)] shadow-sm rounded-b-3xl z-10 sticky top-0">
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-2">
-          <div className="bg-slate-900 p-1.5 rounded-lg text-lime-400 shadow-sm">
+          <div className="bg-[var(--bg-surface-2)] p-1.5 rounded-lg text-[var(--accent-primary)] shadow-sm">
             <Trophy size={18} strokeWidth={2.5} />
           </div>
-          <h1 className="text-xl font-black text-slate-900 tracking-tighter uppercase">
+          <h1 className="text-xl font-black text-[var(--text-primary)] tracking-tighter uppercase">
             <span className="italic">Fulbito</span>
-            <span className="text-lime-500">Prode</span>
+            <span className="text-[var(--accent-primary)]">Prode</span>
           </h1>
         </div>
 
@@ -247,30 +250,30 @@ function PosicionesHeader({
           <button
             type="button"
             onClick={onToggleTheme}
-            className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
+            className="p-2 rounded-full bg-[var(--surface-card-muted)] hover:bg-[var(--surface-card-muted)] text-[var(--text-secondary)] transition-colors"
             aria-label="Cambiar tema"
           >
-            <Moon size={18} />
+            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           </button>
-          <button type="button" className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors relative" aria-label="Notificaciones">
+          <button type="button" className="p-2 rounded-full bg-[var(--surface-card-muted)] hover:bg-[var(--surface-card-muted)] text-[var(--text-secondary)] transition-colors relative" aria-label="Notificaciones">
             <Bell size={18} />
-            <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
+            <span className="absolute top-2 right-2 w-2 h-2 bg-[var(--danger)] rounded-full border border-[var(--surface-card)]"></span>
           </button>
-          <Link href="/configuracion/ajustes" className="p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors" aria-label="Configuración">
+          <Link href="/configuracion/ajustes" className="p-2 rounded-full bg-[var(--surface-card-muted)] hover:bg-[var(--surface-card-muted)] text-[var(--text-secondary)] transition-colors" aria-label="Configuración">
             <Settings size={18} />
           </Link>
-          <Link href="/perfil" className="p-2 rounded-full bg-lime-100 text-lime-700 font-bold text-sm h-9 w-9 flex items-center justify-center" aria-label="Perfil">
+          <Link href="/perfil" className="p-2 rounded-full bg-[var(--accent-soft)] text-[var(--accent-primary)] font-bold text-sm h-9 w-9 flex items-center justify-center" aria-label="Perfil">
             {initialsFromLabel(userName)}
           </Link>
         </div>
       </div>
 
       <div className="flex items-center gap-2">
-        <div className="bg-lime-400 p-1.5 rounded-lg text-white">
+        <div className="bg-[var(--accent-primary)] p-1.5 rounded-lg text-[var(--text-on-accent)]">
           <List size={18} />
         </div>
-        <h2 className="text-lg font-bold text-slate-800">Posiciones</h2>
-        <span className="text-sm text-slate-400 font-medium ml-auto">Rendimiento del grupo</span>
+        <h2 className="text-lg font-bold text-[var(--text-primary)]">Posiciones</h2>
+        <span className="text-sm text-[var(--text-muted)] font-medium ml-auto">Rendimiento del grupo</span>
       </div>
     </header>
   );
@@ -279,7 +282,7 @@ function PosicionesHeader({
 export default function PosicionesPage() {
   const router = useRouter();
   const { showToast } = useToast();
-  const { toggleTheme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
 
   const [mode, setMode] = useState<LeaderboardMode>("posiciones");
   const [periodOptions, setPeriodOptions] = useState<PeriodOption[]>([{ id: "global", label: "Global acumulado" }]);
@@ -290,6 +293,7 @@ export default function PosicionesPage() {
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [statsPeriodSnapshots, setStatsPeriodSnapshots] = useState<PeriodSnapshot[]>([]);
   const [statsInsightsLoading, setStatsInsightsLoading] = useState(false);
+  const [expandedAwardId, setExpandedAwardId] = useState<string | null>("nostradamus");
   const fechasCacheRef = useRef<Map<string, FechasPayload>>(new Map());
   const payloadCacheRef = useRef<Map<string, LeaderboardPayload>>(new Map());
   const statsSnapshotsCacheRef = useRef<Map<string, PeriodSnapshot[]>>(new Map());
@@ -741,8 +745,8 @@ export default function PosicionesPage() {
         winnerName: nostradamus.name,
         subtitle: `Mayor cantidad de plenos (${nostradamus.exact})`,
         icon: Sparkles,
-        iconContainerClassName: "bg-violet-100",
-        iconClassName: "text-violet-500"
+        iconContainerClassName: "bg-[var(--surface-card-muted)]",
+        iconClassName: "text-[var(--accent-primary)]"
       },
       {
         id: "bilardista",
@@ -750,8 +754,8 @@ export default function PosicionesPage() {
         winnerName: bilardista.name,
         subtitle: `Suma con lo justo. ${bilardista.result} resultados y 0 plenos.`,
         icon: Shield,
-        iconContainerClassName: "bg-slate-200",
-        iconClassName: "text-slate-600"
+        iconContainerClassName: "bg-[var(--surface-card-muted)]",
+        iconClassName: "text-[var(--text-secondary)]"
       },
       {
         id: "la-racha",
@@ -759,8 +763,8 @@ export default function PosicionesPage() {
         winnerName: laRacha.name,
         subtitle: `${laRacha.positiveStreak} fechas sumando seguido`,
         icon: Flame,
-        iconContainerClassName: "bg-orange-100",
-        iconClassName: "text-orange-500"
+        iconContainerClassName: "bg-[var(--status-warning-bg)]",
+        iconClassName: "text-[var(--warning)]"
       },
       {
         id: "batacazo",
@@ -768,8 +772,8 @@ export default function PosicionesPage() {
         winnerName: batacazo.name,
         subtitle: `Único acierto grupal (${batacazo.batacazoCount})`,
         icon: Zap,
-        iconContainerClassName: "bg-amber-100",
-        iconClassName: "text-amber-600"
+        iconContainerClassName: "bg-[var(--status-warning-bg)]",
+        iconClassName: "text-[var(--warning)]"
       },
       {
         id: "robin-hood",
@@ -777,8 +781,8 @@ export default function PosicionesPage() {
         winnerName: robinHood.name,
         subtitle: `Acierta difíciles (${robinHood.robinDifficultHits}), erra fáciles (${robinHood.robinEasyFails})`,
         icon: Target,
-        iconContainerClassName: "bg-emerald-100",
-        iconClassName: "text-emerald-600"
+        iconContainerClassName: "bg-[var(--status-success-bg)]",
+        iconClassName: "text-[var(--success)]"
       },
       {
         id: "el-casi",
@@ -786,8 +790,8 @@ export default function PosicionesPage() {
         winnerName: elCasi.name,
         subtitle: `Resultado sí, pleno no por 1 gol (${elCasi.casiCount})`,
         icon: Ruler,
-        iconContainerClassName: "bg-blue-100",
-        iconClassName: "text-blue-600"
+        iconContainerClassName: "bg-[var(--surface-card-muted)]",
+        iconClassName: "text-[var(--accent-primary)]"
       },
       {
         id: "el-mufa",
@@ -795,8 +799,8 @@ export default function PosicionesPage() {
         winnerName: elMufa.name,
         subtitle: `${elMufa.zeroStreak} fechas sin sumar nada`,
         icon: CloudRain,
-        iconContainerClassName: "bg-slate-100",
-        iconClassName: "text-slate-500"
+        iconContainerClassName: "bg-[var(--surface-card-muted)]",
+        iconClassName: "text-[var(--text-secondary)]"
       }
     ];
   }, [rows, statsPeriodSnapshots]);
@@ -809,8 +813,8 @@ export default function PosicionesPage() {
         subtitle: "Puntaje máximo",
         value: payload?.groupStats?.exactPredictions ?? 0,
         icon: Target,
-        iconContainerClassName: "bg-emerald-100",
-        iconClassName: "text-emerald-600"
+        iconContainerClassName: "bg-[var(--status-success-bg)]",
+        iconClassName: "text-[var(--success)]"
       },
       {
         id: "results",
@@ -818,8 +822,8 @@ export default function PosicionesPage() {
         subtitle: "Solo ganador/empate",
         value: payload?.groupStats?.resultPredictions ?? 0,
         icon: Check,
-        iconContainerClassName: "bg-blue-100",
-        iconClassName: "text-blue-600"
+        iconContainerClassName: "bg-[var(--surface-card-muted)]",
+        iconClassName: "text-[var(--accent-primary)]"
       },
       {
         id: "average",
@@ -829,8 +833,8 @@ export default function PosicionesPage() {
           ? String(payload?.groupStats?.averageMemberPoints ?? 0)
           : (payload?.groupStats?.averageMemberPoints ?? 0).toFixed(1),
         icon: Clock3,
-        iconContainerClassName: "bg-orange-100",
-        iconClassName: "text-orange-600"
+        iconContainerClassName: "bg-[var(--status-warning-bg)]",
+        iconClassName: "text-[var(--warning)]"
       }
     ],
     [payload?.groupStats?.averageMemberPoints, payload?.groupStats?.exactPredictions, payload?.groupStats?.resultPredictions]
@@ -838,15 +842,15 @@ export default function PosicionesPage() {
 
   return (
     <AppShell activeTab="posiciones" showTopGlow={false}>
-      <div className="min-h-full bg-slate-50">
-        <PosicionesHeader userName={user?.name || "Facundo Contreras"} onToggleTheme={toggleTheme} />
+      <div className="min-h-full bg-[var(--surface-card-muted)]">
+        <PosicionesHeader userName={user?.name || "Facundo Contreras"} theme={theme} onToggleTheme={toggleTheme} />
 
         <section className="mt-6 space-y-4 px-4 pb-6 no-scrollbar">
           {memberships.length === 0 ? (
-            <div className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
-              <p className="text-sm font-semibold text-slate-800">No tenés grupos activos.</p>
-              <p className="mt-1 text-xs text-slate-500">Creá o uníte a un grupo para ver las posiciones.</p>
-              <Link href="/configuracion" className="mt-3 inline-flex rounded-xl bg-lime-400 px-4 py-2 text-xs font-bold text-slate-900">
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 shadow-sm">
+              <p className="text-sm font-semibold text-[var(--text-primary)]">No tenés grupos activos.</p>
+              <p className="mt-1 text-xs text-[var(--text-secondary)]">Creá o uníte a un grupo para ver las posiciones.</p>
+              <Link href="/configuracion" className="mt-3 inline-flex rounded-xl bg-[var(--accent-primary)] px-4 py-2 text-xs font-bold text-[var(--text-on-accent)]">
                 Ir a grupos
               </Link>
             </div>
@@ -854,60 +858,60 @@ export default function PosicionesPage() {
 
           {memberships.length > 0 ? (
             <>
-              <div className="bg-white p-2 rounded-xl border border-slate-100 shadow-sm relative">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide ml-2 mb-1">SELECCION ACTUAL</p>
+              <div className="bg-[var(--surface-card)] p-2 rounded-xl border border-[var(--border-subtle)] shadow-sm relative">
+                <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wide ml-2 mb-1">SELECCION ACTUAL</p>
                 <button
                   type="button"
                   onClick={() => setIsSelectorOpen(true)}
-                  className="w-full bg-slate-50 rounded-lg p-3 flex items-center justify-between hover:bg-slate-100 transition-colors text-left"
+                  className="w-full bg-[var(--surface-card-muted)] rounded-lg p-3 flex items-center justify-between hover:bg-[var(--surface-card-muted)] transition-colors text-left"
                 >
-                  <div className="flex items-center gap-2 text-slate-800 font-bold text-sm truncate pr-2">
+                  <div className="flex items-center gap-2 text-[var(--text-primary)] font-bold text-sm truncate pr-2">
                     {activeSelectionLogo ? (
                       <img src={activeSelectionLogo} alt={`${activeSelection?.groupName || "Grupo"} logo`} className="h-4 w-4 object-contain flex-shrink-0" />
                     ) : (
-                      <Trophy size={16} className="text-lime-600 flex-shrink-0" />
+                      <Trophy size={16} className="text-[var(--accent-primary)] flex-shrink-0" />
                     )}
                     <span className="truncate">
                       {competitionLabel(activeSelection)} · {activeSelection?.groupName || "Sin grupo"}
                     </span>
                   </div>
-                  <ChevronDown size={16} className="text-slate-400 flex-shrink-0" />
+                  <ChevronDown size={16} className="text-[var(--text-muted)] flex-shrink-0" />
                 </button>
               </div>
 
-              <div className="bg-slate-100 p-1 rounded-xl flex font-bold text-sm">
+              <div className="bg-[var(--surface-card-muted)] p-1 rounded-xl flex font-bold text-sm">
                 <button
                   type="button"
                   onClick={() => setMode("posiciones")}
-                  className={`flex-1 rounded-lg py-2.5 transition-all ${mode === "posiciones" ? "bg-lime-400 text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"}`}
+                  className={`flex-1 rounded-lg py-2.5 transition-all ${mode === "posiciones" ? "bg-[var(--accent-primary)] text-[var(--text-on-accent)] shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}
                 >
                   POSICIONES
                 </button>
                 <button
                   type="button"
                   onClick={() => setMode("stats")}
-                  className={`flex-1 rounded-lg py-2.5 transition-all ${mode === "stats" ? "bg-lime-400 text-slate-900 shadow-sm" : "text-slate-400 hover:text-slate-600"}`}
+                  className={`flex-1 rounded-lg py-2.5 transition-all ${mode === "stats" ? "bg-[var(--accent-primary)] text-[var(--text-on-accent)] shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"}`}
                 >
                   STATS
                 </button>
               </div>
 
               {mode === "posiciones" ? (
-                <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-2 flex items-center justify-between">
+                <div className="bg-[var(--surface-card)] rounded-xl border border-[var(--border-subtle)] shadow-sm p-2 flex items-center justify-between">
                   <button
                     type="button"
                     onClick={() => setPeriodIndex((value) => (value - 1 + Math.max(1, periodOptions.length)) % Math.max(1, periodOptions.length))}
-                    className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-slate-600"
+                    className="p-2 bg-[var(--surface-card-muted)] rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                     aria-label="Periodo anterior"
                     disabled={periodOptions.length === 0}
                   >
                     <ChevronLeft size={16} />
                   </button>
-                  <span className="text-sm font-black text-lime-600 uppercase tracking-wide truncate px-2">{cycleModeLabel}</span>
+                  <span className="text-sm font-black text-[var(--accent-primary)] uppercase tracking-wide truncate px-2">{cycleModeLabel}</span>
                   <button
                     type="button"
                     onClick={() => setPeriodIndex((value) => (value + 1) % Math.max(1, periodOptions.length))}
-                    className="p-2 bg-slate-50 rounded-lg text-slate-400 hover:text-slate-600"
+                    className="p-2 bg-[var(--surface-card-muted)] rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                     aria-label="Periodo siguiente"
                     disabled={periodOptions.length === 0}
                   >
@@ -922,33 +926,33 @@ export default function PosicionesPage() {
                   <SkeletonBlock className="h-[180px] w-full rounded-2xl" />
                 </div>
               ) : mode === "posiciones" ? (
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden no-scrollbar">
-                  <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-                    <span className="text-xs font-bold text-slate-800">{payload?.groupLabel || activeSelection?.groupName || "Grupo"}</span>
-                    <div className="flex gap-4 text-[10px] font-bold text-slate-400 uppercase text-right">
+                <div className="bg-[var(--surface-card)] rounded-2xl border border-[var(--border-subtle)] shadow-sm overflow-hidden no-scrollbar">
+                  <div className="px-4 py-3 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[var(--surface-card-muted)]">
+                    <span className="text-xs font-bold text-[var(--text-primary)]">{payload?.groupLabel || activeSelection?.groupName || "Grupo"}</span>
+                    <div className="flex gap-4 text-[10px] font-bold text-[var(--text-muted)] uppercase text-right">
                       <span className="w-8 text-center">Pred</span>
                       <span className="w-12 text-center">EX/RE/NA</span>
                       <span className="w-6 text-center">Pts</span>
                     </div>
                   </div>
 
-                  <div className="divide-y divide-slate-50">
+                  <div className="divide-y divide-[var(--border-subtle)]">
                     {rows.map((row) => (
                       <div
                         key={`${row.rank}-${row.userId || row.name}`}
-                        className={`px-4 py-2 flex items-center justify-between ${row.highlight ? "bg-lime-50 border-l-4 border-lime-400" : "hover:bg-slate-50"}`}
+                        className={`px-4 py-2 flex items-center justify-between ${row.highlight ? "bg-[var(--accent-soft)] border-l-4 border-[var(--accent-primary)]" : "hover:bg-[var(--surface-card-muted)]"}`}
                       >
                         <div className="flex items-center gap-3">
-                          <span className={`text-sm font-bold w-4 text-center ${row.highlight ? "text-lime-700" : "text-slate-400"}`}>{row.rank}</span>
-                          <span className="text-xs font-bold text-slate-800 flex items-center gap-1">
-                            {row.name} {row.highlight ? <Star size={10} className="fill-orange-400 text-orange-400" /> : null}
+                          <span className={`text-sm font-bold w-4 text-center ${row.highlight ? "text-[var(--accent-primary)]" : "text-[var(--text-muted)]"}`}>{row.rank}</span>
+                          <span className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1">
+                            {row.name} {row.highlight ? <Star size={10} className="fill-[var(--warning)] text-[var(--warning)]" /> : null}
                           </span>
                         </div>
 
                         <div className="flex gap-4 items-center text-xs font-medium text-right">
-                          <span className="w-8 text-center text-slate-500">{row.predictions}</span>
-                          <span className="w-12 text-center text-slate-500 tracking-tighter">{row.record}</span>
-                          <span className={`w-6 text-center font-bold ${row.highlight ? "text-slate-900" : "text-slate-700"}`}>{row.points}</span>
+                          <span className="w-8 text-center text-[var(--text-secondary)]">{row.predictions}</span>
+                          <span className="w-12 text-center text-[var(--text-secondary)] tracking-tighter">{row.record}</span>
+                          <span className={`w-6 text-center font-bold ${row.highlight ? "text-[var(--text-primary)]" : "text-[var(--text-primary)]"}`}>{row.points}</span>
                         </div>
                       </div>
                     ))}
@@ -957,55 +961,75 @@ export default function PosicionesPage() {
               ) : (
                 <div className="space-y-4 no-scrollbar">
                   <div className="grid grid-cols-2 gap-3 no-scrollbar">
-                    <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center text-center">
-                      <div className="bg-lime-100 p-2.5 rounded-full mb-2 text-lime-700">
+                    <div className="bg-[var(--surface-card)] p-4 rounded-2xl border border-[var(--border-subtle)] shadow-sm flex flex-col items-center text-center">
+                      <div className="bg-[var(--accent-soft)] p-2.5 rounded-full mb-2 text-[var(--accent-primary)]">
                         <Trophy size={20} />
                       </div>
-                      <span className="text-xs font-bold uppercase tracking-wide text-slate-400">RANKING MUNDIAL</span>
-                      <span className="text-2xl font-black tracking-tighter text-slate-800 mt-1 leading-none">#842</span>
+                      <span className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">RANKING MUNDIAL</span>
+                      <span className="text-2xl font-black tracking-tighter text-[var(--text-primary)] mt-1 leading-none">#842</span>
                     </div>
 
-                    <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col items-center text-center">
-                      <div className="bg-indigo-100 p-2.5 rounded-full mb-2 text-indigo-600">
-                        <Star size={20} className="fill-indigo-600" />
+                    <div className="bg-[var(--surface-card)] p-4 rounded-2xl border border-[var(--border-subtle)] shadow-sm flex flex-col items-center text-center">
+                      <div className="mb-2 rounded-full bg-[var(--accent-soft)] p-2.5 text-[var(--accent-primary)]">
+                        <Star size={20} className="fill-[var(--accent-primary)]" />
                       </div>
-                      <span className="text-xs font-bold uppercase tracking-wide text-slate-400">PUNTOS TOTALES</span>
-                      <span className="text-2xl font-black tracking-tighter text-indigo-600 mt-1 leading-none">{totalPointsLabel}</span>
+                      <span className="text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">PUNTOS TOTALES</span>
+                      <span className="mt-1 text-2xl leading-none font-black tracking-tighter text-[var(--accent-primary)]">{totalPointsLabel}</span>
                     </div>
                   </div>
 
                   <div className="space-y-3">
-                    <h3 className="text-lg leading-none font-black text-slate-800 uppercase tracking-tight">PREMIOS Y CASTIGOS</h3>
-                    <div className="grid grid-cols-2 gap-3 no-scrollbar">
+                    <h3 className="text-lg leading-none font-black text-[var(--text-primary)] uppercase tracking-tight">PREMIOS Y CASTIGOS</h3>
+                    <div className="space-y-2 no-scrollbar">
                       {statsAwards.map((award) => {
                         const AwardIcon = award.icon;
+                        const isExpanded = expandedAwardId === award.id;
+                        const detailsId = `award-details-${award.id}`;
                         return (
-                          <article key={award.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className={`h-9 w-9 rounded-2xl flex items-center justify-center ${award.iconContainerClassName}`}>
-                                <AwardIcon size={17} className={award.iconClassName} />
+                          <article key={award.id} className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] shadow-sm overflow-hidden">
+                            <button
+                              type="button"
+                              className="w-full min-h-11 px-3 py-2.5 flex items-center gap-2.5 text-left transition-colors hover:bg-[var(--surface-card-muted)]"
+                              aria-expanded={isExpanded}
+                              aria-controls={detailsId}
+                              onClick={() => setExpandedAwardId((prev) => (prev === award.id ? null : award.id))}
+                            >
+                              <div className={`h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0 ${award.iconContainerClassName}`}>
+                                <AwardIcon size={16} className={award.iconClassName} />
                               </div>
-                              <span className="text-[11px] font-black uppercase tracking-[1.2px] text-slate-400 text-right">{award.title}</span>
-                            </div>
-                            <h4 className="mt-4 text-sm leading-none font-black text-slate-800">{award.winnerName}</h4>
-                            <p className="mt-2 text-[11px] leading-tight font-medium text-slate-500">{award.subtitle}</p>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[10px] leading-none font-black uppercase tracking-[1px] text-[var(--text-muted)]">{award.title}</p>
+                                <h4 className="mt-1 text-[13px] leading-tight font-black text-[var(--text-primary)] truncate">{award.winnerName}</h4>
+                              </div>
+                              <ChevronDown
+                                size={16}
+                                className={`text-[var(--text-muted)] flex-shrink-0 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`}
+                                aria-hidden="true"
+                              />
+                            </button>
+
+                            {isExpanded ? (
+                              <div id={detailsId} className="px-3 pb-3">
+                                <p className="text-[11px] leading-tight font-medium text-[var(--text-secondary)]">{award.subtitle}</p>
+                              </div>
+                            ) : null}
                           </article>
                         );
                       })}
                     </div>
 
                     {statsInsightsLoading ? (
-                      <div className="grid grid-cols-2 gap-3">
-                        <SkeletonBlock className="h-[122px] rounded-2xl" />
-                        <SkeletonBlock className="h-[122px] rounded-2xl" />
+                      <div className="space-y-2">
+                        <SkeletonBlock className="h-[48px] rounded-xl" />
+                        <SkeletonBlock className="h-[48px] rounded-xl" />
                       </div>
                     ) : null}
                   </div>
 
-                  <section className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                    <header className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
-                      <BarChart3 size={16} className="text-slate-400" />
-                      <h4 className="text-lg leading-none font-black text-slate-800">Rendimiento General</h4>
+                  <section className="bg-[var(--surface-card)] rounded-2xl border border-[var(--border-subtle)] shadow-sm overflow-hidden">
+                    <header className="px-4 py-3 border-b border-[var(--border-subtle)] flex items-center gap-2">
+                      <BarChart3 size={16} className="text-[var(--text-muted)]" />
+                      <h4 className="text-lg leading-none font-black text-[var(--text-primary)]">Rendimiento General</h4>
                     </header>
                     <div className="divide-y divide-slate-100">
                       {rendimientoRows.map((metric) => {
@@ -1017,11 +1041,11 @@ export default function PosicionesPage() {
                                 <MetricIcon size={16} className={metric.iconClassName} />
                               </div>
                               <div className="min-w-0">
-                                <p className="text-sm leading-none font-black text-slate-700">{metric.title}</p>
-                                <p className="text-[11px] leading-tight font-medium text-slate-400">{metric.subtitle}</p>
+                                <p className="text-sm leading-none font-black text-[var(--text-primary)]">{metric.title}</p>
+                                <p className="text-[11px] leading-tight font-medium text-[var(--text-muted)]">{metric.subtitle}</p>
                               </div>
                             </div>
-                            <span className="text-2xl leading-none font-black text-slate-800">{metric.value}</span>
+                            <span className="text-2xl leading-none font-black text-[var(--text-primary)]">{metric.value}</span>
                           </div>
                         );
                       })}
@@ -1033,7 +1057,7 @@ export default function PosicionesPage() {
           ) : null}
 
           {error ? (
-            <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-medium text-red-500">{error}</p>
+            <p className="rounded-xl border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 py-2 text-xs font-medium text-[var(--danger)]">{error}</p>
           ) : null}
         </section>
       </div>

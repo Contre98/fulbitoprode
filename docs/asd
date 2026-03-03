@@ -1,0 +1,102 @@
+cat > ~/.openclaw/openclaw.json << 'EOF'
+{
+  "wizard": {
+    "lastRunAt": "2026-02-18T16:24:26.077Z",
+    "lastRunVersion": "2026.2.17",
+    "lastRunCommand": "onboard",
+    "lastRunMode": "local"
+  },
+  "auth": {
+    "profiles": {
+      "anthropic:default": {
+        "provider": "anthropic",
+        "mode": "api_key"
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "anthropic/claude-sonnet-4-6"
+      },
+      "models": {
+        "anthropic/claude-sonnet-4-6": {}
+      },
+      "workspace": "/root/.openclaw/workspace",
+      "systemPrompt": "You are a HomeLab Butler for a Proxmox server at 192.168.1.49. You help the user manage their homelab. Key services: VM 101 = HomeAssistant, LXC 102/103 = Pterodactyl gaming servers, LXC 105 = Technitium DNS, LXC 107 = Gateway/Firewall, LXC 109 = AI Bridge (you run here). When asked about server status, provide clear summaries. You have shell access to run diagnostic commands.",
+      "compaction": {
+        "mode": "safeguard"
+      },
+      "maxConcurrent": 4,
+      "subagents": {
+        "maxConcurrent": 8
+      }
+    }
+  },
+  "messages": {
+    "ackReactionScope": "group-mentions"
+  },
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto"
+  },
+  "hooks": {
+    "internal": {
+      "enabled": true,
+      "entries": {
+        "session-memory": {
+          "enabled": true
+        },
+        "command-logger": {
+          "enabled": true
+        }
+      }
+    }
+  },
+  "channels": {
+    "telegram": {
+      "enabled": true,
+      "dmPolicy": "allowlist",
+      "botToken": "8133237816:AAEECyPoERW66yorqqrKcQc6PDWMVGQWQSs",
+      "allowFrom": [1125507780],
+      "groupPolicy": "allowlist",
+      "allowedGroups": [],
+      "streamMode": "partial"
+    }
+  },
+  "gateway": {
+    "port": 18789,
+    "mode": "local",
+    "bind": "loopback",
+    "auth": {
+      "mode": "token",
+      "token": "99a5e3b4abb4fea9636a6e06b4c9b1ba38754ab15ca92b10"
+    },
+    "tailscale": {
+      "mode": "off",
+      "resetOnExit": false
+    },
+    "nodes": {
+      "denyCommands": [
+        "camera.snap",
+        "camera.clip",
+        "screen.record",
+        "calendar.add",
+        "contacts.add",
+        "reminders.add"
+      ]
+    }
+  },
+  "plugins": {
+    "entries": {
+      "telegram": {
+        "enabled": true
+      }
+    }
+  },
+  "meta": {
+    "lastTouchedVersion": "2026.2.17",
+    "lastTouchedAt": "2026-02-18T16:24:26.087Z"
+  }
+}
+EOF
