@@ -3,6 +3,7 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { ActivityIndicator, View } from "react-native";
 import { AuthProvider, useAuth } from "@/state/AuthContext";
+import { PeriodProvider } from "@/state/PeriodContext";
 import { AuthScreen } from "@/screens/AuthScreen";
 import { HomeScreen } from "@/screens/HomeScreen";
 import { PronosticosScreen } from "@/screens/PronosticosScreen";
@@ -50,9 +51,11 @@ function RootNavigator() {
 export function AppNavigation() {
   return (
     <AuthProvider>
-      <NavigationContainer>
-        <RootNavigator />
-      </NavigationContainer>
+      <PeriodProvider>
+        <NavigationContainer>
+          <RootNavigator />
+        </NavigationContainer>
+      </PeriodProvider>
     </AuthProvider>
   );
 }

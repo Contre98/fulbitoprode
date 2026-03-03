@@ -66,6 +66,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-03 | Use explicit Expo root entry file (`apps/mobile/index.js`) instead of `expo/AppEntry` in monorepo. | Prevent pnpm workspace path resolution failures like `Unable to resolve ../../App` on Android bundling. | `apps/mobile/package.json`, `apps/mobile/index.js` |
 | 2026-03-03 | Route mobile repositories through HTTP adapters with per-method mock fallback. | Enable incremental backend connectivity without blocking mobile flows when auth/network/backend is unavailable. | `apps/mobile/src/repositories/httpDataRepositories.ts`, `apps/mobile/src/repositories/index.ts`, `apps/mobile/src/screens/*Screen.tsx` |
 | 2026-03-03 | Share fixture date key/label/grouping helpers in `@fulbito/domain` and consume from web + mobile. | Remove duplicate fixture date logic and keep grouping/sorting behavior aligned across clients. | `packages/domain/src/index.ts`, `apps/mobile/src/screens/FixtureScreen.tsx`, `apps/web/src/lib/liga-live-provider.ts` |
+| 2026-03-03 | Add shared mobile `fecha` context + selector and consume it across core tabs. | Keep tab filtering state synchronized across `Pronósticos`, `Posiciones`, and `Fixture` queries. | `apps/mobile/src/state/PeriodContext.tsx`, `apps/mobile/src/components/FechaSelector.tsx`, `apps/mobile/src/screens/*Screen.tsx` |
 
 ## Validation Log
 
@@ -102,7 +103,11 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-03 | `pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile `FixtureScreen` now uses shared domain fixture grouping helpers. |
 | 2026-03-03 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), no new blocker from shared fixture helper extraction. |
 | 2026-03-03 | `pnpm --filter @fulbito/web test:run -- src/test/fixture-date-utils.test.ts` | Pass | New shared fixture date utility tests passed (plus existing suite). |
+| 2026-03-03 | `pnpm run typecheck:web` | Pass | After wiring shared mobile `fecha` selection across tab queries. |
+| 2026-03-03 | `pnpm --filter @fulbito/mobile typecheck` | Pass | `PeriodContext` + `FechaSelector` integration compiles across `Pronósticos`, `Posiciones`, and `Fixture`. |
+| 2026-03-03 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by mobile period-state wiring. |
 | 2026-03-03 | iOS smoke (`pnpm --filter @fulbito/mobile ios`) | Fail | `expo run:ios` failed creating native directory in this environment (`npm view expo-template-bare-minimum@sdk-52` non-zero), so simulator smoke remains pending. |
+| 2026-03-03 | iOS smoke (`pnpm --filter @fulbito/mobile dev -- --ios` and `expo start --ios --port 8081`) | Fail | Expo CLI crashes before startup on this machine with `ERR_SOCKET_BAD_PORT` under Node `v24.9.0`; manual iOS smoke remains blocked by tooling/runtime issue. |
 | 2026-03-03 | Android smoke | Pass (manual) | User confirmed Android app launched and worked after entrypoint fix (`index.js` replacing `expo/AppEntry`). |
 
 ## Risks & Mitigations
@@ -117,6 +122,6 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 ## Next Actions (Top 5)
 1. Complete iOS smoke run on simulator and log a successful pass in the Validation Log.
 2. Add lightweight mobile screen tests once React Native test tooling is introduced in workspace.
-3. Wire mobile period/fecha selection state across `Pronósticos`, `Posiciones`, and `Fixture` for consistent filtering.
-4. Add membership/group selection wiring on mobile and connect it to repository query keys.
-5. Add HTTP auth/session bridging for mobile requests so adapters can use authenticated backend paths instead of fallback.
+3. Add membership/group selection wiring on mobile and connect it to repository query keys.
+4. Add HTTP auth/session bridging for mobile requests so adapters can use authenticated backend paths instead of fallback.
+5. Replace static `fecha` options with backend-driven dates (`/api/fechas`) and cache them in mobile state.

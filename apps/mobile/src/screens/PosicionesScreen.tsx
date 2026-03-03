@@ -1,29 +1,31 @@
 import { StyleSheet, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { colors, spacing } from "@fulbito/design-tokens";
+import { FechaSelector } from "@/components/FechaSelector";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { leaderboardRepository } from "@/repositories";
 import { useAuth } from "@/state/AuthContext";
-
-const DEFAULT_FECHA = "2026-01";
+import { usePeriod } from "@/state/PeriodContext";
 
 export function PosicionesScreen() {
   const { session } = useAuth();
+  const { fecha } = usePeriod();
   const groupId = session?.memberships[0]?.groupId ?? "grupo-1";
   const leaderboardQuery = useQuery({
-    queryKey: ["leaderboard", groupId, DEFAULT_FECHA],
+    queryKey: ["leaderboard", groupId, fecha],
     queryFn: () =>
       leaderboardRepository.getLeaderboard({
         groupId,
-        fecha: DEFAULT_FECHA
+        fecha
       })
   });
 
   return (
     <ScreenFrame title="Posiciones" subtitle="Tabla del grupo y métricas clave">
+      <FechaSelector />
       {leaderboardQuery.isLoading ? <LoadingState message="Cargando posiciones..." /> : null}
       {leaderboardQuery.isError ? (
         <ErrorState

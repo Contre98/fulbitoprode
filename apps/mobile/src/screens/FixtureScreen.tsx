@@ -4,14 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import { compareFixturesByStatusAndKickoff, groupFixturesByDate } from "@fulbito/domain";
 import type { Fixture } from "@fulbito/domain";
 import { colors, spacing } from "@fulbito/design-tokens";
+import { FechaSelector } from "@/components/FechaSelector";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { fixtureRepository } from "@/repositories";
 import { useAuth } from "@/state/AuthContext";
-
-const DEFAULT_FECHA = "2026-01";
+import { usePeriod } from "@/state/PeriodContext";
 function statusLabel(status: Fixture["status"]) {
   if (status === "live") {
     return "EN VIVO";
@@ -34,13 +34,14 @@ function statusTone(status: Fixture["status"]) {
 
 export function FixtureScreen() {
   const { session } = useAuth();
+  const { fecha } = usePeriod();
   const groupId = session?.memberships[0]?.groupId ?? "grupo-1";
   const fixtureQuery = useQuery({
-    queryKey: ["fixture", groupId, DEFAULT_FECHA],
+    queryKey: ["fixture", groupId, fecha],
     queryFn: () =>
       fixtureRepository.listFixture({
         groupId,
-        fecha: DEFAULT_FECHA
+        fecha
       })
   });
 
@@ -51,6 +52,7 @@ export function FixtureScreen() {
 
   return (
     <ScreenFrame title="Fixture" subtitle="Partidos por fecha y resultados">
+      <FechaSelector />
       {fixtureQuery.isLoading ? <LoadingState message="Cargando fixture..." /> : null}
       {fixtureQuery.isError ? (
         <ErrorState

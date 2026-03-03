@@ -4,39 +4,40 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Fixture, Prediction } from "@fulbito/domain";
 import { colors, spacing } from "@fulbito/design-tokens";
 import { isPredictionInputComplete, normalizePredictionInput } from "@fulbito/domain";
+import { FechaSelector } from "@/components/FechaSelector";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { fixtureRepository, predictionsRepository } from "@/repositories";
 import { useAuth } from "@/state/AuthContext";
+import { usePeriod } from "@/state/PeriodContext";
 
 type DraftByFixture = Record<string, { home: string; away: string }>;
-
-const DEFAULT_FECHA = "2026-01";
 
 export function PronosticosScreen() {
   const queryClient = useQueryClient();
   const { session } = useAuth();
+  const { fecha } = usePeriod();
   const groupId = session?.memberships[0]?.groupId ?? "grupo-1";
   const [draftByFixture, setDraftByFixture] = useState<DraftByFixture>({});
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const fixtureQuery = useQuery({
-    queryKey: ["fixture", groupId, DEFAULT_FECHA],
+    queryKey: ["fixture", groupId, fecha],
     queryFn: () =>
       fixtureRepository.listFixture({
         groupId,
-        fecha: DEFAULT_FECHA
+        fecha
       })
   });
 
   const predictionsQuery = useQuery({
-    queryKey: ["predictions", groupId, DEFAULT_FECHA],
+    queryKey: ["predictions", groupId, fecha],
     queryFn: () =>
       predictionsRepository.listPredictions({
         groupId,
-        fecha: DEFAULT_FECHA
+        fecha
       })
   });
 
@@ -62,21 +63,21 @@ export function PronosticosScreen() {
     mutationFn: async (input: Prediction) => {
       await predictionsRepository.savePrediction({
         groupId,
-        fecha: DEFAULT_FECHA,
+        fecha,
         prediction: input
       });
     },
     onMutate: async (prediction) => {
       setStatusMessage(null);
-      await queryClient.cancelQueries({ queryKey: ["predictions", groupId, DEFAULT_FECHA] });
-      const previous = queryClient.getQueryData<Prediction[]>(["predictions", groupId, DEFAULT_FECHA]) ?? [];
+      await queryClient.cancelQueries({ queryKey: ["predictions", groupId, fecha] });
+      const previous = queryClient.getQueryData<Prediction[]>(["predictions", groupId, fecha]) ?? [];
       const withoutCurrent = previous.filter((item) => item.fixtureId !== prediction.fixtureId);
-      queryClient.setQueryData<Prediction[]>(["predictions", groupId, DEFAULT_FECHA], [...withoutCurrent, prediction]);
+      queryClient.setQueryData<Prediction[]>(["predictions", groupId, fecha], [...withoutCurrent, prediction]);
       return { previous };
     },
     onError: (_error, _prediction, context) => {
       if (context?.previous) {
-        queryClient.setQueryData<Prediction[]>(["predictions", groupId, DEFAULT_FECHA], context.previous);
+        queryClient.setQueryData<Prediction[]>(["predictions", groupId, fecha], context.previous);
       }
       setStatusMessage("No se pudo guardar el pronóstico. Reintentá.");
     },
@@ -84,7 +85,7 @@ export function PronosticosScreen() {
       setStatusMessage("Pronóstico guardado.");
     },
     onSettled: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["predictions", groupId, DEFAULT_FECHA] });
+      await queryClient.invalidateQueries({ queryKey: ["predictions", groupId, fecha] });
     }
   });
 
@@ -191,6 +192,7 @@ export function PronosticosScreen() {
 
   return (
     <ScreenFrame title="Pronósticos" subtitle="Ingresa y guarda tus predicciones">
+      <FechaSelector />
       {upcomingFixtures.length === 0 ? (
         <EmptyState title="Sin partidos próximos" description="Volvé más tarde para cargar tus próximos pronósticos." />
       ) : null}
