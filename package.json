@@ -1,40 +1,24 @@
 {
-  "name": "fulbito-prode",
-  "version": "0.1.0",
+  "name": "fulbito-prode-monorepo",
   "private": true,
+  "packageManager": "pnpm@10.6.0",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "typecheck": "tsc --noEmit -p tsconfig.check.json",
-    "test": "vitest",
-    "test:run": "vitest run",
-    "validate:release": "bash scripts/release/validate-release.sh --skip-install",
-    "validate:release:full": "bash scripts/release/validate-release.sh",
-    "smoke:private": "bash scripts/release/private-smoke.sh",
-    "benchmark:private": "bash scripts/perf/benchmark-private.sh"
-  },
-  "dependencies": {
-    "framer-motion": "^12.0.0",
-    "lucide-react": "^0.469.0",
-    "next": "^15.0.0",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "dev": "turbo run dev --parallel",
+    "dev:web": "pnpm --filter @fulbito/web dev",
+    "build": "turbo run build",
+    "build:web": "pnpm --filter @fulbito/web build",
+    "lint": "turbo run lint",
+    "lint:web": "pnpm --filter @fulbito/web lint",
+    "typecheck": "turbo run typecheck",
+    "typecheck:web": "pnpm --filter @fulbito/web typecheck",
+    "test": "turbo run test",
+    "test:run": "pnpm --filter @fulbito/web test:run",
+    "validate:release": "pnpm --filter @fulbito/web validate:release",
+    "validate:release:full": "pnpm --filter @fulbito/web validate:release:full",
+    "smoke:private": "pnpm --filter @fulbito/web smoke:private",
+    "benchmark:private": "pnpm --filter @fulbito/web benchmark:private"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.0",
-    "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/react": "^16.1.0",
-    "@types/node": "^22.10.2",
-    "@types/react": "^19.0.2",
-    "@types/react-dom": "^19.0.2",
-    "@tailwindcss/postcss": "^4.0.0",
-    "eslint": "^9.17.0",
-    "eslint-config-next": "^15.0.0",
-    "jsdom": "^26.0.0",
-    "tailwindcss": "^4.0.0",
-    "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "turbo": "^2.4.4"
   }
 }
