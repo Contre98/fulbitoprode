@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
+import { calculatePredictionPoints } from "@fulbito/domain";
 import { fetchAvailableFechas, fetchLigaArgentinaFixtures, fetchLigaArgentinaStandings, formatRoundLabel, mapFixturesToPronosticosMatches } from "@/lib/liga-live-provider";
 import { listGroupMembers, listGroupPredictions, listGroupsForUser } from "@/lib/m3-repo";
 import { getSessionPocketBaseTokenFromRequest, getSessionUserIdFromRequest } from "@/lib/request-auth";
-import { calculatePredictionPoints } from "@/lib/scoring";
 import type {
   LeaderboardGroupStats,
   LeaderboardMode,

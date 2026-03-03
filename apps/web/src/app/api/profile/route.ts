@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { calculatePredictionPoints } from "@/lib/scoring";
+import { calculatePredictionPoints } from "@fulbito/domain";
 import { fetchLigaArgentinaFixtures } from "@/lib/liga-live-provider";
 import { listGroupPredictionsForGroups, listGroupsForUser } from "@/lib/m3-repo";
 import { getSessionPocketBaseTokenFromRequest, getSessionUserIdFromRequest } from "@/lib/request-auth";

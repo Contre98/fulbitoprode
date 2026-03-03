@@ -46,7 +46,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Implement real `Pronósticos` feature flow (fixture load + prediction save + optimistic UI).
 - [ ] Implement `Posiciones` screen using contract-backed leaderboard repository.
 - [ ] Implement `Fixture` screen with date/status grouping and loading/error states.
-- [ ] Expand shared domain extraction for scoring and prediction utilities.
+- [x] Expand shared domain extraction for scoring and prediction utilities.
 - [ ] Add HTTP repository adapters in mobile behind existing interfaces (keep mock fallback).
 - [x] Add reusable loading/error/empty state components in `apps/mobile/src/components` and apply to core tabs.
 - [ ] Add mobile smoke run log for iOS simulator.
@@ -62,6 +62,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-03 | Keep backend migration out of current phase, use contracts-first adapters. | Decouple mobile feature delivery from backend/platform migration timeline. | `packages/api-contracts/*`, `apps/mobile/src/repositories/*` |
 | 2026-03-03 | Centralize prediction draft normalization in `@fulbito/domain` and consume it from mobile UI. | Avoid screen-level parsing drift and keep future web/mobile validation behavior aligned. | `packages/domain/src/index.ts`, `apps/mobile/src/screens/PronosticosScreen.tsx` |
 | 2026-03-03 | Reuse dedicated mobile async state components across core tabs. | Keep loading/error/empty UX consistent and avoid ad-hoc per-screen placeholders. | `apps/mobile/src/components/*State.tsx`, `apps/mobile/src/screens/*Screen.tsx` |
+| 2026-03-03 | Move scoring rules (`SCORE_RULES`, `calculatePredictionPoints`) to `@fulbito/domain` and consume from web APIs/tests. | Ensure scoring behavior is shared and reusable by mobile without duplicating logic in app-specific layers. | `packages/domain/src/index.ts`, `apps/web/src/app/api/*`, `apps/web/src/test/scoring.test.ts` |
 
 ## Validation Log
 
@@ -77,6 +78,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-03 | `pnpm run typecheck:web` | Pass | After introducing reusable mobile async state components and applying them to core tabs. |
 | 2026-03-03 | `pnpm --filter @fulbito/mobile typecheck` | Pass | `LoadingState`, `ErrorState`, `EmptyState` components compile clean with screen integrations. |
 | 2026-03-03 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by mobile component updates. |
+| 2026-03-03 | `pnpm run typecheck:web` | Fail then pass | Initial fail after scoring extraction due `Prediction` type mismatch (`fixtureId` required). Fixed by introducing shared scoreline type and reran successfully. |
+| 2026-03-03 | `pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile unaffected by scoring extraction; contracts remained stable. |
+| 2026-03-03 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), no new build blocker from domain scoring extraction. |
+| 2026-03-03 | `pnpm --filter @fulbito/web test:run -- src/test/scoring.test.ts src/test/prediction-input.test.ts` | Pass | Shared-domain scoring and prediction-input utilities validated via web Vitest suite. |
 | 2026-03-03 | iOS smoke | Not run yet | Pending simulator run logging in Phase 3+. |
 | 2026-03-03 | Android smoke | Not run yet | Pending emulator run logging in Phase 3+. |
 
@@ -90,8 +95,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Expand contracts/domain for scoring + prediction validation and migrate shared logic from web.
-2. Implement `Posiciones` mobile screen against leaderboard repository interface (loading + error + populated states).
-3. Implement `Fixture` mobile screen with grouped dates/status using repository interfaces.
-4. Add HTTP repository adapters in mobile behind existing interfaces while preserving mock fallback.
-5. Execute and log first iOS + Android smoke runs in the Validation Log.
+1. Implement `Posiciones` mobile screen against leaderboard repository interface (loading + error + populated states).
+2. Implement `Fixture` mobile screen with grouped dates/status using repository interfaces.
+3. Add HTTP repository adapters in mobile behind existing interfaces while preserving mock fallback.
+4. Execute and log first iOS + Android smoke runs in the Validation Log.
+5. Add shared domain utilities for fixture grouping/date labeling and consume them in mobile + web where duplicated.

@@ -65,7 +65,17 @@ export interface PredictionInputValue {
   away: number | null;
 }
 
+export interface MatchScoreValue {
+  home: number;
+  away: number;
+}
+
 export const MAX_PREDICTION_GOALS = 99;
+export const SCORE_RULES = {
+  exact: 3,
+  outcome: 1,
+  miss: 0
+} as const;
 
 function normalizeGoalValue(raw: string): number | null {
   const value = raw.trim();
@@ -94,4 +104,14 @@ export function normalizePredictionInput(input: PredictionInputDraft): Predictio
 
 export function isPredictionInputComplete(input: PredictionInputValue): input is Prediction {
   return input.home !== null && input.away !== null;
+}
+
+export function calculatePredictionPoints(prediction: MatchScoreValue, score: MatchScoreValue) {
+  if (prediction.home === score.home && prediction.away === score.away) {
+    return SCORE_RULES.exact;
+  }
+
+  const predictionDiff = Math.sign(prediction.home - prediction.away);
+  const scoreDiff = Math.sign(score.home - score.away);
+  return predictionDiff === scoreDiff ? SCORE_RULES.outcome : SCORE_RULES.miss;
 }

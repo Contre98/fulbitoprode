@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculatePredictionPoints, SCORE_RULES } from "@/lib/scoring";
+import { calculatePredictionPoints, SCORE_RULES } from "@fulbito/domain";
 
 describe("scoring", () => {
   it("returns exact score points", () => {

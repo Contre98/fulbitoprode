@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { calculatePredictionPoints } from "@/lib/scoring";
+import { calculatePredictionPoints } from "@fulbito/domain";
 import {
   fetchAvailableFechas,
   fetchLigaArgentinaFixtures,
