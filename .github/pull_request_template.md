@@ -5,6 +5,9 @@
 - [ ] `feat(pb-rules)` scope reviewed
 - [ ] `test(api-and-security)` scope reviewed
 - [ ] `chore(ci-readme)` scope reviewed
+- [ ] `mobile-rewrite` scope reviewed (if touched: `apps/mobile`, `packages/*`, or mobile-related `apps/web` imports)
+- [ ] Updated `docs/mobile-migration-plan.md` for this change set
+- [ ] Linked the latest relevant entry in `## Decisions Log` from `docs/mobile-migration-plan.md`
 
 ## Release Gates
 
