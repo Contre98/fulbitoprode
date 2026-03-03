@@ -48,6 +48,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [ ] Implement `Fixture` screen with date/status grouping and loading/error states.
 - [ ] Expand shared domain extraction for scoring and prediction utilities.
 - [ ] Add HTTP repository adapters in mobile behind existing interfaces (keep mock fallback).
+- [x] Add reusable loading/error/empty state components in `apps/mobile/src/components` and apply to core tabs.
 - [ ] Add mobile smoke run log for iOS simulator.
 - [ ] Add mobile smoke run log for Android emulator.
 
@@ -60,6 +61,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-03 | Use Expo managed workflow with monorepo Metro config. | Fast native delivery while preserving workspace shared packages. | `apps/mobile/*`, `package.json`, `pnpm-workspace.yaml` |
 | 2026-03-03 | Keep backend migration out of current phase, use contracts-first adapters. | Decouple mobile feature delivery from backend/platform migration timeline. | `packages/api-contracts/*`, `apps/mobile/src/repositories/*` |
 | 2026-03-03 | Centralize prediction draft normalization in `@fulbito/domain` and consume it from mobile UI. | Avoid screen-level parsing drift and keep future web/mobile validation behavior aligned. | `packages/domain/src/index.ts`, `apps/mobile/src/screens/PronosticosScreen.tsx` |
+| 2026-03-03 | Reuse dedicated mobile async state components across core tabs. | Keep loading/error/empty UX consistent and avoid ad-hoc per-screen placeholders. | `apps/mobile/src/components/*State.tsx`, `apps/mobile/src/screens/*Screen.tsx` |
 
 ## Validation Log
 
@@ -72,6 +74,9 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-03 | `pnpm --filter @fulbito/mobile typecheck` | Pass | New `PronosticosScreen` query/mutation flow and domain helper usage validated. |
 | 2026-03-03 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), no new blocker from shared domain changes. |
 | 2026-03-03 | `pnpm --filter @fulbito/web test:run -- src/test/prediction-input.test.ts` | Pass | New shared-domain prediction input helper tests plus existing suite passed. |
+| 2026-03-03 | `pnpm run typecheck:web` | Pass | After introducing reusable mobile async state components and applying them to core tabs. |
+| 2026-03-03 | `pnpm --filter @fulbito/mobile typecheck` | Pass | `LoadingState`, `ErrorState`, `EmptyState` components compile clean with screen integrations. |
+| 2026-03-03 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by mobile component updates. |
 | 2026-03-03 | iOS smoke | Not run yet | Pending simulator run logging in Phase 3+. |
 | 2026-03-03 | Android smoke | Not run yet | Pending emulator run logging in Phase 3+. |
 
@@ -85,8 +90,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Add reusable loading/error/empty state components in `apps/mobile/src/components` and apply to core tabs.
-2. Expand contracts/domain for scoring + prediction validation and migrate shared logic from web.
-3. Implement `Posiciones` mobile screen against leaderboard repository interface (loading + error + populated states).
-4. Implement `Fixture` mobile screen with grouped dates/status using repository interfaces.
+1. Expand contracts/domain for scoring + prediction validation and migrate shared logic from web.
+2. Implement `Posiciones` mobile screen against leaderboard repository interface (loading + error + populated states).
+3. Implement `Fixture` mobile screen with grouped dates/status using repository interfaces.
+4. Add HTTP repository adapters in mobile behind existing interfaces while preserving mock fallback.
 5. Execute and log first iOS + Android smoke runs in the Validation Log.

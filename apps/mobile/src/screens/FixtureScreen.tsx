@@ -1,10 +1,10 @@
-import { Text } from "react-native";
+import { EmptyState } from "@/components/EmptyState";
 import { ScreenFrame } from "@/components/ScreenFrame";
 
 export function FixtureScreen() {
   return (
     <ScreenFrame title="Fixture" subtitle="Partidos por fecha y resultados">
-      <Text style={{ color: "#F9FAFB" }}>MVP mock: calendario de partidos.</Text>
+      <EmptyState title="Fixture en progreso" description="El calendario por fecha se implementa en el próximo slice." />
     </ScreenFrame>
   );
 }

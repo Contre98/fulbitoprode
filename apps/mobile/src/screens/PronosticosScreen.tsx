@@ -5,6 +5,9 @@ import type { Fixture, Prediction } from "@fulbito/domain";
 import { colors, spacing } from "@fulbito/design-tokens";
 import { isPredictionInputComplete, normalizePredictionInput } from "@fulbito/domain";
 import { ScreenFrame } from "@/components/ScreenFrame";
+import { EmptyState } from "@/components/EmptyState";
+import { ErrorState } from "@/components/ErrorState";
+import { LoadingState } from "@/components/LoadingState";
 import { mockFixtureRepository, mockPredictionsRepository } from "@/repositories/mockDataRepositories";
 import { useAuth } from "@/state/AuthContext";
 
@@ -166,7 +169,7 @@ export function PronosticosScreen() {
   if (fixtureQuery.isLoading || predictionsQuery.isLoading) {
     return (
       <ScreenFrame title="Pronósticos" subtitle="Ingresa y guarda tus predicciones">
-        <Text style={styles.infoText}>Cargando partidos...</Text>
+        <LoadingState message="Cargando partidos..." />
       </ScreenFrame>
     );
   }
@@ -174,14 +177,23 @@ export function PronosticosScreen() {
   if (fixtureQuery.isError || predictionsQuery.isError) {
     return (
       <ScreenFrame title="Pronósticos" subtitle="Ingresa y guarda tus predicciones">
-        <Text style={styles.errorText}>No se pudo cargar la información de pronósticos.</Text>
+        <ErrorState
+          message="No se pudo cargar la información de pronósticos."
+          retryLabel="Reintentar"
+          onRetry={() => {
+            void fixtureQuery.refetch();
+            void predictionsQuery.refetch();
+          }}
+        />
       </ScreenFrame>
     );
   }
 
   return (
     <ScreenFrame title="Pronósticos" subtitle="Ingresa y guarda tus predicciones">
-      {upcomingFixtures.length === 0 ? <Text style={styles.infoText}>No hay partidos próximos para pronosticar.</Text> : null}
+      {upcomingFixtures.length === 0 ? (
+        <EmptyState title="Sin partidos próximos" description="Volvé más tarde para cargar tus próximos pronósticos." />
+      ) : null}
       {upcomingFixtures.map((fixture) => renderFixtureCard(fixture))}
       {statusMessage ? <Text style={styles.statusText}>{statusMessage}</Text> : null}
     </ScreenFrame>
@@ -243,12 +255,6 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: colors.primaryText,
     fontWeight: "700"
-  },
-  infoText: {
-    color: colors.textSecondary
-  },
-  errorText: {
-    color: "#FCA5A5"
   },
   statusText: {
     color: colors.textSecondary
