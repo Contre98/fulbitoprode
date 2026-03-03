@@ -63,6 +63,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-03 | Centralize prediction draft normalization in `@fulbito/domain` and consume it from mobile UI. | Avoid screen-level parsing drift and keep future web/mobile validation behavior aligned. | `packages/domain/src/index.ts`, `apps/mobile/src/screens/PronosticosScreen.tsx` |
 | 2026-03-03 | Reuse dedicated mobile async state components across core tabs. | Keep loading/error/empty UX consistent and avoid ad-hoc per-screen placeholders. | `apps/mobile/src/components/*State.tsx`, `apps/mobile/src/screens/*Screen.tsx` |
 | 2026-03-03 | Move scoring rules (`SCORE_RULES`, `calculatePredictionPoints`) to `@fulbito/domain` and consume from web APIs/tests. | Ensure scoring behavior is shared and reusable by mobile without duplicating logic in app-specific layers. | `packages/domain/src/index.ts`, `apps/web/src/app/api/*`, `apps/web/src/test/scoring.test.ts` |
+| 2026-03-03 | Use explicit Expo root entry file (`apps/mobile/index.js`) instead of `expo/AppEntry` in monorepo. | Prevent pnpm workspace path resolution failures like `Unable to resolve ../../App` on Android bundling. | `apps/mobile/package.json`, `apps/mobile/index.js` |
 
 ## Validation Log
 
@@ -88,6 +89,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-03 | `pnpm run typecheck:web` | Pass | After implementing grouped/status-aware `Fixture` mobile screen and mock adapter data expansion. |
 | 2026-03-03 | `pnpm --filter @fulbito/mobile typecheck` | Pass | `FixtureScreen` grouping/rendering logic compiles with repository integration. |
 | 2026-03-03 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by mobile fixture updates. |
+| 2026-03-03 | Android bundling scenario (`expo start` + `a`) | Fail then fixed | Initial failure: `Unable to resolve ../../App` from `expo/AppEntry` in pnpm path. Fixed by explicit `index.js` entrypoint. |
+| 2026-03-03 | `pnpm run typecheck:web` | Pass | After mobile entrypoint fix (`index.js`) for Expo bundler stability. |
+| 2026-03-03 | `pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile types unaffected by entrypoint switch from `expo/AppEntry` to local `index.js`. |
+| 2026-03-03 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by mobile entrypoint fix. |
 | 2026-03-03 | iOS smoke | Not run yet | Pending simulator run logging in Phase 3+. |
 | 2026-03-03 | Android smoke | Not run yet | Pending emulator run logging in Phase 3+. |
 
