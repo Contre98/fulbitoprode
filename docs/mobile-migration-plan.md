@@ -75,6 +75,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-03 | Capture endpoint-specific fallback failure reason and surface it in dev UI when in mock mode. | Make adapter fallback causes visible during QA/dev to reduce debugging time and clarify backend/session issues. | `apps/mobile/src/repositories/fallbackDiagnostics.ts`, `apps/mobile/src/repositories/index.ts`, `apps/mobile/src/state/AuthContext.tsx`, `apps/mobile/src/components/DataModeBadge.tsx` |
 | 2026-03-03 | Add one-tap mock-mode action to re-attempt HTTP session mode from UI. | Reduce QA friction by allowing runtime backend reconnect checks without restarting the app or re-authenticating manually. | `apps/mobile/src/state/AuthContext.tsx`, `apps/mobile/src/components/DataModeBadge.tsx` |
 | 2026-03-03 | Scaffold mobile test harness files with dependency-aware runner (no package installs). | Unblock test structure/procedure setup while network/dependency installation is unavailable. | `apps/mobile/jest.config.cjs`, `apps/mobile/jest.setup.js`, `apps/mobile/scripts/run-mobile-tests.mjs`, `apps/mobile/src/test/README.md`, `apps/mobile/package.json` |
+| 2026-03-03 | Guard mobile Expo scripts to Node 20-22 and fail fast on unsupported runtimes. | Avoid recurring `ERR_SOCKET_BAD_PORT` failures under Node 24 and make iOS smoke prerequisites explicit at command start. | `apps/mobile/package.json`, `apps/mobile/scripts/check-node-version.mjs` |
 
 ## Validation Log
 
@@ -139,6 +140,12 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-03 | iOS smoke (`pnpm --filter @fulbito/mobile ios`) | Fail | `expo run:ios` failed creating native directory in this environment (`npm view expo-template-bare-minimum@sdk-52` non-zero), so simulator smoke remains pending. |
 | 2026-03-03 | iOS smoke (`pnpm --filter @fulbito/mobile dev -- --ios` and `expo start --ios --port 8081`) | Fail | Expo CLI crashes before startup on this machine with `ERR_SOCKET_BAD_PORT` under Node `v24.9.0`; manual iOS smoke remains blocked by tooling/runtime issue. |
 | 2026-03-03 | Android smoke | Pass (manual) | User confirmed Android app launched and worked after entrypoint fix (`index.js` replacing `expo/AppEntry`). |
+| 2026-03-03 | iOS smoke retry (`pnpm --filter @fulbito/mobile dev -- --ios`, `pnpm --filter @fulbito/mobile exec expo start --ios --port 8081`) | Fail | Reproduced same `ERR_SOCKET_BAD_PORT` crash under Node `v24.9.0`; no alternate local Node 20/22 runtime installed on this machine. |
+| 2026-03-03 | `pnpm --store-dir /Users/contre/Library/pnpm/store/v10 --filter @fulbito/mobile add @react-native-async-storage/async-storage@^2.2.0` | Fail | Install still blocked by offline DNS (`ENOTFOUND registry.npmjs.org`), so persistent mobile storage remains pending. |
+| 2026-03-03 | `pnpm run typecheck:web` | Pass | After adding mobile Node runtime guard script and wiring it into mobile Expo scripts. |
+| 2026-03-03 | `pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile typecheck remains clean after adding Node guard script. |
+| 2026-03-03 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by mobile Node guard tooling changes. |
+| 2026-03-03 | `pnpm --filter @fulbito/mobile dev -- --ios` | Fail (expected) | New guard stops early with explicit guidance: Node `24.9.0` unsupported for current Expo SDK in this workspace; use Node `20/22` before iOS smoke. |
 
 ## Risks & Mitigations
 
@@ -150,8 +157,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Complete iOS smoke run on simulator and log a successful pass in the Validation Log.
-2. Unblock and add a mobile storage dependency (e.g. AsyncStorage or expo-file-system) to implement persistent group/fecha selections across restarts.
+1. Switch this machine to Node 22 LTS (or 20 LTS), rerun iOS simulator smoke, and log a successful pass in the Validation Log.
+2. Restore npm registry connectivity, then add a mobile storage dependency (e.g. AsyncStorage or expo-file-system) for persistent group/fecha selections across restarts.
 3. Install mobile test dependencies and activate scaffolded harness (`jest-expo`, `@testing-library/react-native`, `@testing-library/jest-native`).
 4. Add first mobile smoke tests for `GroupSelector`, `FechaSelector`, and `DataModeBadge`.
 5. Add persistence for data-mode diagnostics history in development (last N fallback failures).
