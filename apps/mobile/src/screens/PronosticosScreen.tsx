@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Fixture, Prediction } from "@fulbito/domain";
 import { colors, spacing } from "@fulbito/design-tokens";
 import { isPredictionInputComplete, normalizePredictionInput } from "@fulbito/domain";
@@ -45,6 +46,7 @@ function teamBadgeTone(name: string) {
 
 export function PronosticosScreen() {
   const queryClient = useQueryClient();
+  const insets = useSafeAreaInsets();
   const { memberships, selectedGroupId, setSelectedGroupId } = useGroupSelection();
   const { fecha, options, setFecha } = usePeriod();
   const groupId = memberships.find((membership) => membership.groupId === selectedGroupId)?.groupId ?? memberships[0]?.groupId ?? "grupo-1";
@@ -363,7 +365,7 @@ export function PronosticosScreen() {
       containerStyle={styles.screenContainer}
       contentStyle={styles.screenContent}
       header={
-        <View style={styles.headerCard}>
+        <View style={[styles.headerCard, { paddingTop: Math.max(insets.top, 10) + 2, marginTop: 0 }]}>
           <View style={styles.brandRow}>
             <View style={styles.brandBadge}>
               <Text allowFontScaling={false} style={styles.brandBadgeText}>🏆</Text>
@@ -460,8 +462,9 @@ export function PronosticosScreen() {
 const styles = StyleSheet.create({
   screenContainer: {
     paddingHorizontal: 12,
-    paddingTop: 8,
-    paddingBottom: 0
+    paddingTop: 0,
+    paddingBottom: 0,
+    backgroundColor: "#DDE2E8"
   },
   screenContent: {
     gap: 12
@@ -476,7 +479,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#D7DCE3",
     marginHorizontal: -12,
-    marginTop: -8
+    marginTop: 0
   },
   brandRow: {
     flexDirection: "row",
