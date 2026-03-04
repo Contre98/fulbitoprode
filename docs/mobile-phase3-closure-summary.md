@@ -16,27 +16,27 @@ This draft summarizes Phase 3 delivery status for `mobile/react-native-rewrite` 
 - Mobile adapters + fallback composition: `apps/mobile/src/repositories`
 
 ## Tab-by-Tab Visual Evidence
-Add final screenshots from emulator/simulator for each tab to this section before merge.
+Evidence captured from user-run emulator/simulator QA on 2026-03-04.
 
 ### Inicio
 - Reference: `ui reference/Inicio.png`
-- Mobile parity screenshot: `TODO`
+- Mobile parity screenshot: Android Medium (`shared in chat, 19:17 local time`) - pass
 
 ### Posiciones
 - Reference: `ui reference/Posiciones.png`
-- Mobile parity screenshot: `TODO`
+- Mobile parity screenshot: Android Medium (`shared in chat, 19:17 local time`) - pass
 
 ### Pronósticos
 - Reference: `ui reference/Pronosticos.png`
-- Mobile parity screenshot: `TODO`
+- Mobile parity screenshot: Android Medium (`shared in chat, 19:18 local time`) - pass
 
 ### Fixture
 - Reference: `ui reference/Fixture.png`
-- Mobile parity screenshot: `TODO`
+- Mobile parity screenshot: Android Medium (`shared in chat, 19:18 local time`) - pass
 
 ### Grupos
 - Reference: `ui reference/Grupos.png`
-- Mobile parity screenshot: `TODO`
+- Mobile parity screenshot: Android Medium (`shared in chat, 19:18 local time`) - pass
 
 ## Functional Test Evidence
 - `Grupos` action smoke tests:
@@ -56,9 +56,9 @@ Key recurring commands:
 
 ## Remaining Manual Sign-off Before Phase 3 Close
 - Cross-device notch/top-safe-area verification:
-  - iPhone SE
-  - iPhone Pro Max
-  - Android medium device
+  - iPhone SE (pending)
+  - iPhone Pro Max (in progress, user reports "looks ok so far")
+  - Android medium device (pass)
 - Final mock vs HTTP session sanity pass on:
   - `Inicio` tab filter behavior
   - `Grupos` create/join behavior

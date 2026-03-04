@@ -94,6 +94,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Add CI guard steps for mobile Node-version compatibility and targeted mobile test command parity.
 - [x] Prepare Phase 3 closure summary draft grouped by tab with validation-log linkage.
 - [x] Add contributor runtime notes for Node 20-22 and targeted mobile test command usage.
+- [x] Capture Android medium-device parity screenshots for all tabs after cache reset and verify updated bundle load.
 
 ## Decisions Log
 
@@ -390,6 +391,11 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after adding `Phase 4 Kickoff (Draft)` section to migration plan. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile TS checks unaffected by planning-only Phase 4 kickoff documentation. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by Phase 4 kickoff planning slice. |
+| 2026-03-04 | Android emulator manual QA (Medium device) after Expo cache reset (`android:smoke -- --clear`) | Pass | User confirmed updated parity UI now loads on Android and shared fresh screenshots for `Inicio`, `Posiciones`, `Pronósticos`, `Fixture`, `Grupos`. |
+| 2026-03-04 | iOS simulator manual QA (notched device) | Pass (provisional) | User reported iOS "looks ok so far"; keep iPhone SE-specific notch/safe-area run pending for final closure. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after recording Android screenshot evidence and QA status updates in closure docs. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile TS checks unaffected by QA evidence documentation updates. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by QA evidence docs slice. |
 
 ## Risks & Mitigations
 
@@ -401,8 +407,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Do one final notch/top-safe-area cross-device check (iPhone SE + Pro Max + Android medium) before closing Phase 3 visual parity.
-2. Fill `docs/mobile-phase3-closure-summary.md` with final simulator/emulator screenshots per tab and attach it to Phase 3 closure PR.
-3. Start planning Phase 4 hardening (targeted mobile e2e smoke and incremental HTTP adapter deepening).
-4. Add one focused manual QA pass for `Grupos` create/join + `Inicio` filter tests on both mock and HTTP session mode.
+1. Complete iPhone SE notch/top-safe-area pass to close the remaining cross-device parity check.
+2. Run one focused manual mock-vs-HTTP sanity pass for `Inicio` filter behavior and `Grupos` create/join actions.
+3. Attach final closure note and screenshot references from `docs/mobile-phase3-closure-summary.md` in the Phase 3 PR body.
+4. Start Phase 4 hardening plan execution (targeted mobile e2e smoke and incremental HTTP adapter deepening).
 5. Define Phase 4 slice #1 in detail (e2e smoke path scope, tool choice, and acceptance checks).
