@@ -106,6 +106,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Add focused tests for fallback diagnostics history persistence/clear semantics under repeated failures.
 - [x] Add targeted CI guard invocation for `FallbackDiagnostics.history.test.ts`.
 - [x] Add dedicated Phase 4 tracking checklist section to PR template for mobile-scope changes.
+- [x] Evaluate RN navigation `act(...)` warning suppression options and document as known non-blocking noise when deterministic mitigation is unavailable.
 
 ## Decisions Log
 
@@ -177,6 +178,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Add dedicated fallback diagnostics history tests at repository utility level. | Validate persisted history hydration, repeated-failure cap, subscriber notification, and clear semantics without coupling tests to screen rendering. | `apps/mobile/src/test/FallbackDiagnostics.history.test.ts` |
 | 2026-03-04 | Add CI guard execution for fallback diagnostics history test suite. | Keep newly added diagnostics-history coverage enforced in CI instead of relying on manual/targeted local test runs. | `.github/workflows/ci.yml` |
 | 2026-03-04 | Add explicit Phase 4 tracking checklist block to PR template. | Keep Phase 4 validation discipline visible in PR review flow and reduce missed log/test guard updates on mobile-scope commits. | `.github/pull_request_template.md` |
+| 2026-03-04 | Treat current RN/React Navigation `act(...)` warnings in smoke tests as known non-blocking noise for now. | Attempted deterministic mitigation paths did not fully suppress warnings without broader test-runtime tradeoffs; preserve signal in logs and continue with functional pass criteria. | `apps/mobile/src/test/MobileE2ESmoke.flow.test.tsx`, `docs/mobile-migration-plan.md` |
 
 ## Validation Log
 
@@ -458,6 +460,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after PR template Phase 4 tracking section addition. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile typecheck unaffected by PR template checklist updates. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by PR-template tracking slice. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile test -- MobileE2ESmoke.flow.test.tsx` | Pass with warning noise | Re-evaluated suppression approach; warning source remains in RN/Navigation async internals (`Animated(View)`), functional assertions stay stable. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after final warning-noise evaluation pass. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile typecheck unchanged by warning-noise evaluation outcome (docs/status only). |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by warning-noise evaluation slice. |
 
 ## Risks & Mitigations
 
@@ -469,8 +475,9 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Evaluate and suppress noisy non-blocking RN navigation `act(...)` warning in smoke tests if deterministic mitigation is available.
-2. Review whether `RepositoryAdapters.contract.test.ts` should be split into fixture/leaderboard-specific files as coverage grows.
-3. Add one focused fallback-history integration test through `AuthContext` to confirm badge-facing state wiring under persisted diagnostics.
-4. Expand smoke flow assertions to include `Posiciones` stat-mode toggle behavior after auth-gated entry.
+1. Review whether `RepositoryAdapters.contract.test.ts` should be split into fixture/leaderboard-specific files as coverage grows.
+2. Add one focused fallback-history integration test through `AuthContext` to confirm badge-facing state wiring under persisted diagnostics.
+3. Expand smoke flow assertions to include `Posiciones` stat-mode toggle behavior after auth-gated entry.
+4. Add CI guard command update for `MobileE2ESmoke.flow.test.tsx` once `Posiciones` stat-mode assertions are included.
+5. Add one targeted negative-path smoke assertion for `Grupos` join validation error from tab flow context.
 5. Add CI guard command for `MobileE2ESmoke.flow.test.tsx` once Posiciones stat-mode assertions are included.
