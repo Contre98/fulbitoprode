@@ -146,4 +146,33 @@ describe("ConfiguracionScreen actions", () => {
       expect(screen.getByText("Te uniste al grupo correctamente.")).toBeTruthy();
     });
   });
+
+  it("shows create-group error message when repository rejects", async () => {
+    mockedCreateGroup.mockRejectedValueOnce(new Error("HTTP 500"));
+    const screen = renderScreen();
+
+    fireEvent.changeText(screen.getByPlaceholderText("Nombre del nuevo grupo"), "Grupo Fallido");
+    fireEvent.press(screen.getByText("+"));
+
+    await waitFor(() => {
+      expect(screen.getByText("No se pudo crear el grupo. Reintentá.")).toBeTruthy();
+    });
+    expect(refresh).not.toHaveBeenCalled();
+    expect(setSelectedGroupId).not.toHaveBeenCalled();
+  });
+
+  it("shows join-group error message when repository rejects", async () => {
+    mockedJoinGroup.mockRejectedValueOnce(new Error("HTTP 400"));
+    const screen = renderScreen();
+
+    fireEvent.press(screen.getByText("Unirse"));
+    fireEvent.changeText(screen.getByPlaceholderText("Código de invitación"), "BAD-CODE");
+    fireEvent.press(screen.getByText("Unirse al grupo"));
+
+    await waitFor(() => {
+      expect(screen.getByText("No se pudo unir al grupo. Revisá el código e intentá otra vez.")).toBeTruthy();
+    });
+    expect(refresh).not.toHaveBeenCalled();
+    expect(setSelectedGroupId).not.toHaveBeenCalled();
+  });
 });

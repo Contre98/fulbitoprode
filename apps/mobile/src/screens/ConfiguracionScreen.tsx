@@ -67,7 +67,7 @@ export function ConfiguracionScreen() {
       return;
     }
     setActionStatus(null);
-    void createGroupMutation.mutateAsync(clean);
+    void createGroupMutation.mutateAsync(clean).catch(() => undefined);
   }
 
   function submitJoinGroup() {
@@ -77,7 +77,7 @@ export function ConfiguracionScreen() {
       return;
     }
     setActionStatus(null);
-    void joinGroupMutation.mutateAsync(clean);
+    void joinGroupMutation.mutateAsync(clean).catch(() => undefined);
   }
 
   return (

@@ -74,6 +74,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Make `Inicio` match filter tabs functional (`Todos` / `En vivo` / `Próximos`) with state-driven filtering.
 - [x] Add focused screen-level smoke tests for `Grupos` create/join action flows.
 - [x] Add focused screen-level smoke tests for `Inicio` render/filter interactions.
+- [x] Cover `Grupos` create/join error paths in screen-level tests and handle mutation rejection safely.
 
 ## Decisions Log
 
@@ -343,6 +344,11 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` (post-fix rerun) | Pass | Verified after test type import correction. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` (post-fix rerun) | Pass | `HomeScreen.filters.test.tsx` compiles cleanly after replacing unsupported domain type import. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` (post-fix rerun) | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), confirming no web regression from final test slice. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile test -- ConfiguracionScreen.actions.test.tsx` | Fail | New error-path tests surfaced unhandled mutation rejection in `ConfiguracionScreen` (`mutateAsync` reject without catch). |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile test -- ConfiguracionScreen.actions.test.tsx` (post-fix rerun) | Pass | Added safe rejection handling (`.catch(() => undefined)`) after `mutateAsync`; extended screen tests now pass for create/join success + error paths. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after `ConfiguracionScreen` mutation rejection-safety patch. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | `ConfiguracionScreen` + extended error-path tests compile cleanly. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by mutation rejection-safety and test extension slice. |
 
 ## Risks & Mitigations
 
@@ -354,8 +360,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Extend screen-level action smoke tests to include `Grupos` error states (HTTP/mock adapter rejection paths).
-2. Do one final notch/top-safe-area cross-device check (iPhone SE + Pro Max + Android medium) before closing Phase 3 visual parity.
-3. Prepare Phase 3 closure commit/PR summary with grouped screenshots per tab and links to validation logs.
-4. Start planning Phase 4 hardening (targeted mobile e2e smoke and incremental HTTP adapter deepening).
-5. Add one focused manual QA pass for `Grupos` create/join + `Inicio` filter tests on both mock and HTTP session mode.
+1. Do one final notch/top-safe-area cross-device check (iPhone SE + Pro Max + Android medium) before closing Phase 3 visual parity.
+2. Prepare Phase 3 closure commit/PR summary with grouped screenshots per tab and links to validation logs.
+3. Start planning Phase 4 hardening (targeted mobile e2e smoke and incremental HTTP adapter deepening).
+4. Add one focused manual QA pass for `Grupos` create/join + `Inicio` filter tests on both mock and HTTP session mode.
+5. Investigate and, if needed, isolate the recurring Jest open-handle warning during mobile test runs.
