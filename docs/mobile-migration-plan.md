@@ -110,6 +110,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Split adapter contract parity tests into focused suites (`groups/predictions` and `fixture/leaderboard`) and align CI guards.
 - [x] Add focused fallback-history integration test through `AuthContext` to confirm badge-facing state wiring under persisted diagnostics.
 - [x] Expand smoke-flow assertions to include `Posiciones` mode toggle behavior (`POSICIONES` <-> `STATS`) after auth-gated entry.
+- [x] Add negative-path app-flow assertion for `Grupos` join validation message before successful join submission.
 
 ## Decisions Log
 
@@ -483,6 +484,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after smoke-flow Posiciones toggle assertion extension. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Updated `MobileE2ESmoke.flow.test.tsx` compiles cleanly after Posiciones assertion addition. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by smoke-flow Posiciones toggle slice. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile test -- MobileE2ESmoke.flow.test.tsx` | Pass | Added negative-path assertion for `Grupos` join validation (`Ingresá un código de invitación.`) before successful join call in tab-flow smoke test (`2 tests`); non-blocking RN `act(...)` warnings remain. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after smoke-flow join-validation assertion expansion. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Updated `MobileE2ESmoke.flow.test.tsx` compiles cleanly after join-validation negative-path assertion addition. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by smoke-flow join-validation assertion slice. |
 
 ## Risks & Mitigations
 
@@ -494,9 +499,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Add one targeted negative-path smoke assertion for `Grupos` join validation error from tab-flow context.
-2. Evaluate whether fixture/leaderboard adapter suite should also assert malformed payload rejection semantics.
-3. Add one focused assertion for fallback-history clear behavior under repeated subscribe/unsubscribe cycles.
-4. Decide whether `MobileE2ESmoke.flow.test.tsx` should be split into smaller flow files as assertions continue to grow.
-5. Add CI guard for the AuthContext fallback-history integration test once stability is confirmed across repeated runs.
-5. Add CI guard command for `MobileE2ESmoke.flow.test.tsx` once Posiciones stat-mode assertions are included.
+1. Evaluate whether fixture/leaderboard adapter suite should also assert malformed payload rejection semantics.
+2. Add one focused assertion for fallback-history clear behavior under repeated subscribe/unsubscribe cycles.
+3. Decide whether `MobileE2ESmoke.flow.test.tsx` should be split into smaller flow files as assertions continue to grow.
+4. Add CI guard for the AuthContext fallback-history integration test once stability is confirmed across repeated runs.
+5. Add smoke-flow assertion that verifies `Grupos` join mutation rejection message in app-level flow (network/error-path parity with focused screen tests).

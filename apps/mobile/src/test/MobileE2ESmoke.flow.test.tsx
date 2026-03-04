@@ -309,6 +309,12 @@ describe("Mobile E2E smoke flow", () => {
     });
 
     fireEvent.press(screen.getByText("Unirse"));
+    fireEvent.press(screen.getByText("Unirse al grupo"));
+
+    await waitFor(() => {
+      expect(screen.getByText("Ingresá un código de invitación.")).toBeTruthy();
+    });
+
     fireEvent.changeText(screen.getByPlaceholderText("Código de invitación"), "INV-123");
     fireEvent.press(screen.getByText("Unirse al grupo"));
 
