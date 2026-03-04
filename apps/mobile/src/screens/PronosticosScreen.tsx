@@ -47,6 +47,8 @@ export function PronosticosScreen() {
   const [draftByFixture, setDraftByFixture] = useState<DraftByFixture>({});
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [mode, setMode] = useState<PronosticosMode>("upcoming");
+  const [pendingFixtureId, setPendingFixtureId] = useState<string | null>(null);
+  const [saveErrorByFixture, setSaveErrorByFixture] = useState<Record<string, string>>({});
 
   const fixtureQuery = useQuery({
     queryKey: ["fixture", groupId, fecha],
@@ -94,22 +96,36 @@ export function PronosticosScreen() {
     },
     onMutate: async (prediction) => {
       setStatusMessage(null);
+      setPendingFixtureId(prediction.fixtureId);
+      setSaveErrorByFixture((previous) => {
+        if (!previous[prediction.fixtureId]) {
+          return previous;
+        }
+        const next = { ...previous };
+        delete next[prediction.fixtureId];
+        return next;
+      });
       await queryClient.cancelQueries({ queryKey: ["predictions", groupId, fecha] });
       const previous = queryClient.getQueryData<Prediction[]>(["predictions", groupId, fecha]) ?? [];
       const withoutCurrent = previous.filter((item) => item.fixtureId !== prediction.fixtureId);
       queryClient.setQueryData<Prediction[]>(["predictions", groupId, fecha], [...withoutCurrent, prediction]);
       return { previous };
     },
-    onError: (_error, _prediction, context) => {
+    onError: (_error, prediction, context) => {
       if (context?.previous) {
         queryClient.setQueryData<Prediction[]>(["predictions", groupId, fecha], context.previous);
       }
+      setSaveErrorByFixture((previous) => ({
+        ...previous,
+        [prediction.fixtureId]: "No se pudo guardar este pronóstico."
+      }));
       setStatusMessage("No se pudo guardar el pronóstico. Reintentá.");
     },
     onSuccess: () => {
       setStatusMessage("Pronóstico guardado.");
     },
     onSettled: async () => {
+      setPendingFixtureId(null);
       await queryClient.invalidateQueries({ queryKey: ["predictions", groupId, fecha] });
     }
   });
@@ -181,6 +197,8 @@ export function PronosticosScreen() {
     const homeCode = toTeamCode(fixture.homeTeam);
     const awayCode = toTeamCode(fixture.awayTeam);
     const hasDraft = draft.home.length > 0 || draft.away.length > 0;
+    const isSavingThisFixture = pendingFixtureId === fixture.id && savePredictionMutation.isPending;
+    const fixtureSaveError = saveErrorByFixture[fixture.id];
 
     return (
       <View key={fixture.id} style={styles.card}>
@@ -241,9 +259,12 @@ export function PronosticosScreen() {
           ]}
         >
           <Text style={styles.saveButtonText}>
-            {isEditable ? (savePredictionMutation.isPending ? "Guardando..." : "Guardar pronóstico") : "Solo lectura"}
+            {isEditable ? (isSavingThisFixture ? "Guardando..." : "Guardar pronóstico") : "Solo lectura"}
           </Text>
         </Pressable>
+        {!isEditable ? <Text style={styles.lockedChip}>Partido bloqueado: no se puede editar.</Text> : null}
+        {isSavingThisFixture ? <Text style={styles.infoChip}>Guardando pronóstico...</Text> : null}
+        {fixtureSaveError ? <Text style={styles.errorChip}>{fixtureSaveError}</Text> : null}
       </View>
     );
   }
@@ -284,6 +305,17 @@ export function PronosticosScreen() {
             <View style={styles.brandTextWrap}>
               <Text style={styles.brandTitle}>Fulbito Prode</Text>
               <Text style={styles.brandSubtitle}>Pronósticos · Resultados y carga</Text>
+            </View>
+            <View style={styles.headerActions}>
+              <Pressable style={styles.headerActionButton}>
+                <Text style={styles.headerActionLabel}>Tema</Text>
+              </Pressable>
+              <Pressable style={styles.headerActionButton}>
+                <Text style={styles.headerActionLabel}>Alertas</Text>
+              </Pressable>
+              <Pressable style={styles.headerActionButton}>
+                <Text style={styles.headerActionLabel}>Ajustes</Text>
+              </Pressable>
             </View>
             <View style={styles.profileDot}>
               <Text style={styles.profileDotText}>U</Text>
@@ -377,6 +409,24 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     fontWeight: "700",
     fontSize: 12
+  },
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs
+  },
+  headerActionButton: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.surfaceMuted,
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 5
+  },
+  headerActionLabel: {
+    color: colors.textSecondary,
+    fontSize: 9,
+    fontWeight: "700"
   },
   card: {
     backgroundColor: colors.surface,
@@ -499,6 +549,36 @@ const styles = StyleSheet.create({
     color: colors.primaryText,
     fontWeight: "800",
     fontSize: 13
+  },
+  lockedChip: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255, 180, 84, 0.35)",
+    backgroundColor: "rgba(255, 180, 84, 0.12)",
+    color: "#F7B84B",
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    fontSize: 11
+  },
+  infoChip: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.surfaceMuted,
+    backgroundColor: colors.background,
+    color: colors.textSecondary,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    fontSize: 11
+  },
+  errorChip: {
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(255, 107, 125, 0.35)",
+    backgroundColor: "rgba(255, 107, 125, 0.12)",
+    color: "#FF6B7D",
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    fontSize: 11
   },
   modeTabs: {
     flexDirection: "row",
