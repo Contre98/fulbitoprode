@@ -61,6 +61,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Fix Pronósticos safe-area overlap and switch screen background to reference light-gray tone.
 - [x] Apply screenshot-driven Posiciones parity pass (table + stats modes) using `ui reference/Posiciones*.png`.
 - [x] Apply screenshot-driven Fixture parity pass using `ui reference/Fixture.png`.
+- [x] Align bottom-tab icon artwork/states (active chip + custom glyph icons + label polish) with references.
 
 ## Decisions Log
 
@@ -106,6 +107,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Apply safe-area inset-aware top header padding in Pronósticos and align page background color to reference screenshots. | Prevent notch/status-bar overlap and remove dark legacy background drift that broke visual parity checks on iPhone simulators. | `apps/mobile/src/screens/PronosticosScreen.tsx` |
 | 2026-03-04 | Rebuild Posiciones screen with screenshot-driven custom layout for `POSICIONES` and `STATS` modes. | Close high-impact visual parity gaps beyond generic shared components while keeping leaderboard contracts/state flow intact. | `apps/mobile/src/screens/PosicionesScreen.tsx` |
 | 2026-03-04 | Rebuild Fixture screen with screenshot-driven custom layout (header, selection/fecha controls, filter strip, grouped rows). | Align fixture presentation with reference visuals while keeping existing fixture/group/period repository contracts untouched. | `apps/mobile/src/screens/FixtureScreen.tsx` |
+| 2026-03-04 | Replace default bottom-tab icons with custom parity-themed glyphs and active-chip styling. | Match reference navigation affordances and remove default tab icon appearance mismatch while preserving route structure. | `apps/mobile/src/navigation/AppNavigation.tsx` |
 
 ## Validation Log
 
@@ -260,6 +262,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | Fixture custom layout and filter/group rendering compile cleanly. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | No web regression after Fixture parity slice. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by Fixture parity slice. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile test` | Pass | Mobile suites green after bottom-tab icon/style parity slice (`5 suites, 7 tests`). |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | Updated custom tab icon renderer and tab style config compile cleanly. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | No web regression after mobile tab-bar parity changes. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by tab-bar parity slice. |
 
 ## Risks & Mitigations
 
@@ -273,6 +279,6 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 ## Next Actions (Top 5)
 1. Run one more Pronósticos screenshot comparison pass focused on team logos/iconography parity (replace placeholder badge glyphs).
 2. Run one more Posiciones screenshot comparison pass and tune typography spacing if needed after on-device review.
-3. Align bottom-tab icon artwork/states with reference styling (labels/order/background now aligned).
+3. Run one more Fixture screenshot comparison pass and tune row density/logo treatment if needed.
 4. Add Android smoke shortcut command and dedicated `android:smoke` script for repeatable manual QA.
 5. Run final full-manual parity QA across Pronósticos/Posiciones/Fixture with new screenshots and close remaining deltas.
