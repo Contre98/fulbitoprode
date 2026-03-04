@@ -76,6 +76,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Add focused screen-level smoke tests for `Inicio` render/filter interactions.
 - [x] Cover `Grupos` create/join error paths in screen-level tests and handle mutation rejection safely.
 - [x] Add CI guard steps for mobile Node-version compatibility and targeted mobile test command parity.
+- [x] Prepare Phase 3 closure summary draft grouped by tab with validation-log linkage.
 
 ## Decisions Log
 
@@ -137,6 +138,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Extract `Inicio` fixture filtering helper and wire tabs to state-driven filter behavior. | Make copied parity controls functional while keeping filtering logic isolated and testable via focused unit tests. | `apps/mobile/src/screens/HomeScreen.tsx`, `apps/mobile/src/screens/homeFilters.ts`, `apps/mobile/src/test/homeFilters.test.ts` |
 | 2026-03-04 | Update mobile Jest runner to pass CLI test patterns and run with deterministic handle diagnostics (`--runInBand --detectOpenHandles`). | Keep smoke runs predictable, avoid false-positive worker shutdown warnings, and ensure focused test commands actually target requested files. | `apps/mobile/scripts/run-mobile-tests.mjs` |
 | 2026-03-04 | Add CI workflow guard steps for mobile Node range validation and targeted mobile test command execution. | Keep CI aligned with local mobile prerequisites/commands so regressions in mobile runner behavior are detected before merge. | `.github/workflows/ci.yml` |
+| 2026-03-04 | Create a dedicated Phase 3 closure summary draft document grouped by tab (`Inicio`, `Posiciones`, `Pronósticos`, `Fixture`, `Grupos`). | Keep final parity sign-off auditable with one place to attach screenshots, feature evidence, and validation references before merge. | `docs/mobile-phase3-closure-summary.md` |
 
 ## Validation Log
 
@@ -362,6 +364,9 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after CI guard-step addition. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile TypeScript checks remain green after CI workflow changes. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by CI guard-step slice. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after adding Phase 3 closure summary draft documentation. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile TS checks unaffected by closure summary documentation slice. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by closure-summary docs slice. |
 
 ## Risks & Mitigations
 
@@ -374,7 +379,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 
 ## Next Actions (Top 5)
 1. Do one final notch/top-safe-area cross-device check (iPhone SE + Pro Max + Android medium) before closing Phase 3 visual parity.
-2. Prepare Phase 3 closure commit/PR summary with grouped screenshots per tab and links to validation logs.
+2. Fill `docs/mobile-phase3-closure-summary.md` with final simulator/emulator screenshots per tab and attach it to Phase 3 closure PR.
 3. Start planning Phase 4 hardening (targeted mobile e2e smoke and incremental HTTP adapter deepening).
 4. Add one focused manual QA pass for `Grupos` create/join + `Inicio` filter tests on both mock and HTTP session mode.
 5. Add CI caching/runtime notes to contributor docs for consistent Node 20-22 + pnpm mobile test execution.
