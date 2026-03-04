@@ -73,6 +73,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Make `Grupos` primary actions functional on mobile (`Crear Grupo` / `Unirse`) through contracts-first repositories (HTTP + mock fallback).
 - [x] Make `Inicio` match filter tabs functional (`Todos` / `En vivo` / `Próximos`) with state-driven filtering.
 - [x] Add focused screen-level smoke tests for `Grupos` create/join action flows.
+- [x] Add focused screen-level smoke tests for `Inicio` render/filter interactions.
 
 ## Decisions Log
 
@@ -335,6 +336,13 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after adding `ConfiguracionScreen` action tests. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | New `ConfiguracionScreen.actions.test.tsx` compiles cleanly under strict TypeScript. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by mobile action test slice. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile test -- HomeScreen.filters.test.tsx` | Pass | New `HomeScreen` filter interaction smoke tests pass (`Todos`/`En vivo`/`Próximos` + empty-state assertion); suite run reports existing open-handle warning after completion. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after adding `HomeScreen` screen-level tests. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Fail | Test initially imported non-exported `FixtureStatus` type from `@fulbito/domain`; replaced with local status union and reran successfully. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by `Inicio` test slice. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` (post-fix rerun) | Pass | Verified after test type import correction. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` (post-fix rerun) | Pass | `HomeScreen.filters.test.tsx` compiles cleanly after replacing unsupported domain type import. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` (post-fix rerun) | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), confirming no web regression from final test slice. |
 
 ## Risks & Mitigations
 
@@ -346,8 +354,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Add focused screen-level smoke tests for `Inicio` card rendering and filter-tab interactions (`Todos`/`En vivo`/`Próximos`).
-2. Extend screen-level action smoke tests to include `Grupos` error states (HTTP/mock adapter rejection paths).
-3. Do one final notch/top-safe-area cross-device check (iPhone SE + Pro Max + Android medium) before closing Phase 3 visual parity.
-4. Prepare Phase 3 closure commit/PR summary with grouped screenshots per tab and links to validation logs.
-5. Start planning Phase 4 hardening (targeted mobile e2e smoke and incremental HTTP adapter deepening).
+1. Extend screen-level action smoke tests to include `Grupos` error states (HTTP/mock adapter rejection paths).
+2. Do one final notch/top-safe-area cross-device check (iPhone SE + Pro Max + Android medium) before closing Phase 3 visual parity.
+3. Prepare Phase 3 closure commit/PR summary with grouped screenshots per tab and links to validation logs.
+4. Start planning Phase 4 hardening (targeted mobile e2e smoke and incremental HTTP adapter deepening).
+5. Add one focused manual QA pass for `Grupos` create/join + `Inicio` filter tests on both mock and HTTP session mode.
