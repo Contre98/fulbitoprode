@@ -62,6 +62,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Apply screenshot-driven Posiciones parity pass (table + stats modes) using `ui reference/Posiciones*.png`.
 - [x] Apply screenshot-driven Fixture parity pass using `ui reference/Fixture.png`.
 - [x] Align bottom-tab icon artwork/states (active chip + custom glyph icons + label polish) with references.
+- [x] Align mock fixture dataset and derived score display with screenshot teams/results for Pronósticos + Fixture parity QA.
 
 ## Decisions Log
 
@@ -108,6 +109,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Rebuild Posiciones screen with screenshot-driven custom layout for `POSICIONES` and `STATS` modes. | Close high-impact visual parity gaps beyond generic shared components while keeping leaderboard contracts/state flow intact. | `apps/mobile/src/screens/PosicionesScreen.tsx` |
 | 2026-03-04 | Rebuild Fixture screen with screenshot-driven custom layout (header, selection/fecha controls, filter strip, grouped rows). | Align fixture presentation with reference visuals while keeping existing fixture/group/period repository contracts untouched. | `apps/mobile/src/screens/FixtureScreen.tsx` |
 | 2026-03-04 | Replace default bottom-tab icons with custom parity-themed glyphs and active-chip styling. | Match reference navigation affordances and remove default tab icon appearance mismatch while preserving route structure. | `apps/mobile/src/navigation/AppNavigation.tsx` |
+| 2026-03-04 | Update mobile mock fixture list to mirror screenshot clubs and encode final scores in fixture IDs for deterministic UI parity rendering. | Keep contracts unchanged while making local/mock QA visuals deterministic and reference-aligned across Pronósticos history + Fixture rows. | `apps/mobile/src/repositories/mockDataRepositories.ts`, `apps/mobile/src/screens/PronosticosScreen.tsx`, `apps/mobile/src/screens/FixtureScreen.tsx` |
 
 ## Validation Log
 
@@ -266,6 +268,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | Updated custom tab icon renderer and tab style config compile cleanly. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | No web regression after mobile tab-bar parity changes. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by tab-bar parity slice. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile test` | Pass | Mobile suites green after mock fixture dataset + score parsing parity adjustments (`5 suites, 7 tests`). |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | Pronósticos/Fixture score derivation and mock data updates compile cleanly. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | No web regression after mobile mock data parity alignment changes. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by mock data parity alignment slice. |
 
 ## Risks & Mitigations
 
@@ -277,7 +283,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Run one more Pronósticos screenshot comparison pass focused on team logos/iconography parity (replace placeholder badge glyphs).
+1. Add lightweight local team crest assets (or deterministic SVG-style marks) to replace current placeholder initials in Pronósticos/Fixture rows.
 2. Run one more Posiciones screenshot comparison pass and tune typography spacing if needed after on-device review.
 3. Run one more Fixture screenshot comparison pass and tune row density/logo treatment if needed.
 4. Add Android smoke shortcut command and dedicated `android:smoke` script for repeatable manual QA.

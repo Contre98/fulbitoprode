@@ -44,6 +44,17 @@ function teamBadgeTone(name: string) {
   return palette[hash % palette.length];
 }
 
+function explicitScoreFromFixtureId(fixtureId: string) {
+  const explicit = fixtureId.match(/final-(\d+)-(\d+)/i);
+  if (!explicit) {
+    return null;
+  }
+  return {
+    home: explicit[1],
+    away: explicit[2]
+  };
+}
+
 export function PronosticosScreen() {
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
@@ -250,8 +261,9 @@ export function PronosticosScreen() {
     const fixtureSaveError = saveErrorByFixture[fixture.id];
 
     const committed = predictionByFixture.get(fixture.id);
-    const readOnlyHome = committed ? String(committed.home) : draft.home || "0";
-    const readOnlyAway = committed ? String(committed.away) : draft.away || "0";
+    const explicitScore = explicitScoreFromFixtureId(fixture.id);
+    const readOnlyHome = explicitScore?.home ?? (committed ? String(committed.home) : draft.home || "0");
+    const readOnlyAway = explicitScore?.away ?? (committed ? String(committed.away) : draft.away || "0");
 
     return (
       <View key={fixture.id} style={styles.cardWrap}>

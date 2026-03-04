@@ -52,26 +52,55 @@ export const mockPredictionsRepository: PredictionsRepository = {
 export const mockFixtureRepository: FixtureRepository = {
   async listFixture() {
     const now = Date.now();
+    const finalsBase = now - 1000 * 60 * 60 * 48;
     return [
       {
-        id: "fx-1",
-        homeTeam: "River Plate",
-        awayTeam: "Boca Juniors",
-        kickoffAt: new Date(now + 1000 * 60 * 60 * 24).toISOString(),
+        id: "fx-upcoming-arg-lan",
+        homeTeam: "Argentinos Juniors",
+        awayTeam: "Lanús",
+        kickoffAt: new Date(now + 1000 * 60 * 60 * 24 * 2).toISOString(),
         status: "upcoming"
       },
       {
-        id: "fx-2",
-        homeTeam: "Racing Club",
-        awayTeam: "San Lorenzo",
-        kickoffAt: new Date(now - 1000 * 60 * 20).toISOString(),
-        status: "live"
+        id: "fx-final-1-1-def-bel",
+        homeTeam: "Defensa Y Justicia",
+        awayTeam: "Belgrano Cordoba",
+        kickoffAt: new Date(finalsBase).toISOString(),
+        status: "final"
       },
       {
-        id: "fx-3",
-        homeTeam: "Independiente",
-        awayTeam: "Huracán",
-        kickoffAt: new Date(now - 1000 * 60 * 60 * 30).toISOString(),
+        id: "fx-final-1-0-est-sar",
+        homeTeam: "Estudiantes L.P.",
+        awayTeam: "Sarmiento Junin",
+        kickoffAt: new Date(finalsBase + 1000 * 60 * 45).toISOString(),
+        status: "final"
+      },
+      {
+        id: "fx-final-0-0-boc-rac",
+        homeTeam: "Boca Juniors",
+        awayTeam: "Racing Club",
+        kickoffAt: new Date(finalsBase + 1000 * 60 * 90).toISOString(),
+        status: "final"
+      },
+      {
+        id: "fx-final-2-1-ins-atl",
+        homeTeam: "Instituto Cordoba",
+        awayTeam: "Atletico Tucuman",
+        kickoffAt: new Date(finalsBase + 1000 * 60 * 135).toISOString(),
+        status: "final"
+      },
+      {
+        id: "fx-final-0-1-ros-tal",
+        homeTeam: "Rosario Central",
+        awayTeam: "Talleres Cordoba",
+        kickoffAt: new Date(finalsBase + 1000 * 60 * 180).toISOString(),
+        status: "final"
+      },
+      {
+        id: "fx-final-0-0-gim-gimj",
+        homeTeam: "Gimnasia M",
+        awayTeam: "Gimnasia L. P.",
+        kickoffAt: new Date(finalsBase + 1000 * 60 * 225).toISOString(),
         status: "final"
       }
     ];

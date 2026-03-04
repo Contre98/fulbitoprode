@@ -47,6 +47,10 @@ function deriveDisplayScore(fixture: Fixture) {
   if (fixture.status === "upcoming") {
     return null;
   }
+  const explicit = fixture.id.match(/final-(\d+)-(\d+)/i);
+  if (explicit) {
+    return `${explicit[1]}-${explicit[2]}`;
+  }
   const hash = fixture.id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const home = hash % 3;
   const away = Math.floor(hash / 3) % 3;
