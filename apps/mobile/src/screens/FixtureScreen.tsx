@@ -11,6 +11,7 @@ import { ScreenFrame } from "@/components/ScreenFrame";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
+import { BrandBadgeIcon } from "@/components/BrandBadgeIcon";
 
 type FixtureFilter = "all" | "live" | "final" | "upcoming";
 
@@ -152,7 +153,7 @@ export function FixtureScreen() {
         <View style={[styles.headerCard, { paddingTop: Math.max(insets.top, 10) + 2 }]}>
           <View style={styles.brandRow}>
             <View style={styles.brandBadge}>
-              <Text allowFontScaling={false} style={styles.brandBadgeText}>🏆</Text>
+              <BrandBadgeIcon size={16} />
             </View>
             <Text allowFontScaling={false} numberOfLines={1} style={styles.brandTitle}>
               <Text style={styles.brandTitleDark}>FULBITO</Text>
@@ -302,9 +303,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#EFF4E6",
     alignItems: "center",
     justifyContent: "center"
-  },
-  brandBadgeText: {
-    fontSize: 13
   },
   brandTitle: {
     flex: 1,

@@ -64,6 +64,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Align bottom-tab icon artwork/states (active chip + custom glyph icons + label polish) with references.
 - [x] Align mock fixture dataset and derived score display with screenshot teams/results for Pronósticos + Fixture parity QA.
 - [x] Align per-screen "Selección actual" competition label composition with references (`Pronósticos`: liga+etapa, `Posiciones/Fixture`: etapa-first).
+- [x] Replace emoji-based top-left brand badge with reusable non-emoji icon treatment across `Pronósticos`, `Posiciones`, and `Fixture`.
 
 ## Decisions Log
 
@@ -112,6 +113,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Replace default bottom-tab icons with custom parity-themed glyphs and active-chip styling. | Match reference navigation affordances and remove default tab icon appearance mismatch while preserving route structure. | `apps/mobile/src/navigation/AppNavigation.tsx` |
 | 2026-03-04 | Update mobile mock fixture list to mirror screenshot clubs and encode final scores in fixture IDs for deterministic UI parity rendering. | Keep contracts unchanged while making local/mock QA visuals deterministic and reference-aligned across Pronósticos history + Fixture rows. | `apps/mobile/src/repositories/mockDataRepositories.ts`, `apps/mobile/src/screens/PronosticosScreen.tsx`, `apps/mobile/src/screens/FixtureScreen.tsx` |
 | 2026-03-04 | Normalize per-screen competition label strategy for parity (`Pronósticos` keeps league+stage, `Posiciones`/`Fixture` prefer stage-first). | Reference screenshots intentionally show different label verbosity by screen; this keeps parity without touching repository contracts or data payloads. | `apps/mobile/src/screens/PronosticosScreen.tsx`, `apps/mobile/src/screens/PosicionesScreen.tsx`, `apps/mobile/src/screens/FixtureScreen.tsx` |
+| 2026-03-04 | Introduce shared `BrandBadgeIcon` and replace emoji trophy mark in core-tab headers. | Remove emoji dependency while preserving brand/trophy meaning and consistent chrome parity across core tabs. | `apps/mobile/src/components/BrandBadgeIcon.tsx`, `apps/mobile/src/screens/PronosticosScreen.tsx`, `apps/mobile/src/screens/PosicionesScreen.tsx`, `apps/mobile/src/screens/FixtureScreen.tsx` |
 
 ## Validation Log
 
@@ -278,6 +280,9 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | `Pronosticos/Posiciones/Fixture` label helpers compile cleanly under strict TypeScript. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` (parallel run) | Fail (transient) | First parallel execution failed during Next page-data collection for `/api/fixture`; reran in isolation successfully with no code changes. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` (isolation retry) | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), confirming no web regression from this mobile slice. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | No web regression after shared mobile brand-badge icon extraction. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | `BrandBadgeIcon` integration compiles cleanly across `Pronósticos`, `Posiciones`, and `Fixture` screens. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by mobile brand-badge icon slice. |
 
 ## Risks & Mitigations
 
@@ -289,8 +294,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Replace emoji-based top-left brand badge with asset-backed icon treatment matching reference chrome across `Pronósticos`, `Posiciones`, and `Fixture`.
-2. Add lightweight local team crest assets (or deterministic SVG-style marks) to replace current placeholder initials in Pronósticos/Fixture rows.
-3. Run final screenshot-by-screenshot typography/spacing pass for `Posiciones` + `Fixture` on iOS simulator and close remaining visual deltas.
-4. Add Android smoke shortcut command and dedicated `android:smoke` script for repeatable manual QA.
-5. Run final full-manual parity QA across `Pronósticos`/`Posiciones`/`Fixture` and record sign-off notes in `docs/mobile-qa-checklist.md`.
+1. Add lightweight local team crest assets (or deterministic SVG-style marks) to replace current placeholder initials in Pronósticos/Fixture rows.
+2. Run final screenshot-by-screenshot typography/spacing pass for `Posiciones` + `Fixture` on iOS simulator and close remaining visual deltas.
+3. Add Android smoke shortcut command and dedicated `android:smoke` script for repeatable manual QA.
+4. Run final full-manual parity QA across `Pronósticos`/`Posiciones`/`Fixture` and record sign-off notes in `docs/mobile-qa-checklist.md`.
+5. Apply the same non-emoji brand-badge treatment to remaining tabs (`Inicio`, `Grupos`) once those parity passes are active.
