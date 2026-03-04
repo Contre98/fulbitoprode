@@ -19,6 +19,22 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Phase 2: First Shared Extraction | Done | `@contre` | Initial shared domain/contracts created and consumed by web+mobile. |
 | Phase 3+: Mobile MVP Features | In Progress | `@contre` | Core screens/flows implemented with mock-first repositories and validation logs per milestone. |
 
+## Phase 4 Kickoff (Draft)
+
+### Scope
+- Harden mobile behavior after parity milestone: reliability, test depth, and adapter resilience.
+- Keep contracts-first boundaries intact (`packages/domain`, `packages/api-contracts`, `apps/mobile/src/repositories`).
+
+### Key Risks
+- HTTP/mock divergence as backend endpoints evolve.
+- Regressions in parity screens due to refactors without snapshot/smoke coverage.
+- Environment drift (Node/runtime/test command mismatch) between local and CI.
+
+### First 3 Implementation Slices
+1. Add targeted mobile e2e smoke path for login -> `Inicio` -> `Pronósticos` save -> `Grupos` join/create.
+2. Expand repository-level contract tests for HTTP + mock adapters on groups/fixture/predictions.
+3. Add failure-injection coverage for fallback diagnostics + retry behavior (`HTTP Session` <-> `Mock Fallback` transitions).
+
 ## Phase Checklists
 
 ### Phase 0
@@ -371,6 +387,9 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after adding root contributor runtime notes for mobile command prerequisites. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile TypeScript checks unaffected by root README runtime-note updates. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by README runtime-note slice. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after adding `Phase 4 Kickoff (Draft)` section to migration plan. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile TS checks unaffected by planning-only Phase 4 kickoff documentation. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by Phase 4 kickoff planning slice. |
 
 ## Risks & Mitigations
 
@@ -386,4 +405,4 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 2. Fill `docs/mobile-phase3-closure-summary.md` with final simulator/emulator screenshots per tab and attach it to Phase 3 closure PR.
 3. Start planning Phase 4 hardening (targeted mobile e2e smoke and incremental HTTP adapter deepening).
 4. Add one focused manual QA pass for `Grupos` create/join + `Inicio` filter tests on both mock and HTTP session mode.
-5. Add a compact `Phase 4 kickoff` section to this plan (scope, risks, first 3 implementation slices).
+5. Define Phase 4 slice #1 in detail (e2e smoke path scope, tool choice, and acceptance checks).
