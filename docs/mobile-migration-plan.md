@@ -72,6 +72,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Start parity pass for `Inicio` screen using `ui reference/Inicio.png` as baseline.
 - [x] Make `Grupos` primary actions functional on mobile (`Crear Grupo` / `Unirse`) through contracts-first repositories (HTTP + mock fallback).
 - [x] Make `Inicio` match filter tabs functional (`Todos` / `En vivo` / `Próximos`) with state-driven filtering.
+- [x] Add focused screen-level smoke tests for `Grupos` create/join action flows.
 
 ## Decisions Log
 
@@ -330,6 +331,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | No web regression after making `Inicio` filter tabs functional. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | `HomeScreen` filter state wiring and helper extraction compile cleanly. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by `Inicio` filter functionality slice. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile test -- ConfiguracionScreen.actions.test.tsx` | Pass | New `ConfiguracionScreen` action smoke tests pass (`create`/`join` validation + success flow assertions); suite run reports existing open-handle warning after completion. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after adding `ConfiguracionScreen` action tests. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | New `ConfiguracionScreen.actions.test.tsx` compiles cleanly under strict TypeScript. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by mobile action test slice. |
 
 ## Risks & Mitigations
 
@@ -341,8 +346,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Add focused smoke tests for `Grupos` actions (`Crear Grupo` and `Unirse`) at screen/repository integration level.
-2. Add small focused smoke tests for `Inicio` critical render/filter paths (screen-level interaction checks).
+1. Add focused screen-level smoke tests for `Inicio` card rendering and filter-tab interactions (`Todos`/`En vivo`/`Próximos`).
+2. Extend screen-level action smoke tests to include `Grupos` error states (HTTP/mock adapter rejection paths).
 3. Do one final notch/top-safe-area cross-device check (iPhone SE + Pro Max + Android medium) before closing Phase 3 visual parity.
 4. Prepare Phase 3 closure commit/PR summary with grouped screenshots per tab and links to validation logs.
 5. Start planning Phase 4 hardening (targeted mobile e2e smoke and incremental HTTP adapter deepening).
