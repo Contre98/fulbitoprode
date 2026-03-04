@@ -99,4 +99,32 @@ describe("fallback diagnostics history", () => {
     expect(listener).toHaveBeenLastCalledWith([]);
     expect(AsyncStorage.removeItem).toHaveBeenCalledTimes(1);
   });
+
+  it("only clears history for active subscribers across subscribe/unsubscribe cycles", () => {
+    const { diagnostics, AsyncStorage } = loadDiagnostics();
+    const listenerA = jest.fn();
+    const unsubscribeA = diagnostics.subscribeFallbackHistory(listenerA);
+
+    diagnostics.reportFallbackFailure("auth.getSession", new Error("HTTP 500"));
+    unsubscribeA();
+
+    const listenerB = jest.fn();
+    const unsubscribeB = diagnostics.subscribeFallbackHistory(listenerB);
+    diagnostics.clearFallbackHistory();
+    diagnostics.reportFallbackFailure("groups.listMemberships", new Error("HTTP 503"));
+    unsubscribeB();
+    diagnostics.clearFallbackHistory();
+
+    expect(listenerA).toHaveBeenCalledTimes(1);
+    expect(listenerA).toHaveBeenNthCalledWith(
+      1,
+      expect.arrayContaining([expect.objectContaining({ scope: "auth.getSession" })])
+    );
+    expect(listenerB).toHaveBeenNthCalledWith(1, []);
+    expect(listenerB).toHaveBeenNthCalledWith(
+      2,
+      expect.arrayContaining([expect.objectContaining({ scope: "groups.listMemberships" })])
+    );
+    expect(AsyncStorage.removeItem).toHaveBeenCalledTimes(2);
+  });
 });

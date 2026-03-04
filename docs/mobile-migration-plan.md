@@ -112,6 +112,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Expand smoke-flow assertions to include `Posiciones` mode toggle behavior (`POSICIONES` <-> `STATS`) after auth-gated entry.
 - [x] Add negative-path app-flow assertion for `Grupos` join validation message before successful join submission.
 - [x] Add malformed-payload rejection assertions for fixture/leaderboard HTTP adapter contract tests.
+- [x] Add focused fallback-history clear assertion across subscribe/unsubscribe cycles in diagnostics utility tests.
 
 ## Decisions Log
 
@@ -493,6 +494,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after malformed payload rejection coverage expansion in adapter contract tests. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Updated `RepositoryAdapters.contract.test.ts` compiles cleanly under strict mobile TypeScript checks. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by adapter rejection-coverage test slice. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile test -- FallbackDiagnostics.history.test.ts` | Pass | Added focused assertion that verifies clear-history notifications only hit active subscribers across subscribe/unsubscribe cycles (`4 tests`). |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after fallback-history subscribe/unsubscribe coverage expansion. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Updated `FallbackDiagnostics.history.test.ts` compiles cleanly under strict mobile TypeScript checks. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by fallback-history subscribe-cycle test slice. |
 
 ## Risks & Mitigations
 
@@ -504,8 +509,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Add one focused assertion for fallback-history clear behavior under repeated subscribe/unsubscribe cycles.
-2. Decide whether `MobileE2ESmoke.flow.test.tsx` should be split into smaller flow files as assertions continue to grow.
-3. Add CI guard for the AuthContext fallback-history integration test once stability is confirmed across repeated runs.
-4. Add smoke-flow assertion that verifies `Grupos` join mutation rejection message in app-level flow (network/error-path parity with focused screen tests).
-5. Review whether malformed payload cases should be explicitly routed to mock fallback at repository-composition layer and add tests if adopted.
+1. Decide whether `MobileE2ESmoke.flow.test.tsx` should be split into smaller flow files as assertions continue to grow.
+2. Add CI guard for the AuthContext fallback-history integration test once stability is confirmed across repeated runs.
+3. Add smoke-flow assertion that verifies `Grupos` join mutation rejection message in app-level flow (network/error-path parity with focused screen tests).
+4. Review whether malformed payload cases should be explicitly routed to mock fallback at repository-composition layer and add tests if adopted.
+5. Capture refreshed Android + iOS screenshots for all tabs after latest Phase 4 test-slice updates and attach to closure summary.
