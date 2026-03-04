@@ -3,7 +3,7 @@ import { colors, spacing } from "@fulbito/design-tokens";
 import { useAuth } from "@/state/AuthContext";
 
 export function DataModeBadge() {
-  const { dataMode, fallbackIssue, fallbackHistory, retryHttpMode } = useAuth();
+  const { dataMode, fallbackIssue, fallbackHistory, retryHttpMode, clearFallbackDiagnosticsHistory } = useAuth();
   const httpMode = dataMode === "http";
   const recentFailures = __DEV__ ? fallbackHistory.slice(0, 3) : [];
 
@@ -27,6 +27,14 @@ export function DataModeBadge() {
       {!httpMode ? (
         <Pressable onPress={() => void retryHttpMode()} style={({ pressed }) => [styles.retryButton, pressed ? styles.retryButtonPressed : null]}>
           <Text style={styles.retryLabel}>Reintentar HTTP</Text>
+        </Pressable>
+      ) : null}
+      {!httpMode && recentFailures.length > 0 && __DEV__ ? (
+        <Pressable
+          onPress={() => clearFallbackDiagnosticsHistory()}
+          style={({ pressed }) => [styles.clearHistoryButton, pressed ? styles.retryButtonPressed : null]}
+        >
+          <Text style={styles.clearHistoryLabel}>Limpiar historial</Text>
         </Pressable>
       ) : null}
     </View>
@@ -88,6 +96,20 @@ const styles = StyleSheet.create({
   retryLabel: {
     color: colors.textPrimary,
     fontSize: 11,
+    fontWeight: "700"
+  },
+  clearHistoryButton: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderWidth: 1,
+    borderColor: colors.surfaceMuted,
+    backgroundColor: colors.background
+  },
+  clearHistoryLabel: {
+    color: colors.textSecondary,
+    fontSize: 10,
     fontWeight: "700"
   }
 });

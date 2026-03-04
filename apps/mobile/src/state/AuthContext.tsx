@@ -3,7 +3,13 @@ import type { ReactNode } from "react";
 import type { AuthSession } from "@fulbito/api-contracts";
 import { canUseHttpSession } from "@/repositories/authBridgeState";
 import type { FallbackFailure } from "@/repositories/fallbackDiagnostics";
-import { getFallbackFailure, getFallbackHistory, subscribeFallbackFailure, subscribeFallbackHistory } from "@/repositories/fallbackDiagnostics";
+import {
+  clearFallbackHistory,
+  getFallbackFailure,
+  getFallbackHistory,
+  subscribeFallbackFailure,
+  subscribeFallbackHistory
+} from "@/repositories/fallbackDiagnostics";
 import { authRepository } from "@/repositories";
 
 interface AuthContextValue {
@@ -18,6 +24,7 @@ interface AuthContextValue {
   register: (input: { email: string; password: string; name: string }) => Promise<void>;
   logout: () => Promise<void>;
   retryHttpMode: () => Promise<void>;
+  clearFallbackDiagnosticsHistory: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -85,6 +92,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await refresh();
   }, [refresh]);
 
+  const clearFallbackDiagnosticsHistory = useCallback(() => {
+    clearFallbackHistory();
+  }, []);
+
   const value = useMemo(
     () => ({
       loading,
@@ -97,9 +108,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login,
       register,
       logout,
-      retryHttpMode
+      retryHttpMode,
+      clearFallbackDiagnosticsHistory
     }),
-    [loading, session, dataMode, fallbackIssue, fallbackHistory, refresh, login, register, logout, retryHttpMode]
+    [loading, session, dataMode, fallbackIssue, fallbackHistory, refresh, login, register, logout, retryHttpMode, clearFallbackDiagnosticsHistory]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

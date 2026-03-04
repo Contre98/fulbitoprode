@@ -52,6 +52,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Wire mobile period/group selection state across core tabs and connect query keys.
 - [x] Add mobile smoke run log for iOS simulator.
 - [x] Add mobile smoke run log for Android emulator.
+- [x] Add in-app dev action to clear persisted fallback diagnostics history.
 
 ## Decisions Log
 
@@ -87,6 +88,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Refine Pronósticos parity with web-style custom top header and fecha left/right cycler behavior. | Close key UX deltas identified during manual review while retaining existing repository contracts and shared state flow. | `apps/mobile/src/components/ScreenFrame.tsx`, `apps/mobile/src/components/FechaSelector.tsx`, `apps/mobile/src/screens/PronosticosScreen.tsx` |
 | 2026-03-04 | Continue high-fidelity UI parity on `Posiciones` with web-aligned header, mode controls, and leaderboard card styling. | Keep UX language consistent with web mobile design while preserving existing leaderboard contracts and query behavior. | `apps/mobile/src/screens/PosicionesScreen.tsx` |
 | 2026-03-04 | Continue high-fidelity UI parity on `Fixture` with web-aligned header, filter chips, and match-card structure. | Complete core-tab visual parity (Pronósticos/Posiciones/Fixture) while preserving fixture repository contract and grouped-date behavior. | `apps/mobile/src/screens/FixtureScreen.tsx` |
+| 2026-03-04 | Add mobile in-app dev action to clear persisted fallback diagnostics history from the mock-mode badge. | Keep QA/dev retry cycles clean without app reinstalls while preserving existing contracts-first adapter fallback flow. | `apps/mobile/src/repositories/fallbackDiagnostics.ts`, `apps/mobile/src/state/AuthContext.tsx`, `apps/mobile/src/components/DataModeBadge.tsx`, `apps/mobile/src/test/DataModeBadge.test.tsx` |
 
 ## Validation Log
 
@@ -203,6 +205,11 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `pnpm run typecheck:web` | Pass | No web regressions after `Fixture` mobile presentation updates. |
 | 2026-03-04 | `pnpm --filter @fulbito/mobile typecheck` | Pass | `FixtureScreen` parity UI additions compile cleanly. |
 | 2026-03-04 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by `Fixture` parity slice. |
+| 2026-03-04 | `pnpm --filter @fulbito/mobile test`, `pnpm run typecheck:web`, `pnpm --filter @fulbito/mobile typecheck` | Fail (env) | Shell invoked Homebrew `node@24.9.0` with missing dynamic library (`libsimdjson.27.dylib`), causing `SIGABRT` before command execution. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile test` | Pass | Mobile suites green after forcing Node `v22.22.0` in shell PATH (`5 suites, 7 tests`). |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | Web typecheck clean after fallback-history clear action slice. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile typecheck clean after new badge action/context contract update. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by diagnostics clear action slice. |
 
 ## Risks & Mitigations
 
@@ -214,8 +221,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Add an in-app dev action to clear persisted fallback diagnostics history for cleaner QA cycles.
-2. Add Android smoke shortcut command with explicit launcher steps (including emulator boot check) for repeatable manual QA.
-3. Add a dedicated `android:smoke` script mirroring `ios:smoke` to standardize manual QA flow across both platforms.
-4. Decide whether to reintroduce full `STATS` mode parity in mobile `Posiciones` as a second-stage enhancement after base visual parity is complete.
+1. Add Android smoke shortcut command with explicit launcher steps (including emulator boot check) for repeatable manual QA.
+2. Add a dedicated `android:smoke` script mirroring `ios:smoke` to standardize manual QA flow across both platforms.
+3. Decide whether to reintroduce full `STATS` mode parity in mobile `Posiciones` as a second-stage enhancement after base visual parity is complete.
+4. Continue visual parity polish on `Fixture` and `Posiciones` spacing/typography details from latest manual screenshots.
 5. Run full manual parity QA on core tabs using `docs/mobile-qa-checklist.md` and capture visual gap list for final polish pass.

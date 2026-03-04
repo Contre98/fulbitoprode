@@ -25,7 +25,8 @@ describe("DataModeBadge", () => {
       login: jest.fn(),
       register: jest.fn(),
       logout: jest.fn(),
-      retryHttpMode: jest.fn()
+      retryHttpMode: jest.fn(),
+      clearFallbackDiagnosticsHistory: jest.fn()
     });
 
     const screen = render(<DataModeBadge />);
@@ -35,6 +36,7 @@ describe("DataModeBadge", () => {
 
   it("renders mock fallback mode and retries http mode", () => {
     const retryHttpMode = jest.fn();
+    const clearFallbackDiagnosticsHistory = jest.fn();
     mockedUseAuth.mockReturnValue({
       loading: false,
       session: null,
@@ -52,14 +54,17 @@ describe("DataModeBadge", () => {
       login: jest.fn(),
       register: jest.fn(),
       logout: jest.fn(),
-      retryHttpMode
+      retryHttpMode,
+      clearFallbackDiagnosticsHistory
     });
 
     const screen = render(<DataModeBadge />);
     fireEvent.press(screen.getByText("Reintentar HTTP"));
+    fireEvent.press(screen.getByText("Limpiar historial"));
 
     expect(screen.getByText("Mock Fallback")).toBeTruthy();
     expect(screen.getByText(/auth\.getSession/)).toBeTruthy();
     expect(retryHttpMode).toHaveBeenCalledTimes(1);
+    expect(clearFallbackDiagnosticsHistory).toHaveBeenCalledTimes(1);
   });
 });

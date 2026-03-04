@@ -109,3 +109,14 @@ export function clearFallbackFailure() {
   currentFailure = null;
   notify();
 }
+
+export function clearFallbackHistory() {
+  if (history.length === 0) {
+    return;
+  }
+  history = [];
+  notifyHistory();
+  if (__DEV__) {
+    void AsyncStorage.removeItem(HISTORY_STORAGE_KEY);
+  }
+}
