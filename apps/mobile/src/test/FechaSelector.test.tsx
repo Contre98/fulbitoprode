@@ -25,7 +25,7 @@ describe("FechaSelector", () => {
     });
 
     const screen = render(<FechaSelector />);
-    fireEvent.press(screen.getByText("Fecha 2"));
+    fireEvent.press(screen.getByTestId("fecha-next"));
 
     expect(setFecha).toHaveBeenCalledWith("2026-02");
   });

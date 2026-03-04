@@ -3,11 +3,27 @@ import { View, Text, StyleSheet } from "react-native";
 import { colors, spacing } from "@fulbito/design-tokens";
 import { DataModeBadge } from "@/components/DataModeBadge";
 
-export function ScreenFrame({ title, subtitle, children }: { title: string; subtitle?: string; children?: ReactNode }) {
+export function ScreenFrame({
+  title,
+  subtitle,
+  header,
+  children
+}: {
+  title: string;
+  subtitle?: string;
+  header?: ReactNode;
+  children?: ReactNode;
+}) {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{title}</Text>
-      {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+      {header ? (
+        header
+      ) : (
+        <>
+          <Text style={styles.title}>{title}</Text>
+          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+        </>
+      )}
       <DataModeBadge />
       <View style={styles.content}>{children}</View>
     </View>

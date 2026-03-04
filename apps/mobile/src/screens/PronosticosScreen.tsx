@@ -101,6 +101,16 @@ export function PronosticosScreen() {
     [fixtureQuery.data]
   );
   const visibleFixtures = mode === "upcoming" ? upcomingFixtures : historyFixtures;
+  const completionSummary = useMemo(() => {
+    const total = Math.max(1, (fixtureQuery.data ?? []).length);
+    const completed = (fixtureQuery.data ?? []).filter((fixture) => {
+      const draft = draftByFixture[fixture.id];
+      if (!draft) return false;
+      return isPredictionInputComplete(normalizePredictionInput(draft));
+    }).length;
+    const pct = Math.round((completed / total) * 100);
+    return { total, completed, pct };
+  }, [draftByFixture, fixtureQuery.data]);
 
   function updateDraft(fixtureId: string, side: "home" | "away", value: string) {
     const sanitized = value.replace(/[^\d]/g, "");
@@ -228,9 +238,38 @@ export function PronosticosScreen() {
   }
 
   return (
-    <ScreenFrame title="Pronósticos" subtitle="Ingresa y guarda tus predicciones">
+    <ScreenFrame
+      title="Pronósticos"
+      subtitle="Ingresa y guarda tus predicciones"
+      header={
+        <View style={styles.headerCard}>
+          <View style={styles.brandRow}>
+            <View style={styles.brandBadge}>
+              <Text style={styles.brandBadgeText}>FP</Text>
+            </View>
+            <View style={styles.brandTextWrap}>
+              <Text style={styles.brandTitle}>Fulbito Prode</Text>
+              <Text style={styles.brandSubtitle}>Pronósticos · Resultados y carga</Text>
+            </View>
+            <View style={styles.profileDot}>
+              <Text style={styles.profileDotText}>U</Text>
+            </View>
+          </View>
+        </View>
+      }
+    >
       <GroupSelector />
       <FechaSelector />
+      <View style={styles.summaryRow}>
+        <View style={styles.progressCard}>
+          <Text style={styles.progressLabel}>
+            {completionSummary.completed}/{completionSummary.total}
+          </Text>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${completionSummary.pct}%` }]} />
+          </View>
+        </View>
+      </View>
       <View style={styles.modeTabs}>
         <Pressable onPress={() => setMode("upcoming")} style={[styles.modeTab, mode === "upcoming" ? styles.modeTabActive : null]}>
           <Text style={[styles.modeTabLabel, mode === "upcoming" ? styles.modeTabLabelActive : null]}>Próximos</Text>
@@ -252,6 +291,59 @@ export function PronosticosScreen() {
 }
 
 const styles = StyleSheet.create({
+  headerCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.surfaceMuted,
+    backgroundColor: colors.surface,
+    padding: spacing.md
+  },
+  brandRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm
+  },
+  brandBadge: {
+    height: 34,
+    width: 34,
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  brandBadgeText: {
+    color: colors.primaryText,
+    fontSize: 12,
+    fontWeight: "800"
+  },
+  brandTextWrap: {
+    flex: 1
+  },
+  brandTitle: {
+    color: colors.textPrimary,
+    fontSize: 18,
+    fontWeight: "900"
+  },
+  brandSubtitle: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    marginTop: 2
+  },
+  profileDot: {
+    height: 30,
+    width: 30,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.surfaceMuted,
+    backgroundColor: colors.background,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  profileDotText: {
+    color: colors.textPrimary,
+    fontWeight: "700",
+    fontSize: 12
+  },
   card: {
     backgroundColor: colors.surface,
     borderRadius: 16,
@@ -378,6 +470,39 @@ const styles = StyleSheet.create({
   },
   modeTabLabelActive: {
     color: colors.textPrimary
+  },
+  summaryRow: {
+    flexDirection: "row",
+    alignItems: "center"
+  },
+  progressCard: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.surfaceMuted,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm
+  },
+  progressLabel: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "700"
+  },
+  progressTrack: {
+    flex: 1,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: colors.surfaceMuted,
+    overflow: "hidden"
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: colors.primary
   },
   statusText: {
     color: colors.textSecondary,
