@@ -68,6 +68,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Replace emoji-based top-left brand badge with reusable non-emoji icon treatment across `Pronósticos`, `Posiciones`, and `Fixture`.
 - [x] Add shared deterministic team crest component and apply it to Pronósticos/Fixture match rows.
 - [x] Run final typography/spacing polish pass on `Posiciones` and `Fixture` against screenshot references.
+- [x] Start parity pass for `Grupos` screen using `ui reference/Grupos.png` as baseline.
+- [x] Start parity pass for `Inicio` screen using `ui reference/Inicio.png` as baseline.
 
 ## Decisions Log
 
@@ -120,6 +122,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Introduce shared `BrandBadgeIcon` and replace emoji trophy mark in core-tab headers. | Remove emoji dependency while preserving brand/trophy meaning and consistent chrome parity across core tabs. | `apps/mobile/src/components/BrandBadgeIcon.tsx`, `apps/mobile/src/screens/PronosticosScreen.tsx`, `apps/mobile/src/screens/PosicionesScreen.tsx`, `apps/mobile/src/screens/FixtureScreen.tsx` |
 | 2026-03-04 | Introduce shared `TeamCrest` component with per-team color mapping and deterministic fallback; replace inline initials badges in Pronósticos/Fixture rows. | Improve screenshot parity and keep team-mark rendering consistent across screens without introducing image/network dependencies. | `apps/mobile/src/components/TeamCrest.tsx`, `apps/mobile/src/screens/PronosticosScreen.tsx`, `apps/mobile/src/screens/FixtureScreen.tsx` |
 | 2026-03-04 | Apply final typography/spacing density tuning to `Posiciones` and `Fixture` cards/tabs/rows. | Close remaining visual proportion deltas (row height, tab density, headline sizing) without changing repositories, contracts, or query behavior. | `apps/mobile/src/screens/PosicionesScreen.tsx`, `apps/mobile/src/screens/FixtureScreen.tsx` |
+| 2026-03-04 | Start screenshot-driven parity layouts for `Inicio` and `Grupos` with contract-backed data sections and shared mobile header chrome. | Continue migration scope to remaining tabs while preserving contracts-first architecture and avoiding hardcoded screen-only datasets. | `apps/mobile/src/screens/HomeScreen.tsx`, `apps/mobile/src/screens/ConfiguracionScreen.tsx` |
 
 ## Validation Log
 
@@ -298,6 +301,9 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | No web regression after adding `android:smoke` script and QA checklist command update. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile script map with new `android:smoke` command compiles cleanly. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by smoke-command tooling slice. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | No web regression after starting `Inicio`/`Grupos` parity layouts. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | `HomeScreen` and `ConfiguracionScreen` parity rewrites compile cleanly. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by `Inicio`/`Grupos` mobile parity slice. |
 
 ## Risks & Mitigations
 
@@ -309,8 +315,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Run final full-manual parity QA across `Pronósticos`/`Posiciones`/`Fixture` and record sign-off notes in `docs/mobile-qa-checklist.md`.
-2. Apply the same non-emoji brand-badge treatment to remaining tabs (`Inicio`, `Grupos`) once those parity passes are active.
-3. Evaluate replacing local deterministic crests with bundled asset crests for top-flight teams if final visual QA still requires closer logo fidelity.
-4. Start parity pass for `Grupos` screen using `ui reference/Grupos.png` as baseline.
-5. Start parity pass for `Inicio` screen using `ui reference/Inicio.png` as baseline.
+1. Run screenshot-by-screenshot refinement pass on `Inicio` (hero cards sizing, stats density, fixtures row spacing) to close remaining visual deltas.
+2. Run screenshot-by-screenshot refinement pass on `Grupos` (form tab balance, group-card typography scale) to close remaining visual deltas.
+3. Run final full-manual parity QA across `Inicio`/`Grupos`/`Pronósticos`/`Posiciones`/`Fixture` and record sign-off notes in `docs/mobile-qa-checklist.md`.
+4. Evaluate replacing local deterministic crests with bundled asset crests for top-flight teams if final visual QA still requires closer logo fidelity.
+5. Add small focused smoke tests for `Inicio`/`Grupos` critical render paths once layout parity stabilizes.
