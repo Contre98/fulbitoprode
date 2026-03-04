@@ -157,6 +157,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `pnpm --filter @fulbito/mobile typecheck` | Pass | Context persistence and new tests compile with strict TypeScript settings. |
 | 2026-03-04 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by mobile updates. |
 | 2026-03-04 | iOS smoke (`pnpm --filter @fulbito/mobile exec expo start --ios --port 8082`) | Pass | Metro started, Expo opened `exp://...:8082` on `iPhone 17 Pro Max`, and iOS bundle completed successfully. |
+| 2026-03-04 | Android persistence smoke (manual) | Pass | User confirmed non-default `Fecha` selection remains persistent after full Android app restart (`Pronósticos` screen). |
 
 ## Risks & Mitigations
 
@@ -168,8 +169,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Re-run Android smoke to verify AsyncStorage-backed group/fecha persistence survives full app restart.
-2. Add persistence for data-mode diagnostics history in development (last N fallback failures).
-3. Resolve remaining Expo dependency advisories (`@react-native-async-storage/async-storage`, `react-native`, `react-native-screens`, `@types/react`) via controlled compatibility alignment and revalidate web/mobile checks.
-4. Expand mobile tests from selector smoke to context-level persistence tests (Group/Period restore behavior on boot).
-5. Add an iOS smoke shortcut script (`ios:smoke`) with explicit port to standardize manual QA runs.
+1. Add persistence for data-mode diagnostics history in development (last N fallback failures).
+2. Resolve remaining Expo dependency advisories (`@react-native-async-storage/async-storage`, `react-native`, `react-native-screens`, `@types/react`) via controlled compatibility alignment and revalidate web/mobile checks.
+3. Expand mobile tests from selector smoke to context-level persistence tests (Group/Period restore behavior on boot).
+4. Add an iOS smoke shortcut script (`ios:smoke`) with explicit port to standardize manual QA runs.
+5. Add a short QA checklist doc for cross-tab persistence verification (`Pronósticos`, `Posiciones`, `Fixture`) to keep manual regressions fast.
