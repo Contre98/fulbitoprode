@@ -2,6 +2,8 @@
 
 ## Scope
 Manual regression checklist for the mobile rewrite in `apps/mobile`, focused on persistence and cross-tab state consistency for:
+- `Inicio`
+- `Grupos`
 - `Pronósticos`
 - `Posiciones`
 - `Fixture`
@@ -43,3 +45,16 @@ Manual regression checklist for the mobile rewrite in `apps/mobile`, focused on 
 - Restart persistence: `Pass/Fail`
 - Diagnostics rendering: `Pass/Fail`
 - Notes / screenshots:
+
+## QA Run - 2026-03-04 (Manual Sign-off)
+- Device/Platform: iPhone simulator (notched device, Pro Max class), Android emulator (prior smoke).
+- Build command: `pnpm --filter @fulbito/mobile ios:smoke` and `pnpm --filter @fulbito/mobile android:smoke`.
+- Session mode: `Mock Fallback` (visual parity pass context).
+- Cross-tab persistence: Pass.
+- Restart persistence: Pass.
+- Diagnostics rendering: Pass.
+- Visual parity (`Pronósticos` / `Posiciones` / `Fixture`): Pass (baseline met with screenshot-driven refinements).
+- Visual parity (`Inicio` / `Grupos`): Pass (after second emulator-driven refinement pass and icon normalization).
+- Notes / screenshots:
+  - Reference set: `ui reference/Inicio.png`, `ui reference/Grupos.png`, `ui reference/Pronosticos-*.png`, `ui reference/Posiciones*.png`, `ui reference/Fixture.png`.
+  - Evidence: user-shared emulator screenshots in chat on 2026-03-04 (including latest 02:26 captures for `Inicio` and `Grupos`).

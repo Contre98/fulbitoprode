@@ -316,6 +316,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | No web regression after icon-glyph normalization on `Inicio`/`Grupos`. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | Updated `⌘/≣` icon glyph replacements compile cleanly. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by icon normalization slice. |
+| 2026-03-04 | Final manual parity QA (all 5 tabs) + persistence/diagnostics checklist | Pass | Sign-off recorded in `docs/mobile-qa-checklist.md` using emulator run evidence and screenshot comparisons. |
 
 ## Risks & Mitigations
 
@@ -327,8 +328,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Run final full-manual parity QA across `Inicio`/`Grupos`/`Pronósticos`/`Posiciones`/`Fixture` and record sign-off notes in `docs/mobile-qa-checklist.md`.
-2. Evaluate replacing local deterministic crests with bundled asset crests for top-flight teams if final visual QA still requires closer logo fidelity.
-3. Add small focused smoke tests for `Inicio`/`Grupos` critical render paths once layout parity stabilizes.
-4. If needed after QA, add optional second summary card fallback behavior in `Inicio` when only one membership exists to mimic reference carousel composition.
-5. Do one final notch/top-safe-area cross-device check (iPhone SE + Pro Max + Android medium) before closing Phase 3 visual parity.
+1. Add small focused smoke tests for `Inicio`/`Grupos` critical render paths now that visual parity is stabilized.
+2. Evaluate replacing local deterministic crests with bundled asset crests for top-flight teams if a future QA cycle requires closer logo fidelity.
+3. Do one final notch/top-safe-area cross-device check (iPhone SE + Pro Max + Android medium) before closing Phase 3 visual parity.
+4. Prepare Phase 3 closure commit/PR summary with grouped screenshots per tab and links to validation logs.
+5. Start planning Phase 4 hardening (targeted mobile e2e smoke and incremental HTTP adapter deepening).
