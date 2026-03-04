@@ -59,6 +59,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Apply screenshot-driven Pronósticos layout parity pass using `ui reference/Pronosticos-*.png`.
 - [x] Apply Pronósticos pixel-pass adjustments (header no-wrap scale + text scaling guard + tab order/labels alignment).
 - [x] Fix Pronósticos safe-area overlap and switch screen background to reference light-gray tone.
+- [x] Apply screenshot-driven Posiciones parity pass (table + stats modes) using `ui reference/Posiciones*.png`.
 
 ## Decisions Log
 
@@ -102,6 +103,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Add `ScreenFrame` container-style override and disable font scaling on key Pronósticos labels for pixel parity. | Prevent oversized text/wrapping under device accessibility scaling and match screenshot proportions more consistently across simulators. | `apps/mobile/src/components/ScreenFrame.tsx`, `apps/mobile/src/screens/PronosticosScreen.tsx` |
 | 2026-03-04 | Reorder/rename bottom tabs to `Inicio · Posiciones · Pronósticos · Fixture · Grupos` for visual parity with references. | Align core navigation information architecture with original web-mobile UX before final per-screen polish. | `apps/mobile/src/navigation/AppNavigation.tsx` |
 | 2026-03-04 | Apply safe-area inset-aware top header padding in Pronósticos and align page background color to reference screenshots. | Prevent notch/status-bar overlap and remove dark legacy background drift that broke visual parity checks on iPhone simulators. | `apps/mobile/src/screens/PronosticosScreen.tsx` |
+| 2026-03-04 | Rebuild Posiciones screen with screenshot-driven custom layout for `POSICIONES` and `STATS` modes. | Close high-impact visual parity gaps beyond generic shared components while keeping leaderboard contracts/state flow intact. | `apps/mobile/src/screens/PosicionesScreen.tsx` |
 
 ## Validation Log
 
@@ -248,6 +250,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | `useSafeAreaInsets` integration and dynamic header inset style compile cleanly. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | No web regression after mobile safe-area/background fix. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by safe-area/background fix. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile test` | Pass | Mobile suites green after Posiciones screenshot-driven rewrite (`5 suites, 7 tests`). |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | New Posiciones mode/layout composition compiles cleanly. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | No web regression after Posiciones parity slice. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by Posiciones parity slice. |
 
 ## Risks & Mitigations
 
@@ -259,8 +265,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Run one more Pronósticos screenshot comparison pass focused on team logos/iconography parity (replace placeholder badge glyphs).
-2. Execute screenshot-driven parity pass for `Posiciones` using `ui reference/Posiciones*.png` (including `STATS` mode).
-3. Execute screenshot-driven parity pass for `Fixture` using `ui reference/Fixture.png`.
-4. Align bottom-tab icon artwork/states with reference styling (labels/order/background now aligned).
-5. Add Android smoke shortcut command and dedicated `android:smoke` script for repeatable manual QA.
+1. Execute screenshot-driven parity pass for `Fixture` using `ui reference/Fixture.png`.
+2. Run one more Pronósticos screenshot comparison pass focused on team logos/iconography parity (replace placeholder badge glyphs).
+3. Align bottom-tab icon artwork/states with reference styling (labels/order/background now aligned).
+4. Add Android smoke shortcut command and dedicated `android:smoke` script for repeatable manual QA.
+5. Run final full-manual parity QA across Pronósticos/Posiciones/Fixture with new screenshots and close remaining deltas.
