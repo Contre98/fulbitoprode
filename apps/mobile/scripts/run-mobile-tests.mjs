@@ -26,7 +26,8 @@ if (missing.length > 0) {
   process.exit(0);
 }
 
-const result = spawnSync("pnpm", ["exec", "jest", "--config", "jest.config.cjs"], {
+const extraArgs = process.argv.slice(2);
+const result = spawnSync("pnpm", ["exec", "jest", "--config", "jest.config.cjs", "--runInBand", "--detectOpenHandles", ...extraArgs], {
   stdio: "inherit",
   cwd: process.cwd(),
   env: process.env
