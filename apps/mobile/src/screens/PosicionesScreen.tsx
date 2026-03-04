@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#DDE2E8"
   },
   screenContent: {
-    gap: 12
+    gap: 14
   },
   headerCard: {
     borderBottomLeftRadius: 24,
@@ -396,11 +396,11 @@ const styles = StyleSheet.create({
   },
   modeTabs: {
     flexDirection: "row",
-    gap: 10
+    gap: 12
   },
   modeTab: {
     flex: 1,
-    height: 46,
+    height: 48,
     borderRadius: 10,
     backgroundColor: "transparent",
     alignItems: "center",
@@ -411,14 +411,14 @@ const styles = StyleSheet.create({
   },
   modeTabLabel: {
     color: "#8A94A4",
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "900"
   },
   modeTabLabelActive: {
     color: "#111827"
   },
   fechaBlock: {
-    minHeight: 40,
+    minHeight: 44,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#D7DCE3",
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
     flex: 1,
     textAlign: "center",
     color: "#A3C90A",
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "900",
     letterSpacing: 0.8
   },
@@ -457,13 +457,13 @@ const styles = StyleSheet.create({
   },
   tableHeaderRow: {
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
     flexDirection: "row",
     alignItems: "center"
   },
   tableTitle: {
     flex: 1,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "800",
     color: "#111827"
   },
@@ -479,8 +479,8 @@ const styles = StyleSheet.create({
     fontWeight: "700"
   },
   row: {
-    minHeight: 34,
-    paddingHorizontal: 8,
+    minHeight: 38,
+    paddingHorizontal: 10,
     flexDirection: "row",
     alignItems: "center",
     borderTopWidth: 1,
@@ -504,20 +504,20 @@ const styles = StyleSheet.create({
     flex: 1,
     color: "#1F2937",
     fontWeight: "800",
-    fontSize: 10
+    fontSize: 11
   },
   rowMetric: {
     width: 32,
     textAlign: "center",
     color: "#667085",
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "700"
   },
   rowMetricSmall: {
-    width: 42,
+    width: 44,
     textAlign: "center",
     color: "#667085",
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "700"
   },
   rowPoints: {

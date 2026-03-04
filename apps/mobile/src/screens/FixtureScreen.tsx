@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#DDE2E8"
   },
   screenContent: {
-    gap: 12
+    gap: 14
   },
   headerCard: {
     borderBottomLeftRadius: 24,
@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#D7DCE3",
     backgroundColor: "#F8FAFC",
-    padding: 2,
+    padding: 3,
     gap: 2
   },
   filterTab: {
@@ -465,14 +465,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 30
+    minHeight: 34
   },
   filterTabActive: {
     backgroundColor: "#B7D70A"
   },
   filterTabLabel: {
     color: "#7A8698",
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "800"
   },
   filterTabLabelActive: {
@@ -488,9 +488,9 @@ const styles = StyleSheet.create({
   dateLabel: {
     color: "#111827",
     fontWeight: "900",
-    fontSize: 12,
+    fontSize: 13,
     paddingHorizontal: 12,
-    paddingVertical: 10
+    paddingVertical: 11
   },
   row: {
     flexDirection: "row",
@@ -498,7 +498,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 8,
     paddingHorizontal: 10,
-    minHeight: 54
+    minHeight: 58
   },
   rowWithBorder: {
     borderTopWidth: 1,
@@ -516,23 +516,23 @@ const styles = StyleSheet.create({
   teamName: {
     color: "#1F2937",
     fontWeight: "800",
-    fontSize: 10,
+    fontSize: 11,
     flex: 1
   },
   teamNameRight: {
     color: "#1F2937",
     fontWeight: "800",
-    fontSize: 10,
+    fontSize: 11,
     textAlign: "right",
     flex: 1
   },
   middleCol: {
-    minWidth: 56,
+    minWidth: 62,
     alignItems: "center"
   },
   statusLabel: {
     color: "#8A94A4",
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: "800"
   },
   scoreText: {
