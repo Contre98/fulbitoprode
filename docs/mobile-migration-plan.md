@@ -78,6 +78,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-03 | Guard mobile Expo scripts to Node 20-22 and fail fast on unsupported runtimes. | Avoid recurring `ERR_SOCKET_BAD_PORT` failures under Node 24 and make iOS smoke prerequisites explicit at command start. | `apps/mobile/package.json`, `apps/mobile/scripts/check-node-version.mjs` |
 | 2026-03-04 | Persist mobile group/fecha selections with AsyncStorage in context state. | Keep user filter choices across app restarts without bypassing repository contracts or hardcoding screen state. | `apps/mobile/src/state/GroupContext.tsx`, `apps/mobile/src/state/PeriodContext.tsx`, `apps/mobile/package.json` |
 | 2026-03-04 | Activate mobile Jest harness with alias mapping and first selector/data-mode smoke tests. | Move from scaffolded harness to runnable tests that validate core shared tab state interactions. | `apps/mobile/jest.config.cjs`, `apps/mobile/jest.setup.js`, `apps/mobile/src/test/*.test.tsx`, `apps/mobile/package.json` |
+| 2026-03-04 | Persist dev fallback diagnostics history (last N entries) and surface recent scopes in mock-mode badge. | Preserve transient fallback root-cause visibility across app restarts and speed up QA/debugging without backend dependency. | `apps/mobile/src/repositories/fallbackDiagnostics.ts`, `apps/mobile/src/state/AuthContext.tsx`, `apps/mobile/src/components/DataModeBadge.tsx`, `apps/mobile/src/test/DataModeBadge.test.tsx` |
 
 ## Validation Log
 
@@ -158,6 +159,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by mobile updates. |
 | 2026-03-04 | iOS smoke (`pnpm --filter @fulbito/mobile exec expo start --ios --port 8082`) | Pass | Metro started, Expo opened `exp://...:8082` on `iPhone 17 Pro Max`, and iOS bundle completed successfully. |
 | 2026-03-04 | Android persistence smoke (manual) | Pass | User confirmed non-default `Fecha` selection remains persistent after full Android app restart (`Pronósticos` screen). |
+| 2026-03-04 | `pnpm --filter @fulbito/mobile test` | Pass | After diagnostics history persistence wiring, mobile smoke suites still pass (`3 suites, 4 tests`). |
+| 2026-03-04 | `pnpm run typecheck:web` | Pass | Verified no web regression after diagnostics history slice. |
+| 2026-03-04 | `pnpm --filter @fulbito/mobile typecheck` | Pass | `fallbackHistory` auth-context contract and badge rendering compile cleanly. |
+| 2026-03-04 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by diagnostics history updates. |
 
 ## Risks & Mitigations
 
@@ -169,8 +174,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Add persistence for data-mode diagnostics history in development (last N fallback failures).
-2. Resolve remaining Expo dependency advisories (`@react-native-async-storage/async-storage`, `react-native`, `react-native-screens`, `@types/react`) via controlled compatibility alignment and revalidate web/mobile checks.
-3. Expand mobile tests from selector smoke to context-level persistence tests (Group/Period restore behavior on boot).
-4. Add an iOS smoke shortcut script (`ios:smoke`) with explicit port to standardize manual QA runs.
-5. Add a short QA checklist doc for cross-tab persistence verification (`Pronósticos`, `Posiciones`, `Fixture`) to keep manual regressions fast.
+1. Resolve remaining Expo dependency advisories (`@react-native-async-storage/async-storage`, `react-native`, `react-native-screens`, `@types/react`) via controlled compatibility alignment and revalidate web/mobile checks.
+2. Expand mobile tests from selector smoke to context-level persistence tests (Group/Period restore behavior on boot).
+3. Add an iOS smoke shortcut script (`ios:smoke`) with explicit port to standardize manual QA runs.
+4. Add a short QA checklist doc for cross-tab persistence verification (`Pronósticos`, `Posiciones`, `Fixture`) to keep manual regressions fast.
+5. Add an in-app dev action to clear persisted fallback diagnostics history for cleaner QA cycles.

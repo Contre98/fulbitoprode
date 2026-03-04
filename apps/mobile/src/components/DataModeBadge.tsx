@@ -3,8 +3,9 @@ import { colors, spacing } from "@fulbito/design-tokens";
 import { useAuth } from "@/state/AuthContext";
 
 export function DataModeBadge() {
-  const { dataMode, fallbackIssue, retryHttpMode } = useAuth();
+  const { dataMode, fallbackIssue, fallbackHistory, retryHttpMode } = useAuth();
   const httpMode = dataMode === "http";
+  const recentFailures = __DEV__ ? fallbackHistory.slice(0, 3) : [];
 
   return (
     <View style={styles.container}>
@@ -14,6 +15,15 @@ export function DataModeBadge() {
         </Text>
       </View>
       {!httpMode && fallbackIssue && __DEV__ ? <Text style={styles.reason}>{fallbackIssue}</Text> : null}
+      {!httpMode && recentFailures.length > 0 && __DEV__ ? (
+        <View style={styles.historyList}>
+          {recentFailures.map((entry, index) => (
+            <Text key={`${entry.happenedAt}-${entry.scope}-${index}`} style={styles.historyItem}>
+              {new Date(entry.happenedAt).toLocaleTimeString()}: {entry.scope}
+            </Text>
+          ))}
+        </View>
+      ) : null}
       {!httpMode ? (
         <Pressable onPress={() => void retryHttpMode()} style={({ pressed }) => [styles.retryButton, pressed ? styles.retryButtonPressed : null]}>
           <Text style={styles.retryLabel}>Reintentar HTTP</Text>
@@ -55,6 +65,13 @@ const styles = StyleSheet.create({
   reason: {
     color: colors.textSecondary,
     fontSize: 11
+  },
+  historyList: {
+    gap: 2
+  },
+  historyItem: {
+    color: colors.textSecondary,
+    fontSize: 10
   },
   retryButton: {
     alignSelf: "flex-start",

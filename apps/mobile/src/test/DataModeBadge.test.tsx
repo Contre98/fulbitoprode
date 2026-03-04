@@ -20,6 +20,7 @@ describe("DataModeBadge", () => {
       isAuthenticated: false,
       dataMode: "http",
       fallbackIssue: null,
+      fallbackHistory: [],
       refresh: jest.fn(),
       login: jest.fn(),
       register: jest.fn(),
@@ -40,6 +41,13 @@ describe("DataModeBadge", () => {
       isAuthenticated: false,
       dataMode: "mock",
       fallbackIssue: "leaderboard: HTTP 500",
+      fallbackHistory: [
+        {
+          scope: "auth.getSession",
+          message: "HTTP 500",
+          happenedAt: "2026-03-04T00:00:00.000Z"
+        }
+      ],
       refresh: jest.fn(),
       login: jest.fn(),
       register: jest.fn(),
@@ -51,6 +59,7 @@ describe("DataModeBadge", () => {
     fireEvent.press(screen.getByText("Reintentar HTTP"));
 
     expect(screen.getByText("Mock Fallback")).toBeTruthy();
+    expect(screen.getByText(/auth\.getSession/)).toBeTruthy();
     expect(retryHttpMode).toHaveBeenCalledTimes(1);
   });
 });

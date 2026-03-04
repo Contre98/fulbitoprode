@@ -2,7 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from "react";
 import type { AuthSession } from "@fulbito/api-contracts";
 import { canUseHttpSession } from "@/repositories/authBridgeState";
-import { getFallbackFailure, subscribeFallbackFailure } from "@/repositories/fallbackDiagnostics";
+import type { FallbackFailure } from "@/repositories/fallbackDiagnostics";
+import { getFallbackFailure, getFallbackHistory, subscribeFallbackFailure, subscribeFallbackHistory } from "@/repositories/fallbackDiagnostics";
 import { authRepository } from "@/repositories";
 
 interface AuthContextValue {
@@ -11,6 +12,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   dataMode: "http" | "mock";
   fallbackIssue: string | null;
+  fallbackHistory: FallbackFailure[];
   refresh: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   register: (input: { email: string; password: string; name: string }) => Promise<void>;
@@ -25,9 +27,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [dataMode, setDataMode] = useState<"http" | "mock">("mock");
   const [fallbackIssue, setFallbackIssue] = useState<string | null>(null);
+  const [fallbackHistory, setFallbackHistory] = useState<FallbackFailure[]>([]);
 
   useEffect(() => {
     setFallbackIssue(getFallbackFailure()?.scope ?? null);
+    setFallbackHistory(getFallbackHistory());
     const unsubscribe = subscribeFallbackFailure((failure) => {
       if (!failure) {
         setFallbackIssue(null);
@@ -35,7 +39,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       setFallbackIssue(`${failure.scope}: ${failure.message}`);
     });
-    return unsubscribe;
+    const unsubscribeHistory = subscribeFallbackHistory((entries) => {
+      setFallbackHistory(entries);
+    });
+    return () => {
+      unsubscribe();
+      unsubscribeHistory();
+    };
   }, []);
 
   const refresh = useCallback(async () => {
@@ -82,13 +92,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: Boolean(session),
       dataMode,
       fallbackIssue,
+      fallbackHistory,
       refresh,
       login,
       register,
       logout,
       retryHttpMode
     }),
-    [loading, session, dataMode, fallbackIssue, refresh, login, register, logout, retryHttpMode]
+    [loading, session, dataMode, fallbackIssue, fallbackHistory, refresh, login, register, logout, retryHttpMode]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
