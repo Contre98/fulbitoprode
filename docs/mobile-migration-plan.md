@@ -81,6 +81,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Persist dev fallback diagnostics history (last N entries) and surface recent scopes in mock-mode badge. | Preserve transient fallback root-cause visibility across app restarts and speed up QA/debugging without backend dependency. | `apps/mobile/src/repositories/fallbackDiagnostics.ts`, `apps/mobile/src/state/AuthContext.tsx`, `apps/mobile/src/components/DataModeBadge.tsx`, `apps/mobile/src/test/DataModeBadge.test.tsx` |
 | 2026-03-04 | Align mobile runtime package versions to Expo SDK 52 compatibility targets (`react-native`, `react-native-screens`, `@react-native-async-storage/async-storage`). | Reduce startup advisory noise and keep native runtime dependencies on the SDK-supported matrix with minimum architecture change risk. | `apps/mobile/package.json`, `pnpm-lock.yaml` |
 | 2026-03-04 | Add context-level persistence tests for `GroupProvider` and `PeriodProvider`. | Validate boot-time restore and storage writes directly at state-provider level beyond UI selector smoke tests. | `apps/mobile/src/test/GroupContext.persistence.test.tsx`, `apps/mobile/src/test/PeriodContext.persistence.test.tsx` |
+| 2026-03-04 | Add dedicated `ios:smoke` script with explicit Metro port (`8082`). | Standardize repeatable iOS manual QA invocation and avoid interactive port selection prompts when validating simulator launch. | `apps/mobile/package.json` |
 
 ## Validation Log
 
@@ -175,6 +176,9 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `pnpm run typecheck:web` | Pass | No web regressions after adding mobile context persistence tests. |
 | 2026-03-04 | `pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile test files and provider contracts compile cleanly. |
 | 2026-03-04 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by mobile test additions. |
+| 2026-03-04 | `pnpm run typecheck:web` | Pass | Verified after adding `ios:smoke` mobile script. |
+| 2026-03-04 | `pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile script additions did not affect TS checks. |
+| 2026-03-04 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by script updates. |
 
 ## Risks & Mitigations
 
@@ -186,8 +190,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Add an iOS smoke shortcut script (`ios:smoke`) with explicit port to standardize manual QA runs.
-2. Add a short QA checklist doc for cross-tab persistence verification (`Pronósticos`, `Posiciones`, `Fixture`) to keep manual regressions fast.
-3. Add an in-app dev action to clear persisted fallback diagnostics history for cleaner QA cycles.
-4. Decide whether to pin `@types/react` to Expo’s suggested range for mobile-only tooling or keep workspace-wide React 19 typings to avoid cross-app type drift.
-5. Add Android smoke shortcut command with explicit launcher steps (including emulator boot check) for repeatable manual QA.
+1. Add a short QA checklist doc for cross-tab persistence verification (`Pronósticos`, `Posiciones`, `Fixture`) to keep manual regressions fast.
+2. Add an in-app dev action to clear persisted fallback diagnostics history for cleaner QA cycles.
+3. Decide whether to pin `@types/react` to Expo’s suggested range for mobile-only tooling or keep workspace-wide React 19 typings to avoid cross-app type drift.
+4. Add Android smoke shortcut command with explicit launcher steps (including emulator boot check) for repeatable manual QA.
+5. Add a dedicated `android:smoke` script mirroring `ios:smoke` to standardize manual QA flow across both platforms.
