@@ -77,6 +77,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Cover `Grupos` create/join error paths in screen-level tests and handle mutation rejection safely.
 - [x] Add CI guard steps for mobile Node-version compatibility and targeted mobile test command parity.
 - [x] Prepare Phase 3 closure summary draft grouped by tab with validation-log linkage.
+- [x] Add contributor runtime notes for Node 20-22 and targeted mobile test command usage.
 
 ## Decisions Log
 
@@ -367,6 +368,9 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after adding Phase 3 closure summary draft documentation. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile TS checks unaffected by closure summary documentation slice. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by closure-summary docs slice. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after adding root contributor runtime notes for mobile command prerequisites. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile TypeScript checks unaffected by root README runtime-note updates. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by README runtime-note slice. |
 
 ## Risks & Mitigations
 
@@ -382,4 +386,4 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 2. Fill `docs/mobile-phase3-closure-summary.md` with final simulator/emulator screenshots per tab and attach it to Phase 3 closure PR.
 3. Start planning Phase 4 hardening (targeted mobile e2e smoke and incremental HTTP adapter deepening).
 4. Add one focused manual QA pass for `Grupos` create/join + `Inicio` filter tests on both mock and HTTP session mode.
-5. Add CI caching/runtime notes to contributor docs for consistent Node 20-22 + pnpm mobile test execution.
+5. Add a compact `Phase 4 kickoff` section to this plan (scope, risks, first 3 implementation slices).

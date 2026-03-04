@@ -23,3 +23,14 @@ pnpm run typecheck:web
 pnpm run test:run
 pnpm run build:web
 ```
+
+## Mobile Runtime Notes
+
+- Use Node `20.x` or `22.x` for `apps/mobile` commands.
+- If Homebrew has multiple Node versions installed, prepend the expected runtime:
+  - `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"`
+- Mobile smoke commands:
+  - `pnpm --filter @fulbito/mobile ios:smoke`
+  - `pnpm --filter @fulbito/mobile android:smoke`
+- Targeted mobile test command:
+  - `pnpm --filter @fulbito/mobile test -- ConfiguracionScreen.actions.test.tsx`
