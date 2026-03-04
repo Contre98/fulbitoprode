@@ -76,6 +76,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-03 | Add one-tap mock-mode action to re-attempt HTTP session mode from UI. | Reduce QA friction by allowing runtime backend reconnect checks without restarting the app or re-authenticating manually. | `apps/mobile/src/state/AuthContext.tsx`, `apps/mobile/src/components/DataModeBadge.tsx` |
 | 2026-03-03 | Scaffold mobile test harness files with dependency-aware runner (no package installs). | Unblock test structure/procedure setup while network/dependency installation is unavailable. | `apps/mobile/jest.config.cjs`, `apps/mobile/jest.setup.js`, `apps/mobile/scripts/run-mobile-tests.mjs`, `apps/mobile/src/test/README.md`, `apps/mobile/package.json` |
 | 2026-03-03 | Guard mobile Expo scripts to Node 20-22 and fail fast on unsupported runtimes. | Avoid recurring `ERR_SOCKET_BAD_PORT` failures under Node 24 and make iOS smoke prerequisites explicit at command start. | `apps/mobile/package.json`, `apps/mobile/scripts/check-node-version.mjs` |
+| 2026-03-04 | Persist mobile group/fecha selections with AsyncStorage in context state. | Keep user filter choices across app restarts without bypassing repository contracts or hardcoding screen state. | `apps/mobile/src/state/GroupContext.tsx`, `apps/mobile/src/state/PeriodContext.tsx`, `apps/mobile/package.json` |
+| 2026-03-04 | Activate mobile Jest harness with alias mapping and first selector/data-mode smoke tests. | Move from scaffolded harness to runnable tests that validate core shared tab state interactions. | `apps/mobile/jest.config.cjs`, `apps/mobile/jest.setup.js`, `apps/mobile/src/test/*.test.tsx`, `apps/mobile/package.json` |
 
 ## Validation Log
 
@@ -146,6 +148,14 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-03 | `pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile typecheck remains clean after adding Node guard script. |
 | 2026-03-03 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by mobile Node guard tooling changes. |
 | 2026-03-03 | `pnpm --filter @fulbito/mobile dev -- --ios` | Fail (expected) | New guard stops early with explicit guidance: Node `24.9.0` unsupported for current Expo SDK in this workspace; use Node `20/22` before iOS smoke. |
+| 2026-03-04 | iOS smoke (`pnpm --filter @fulbito/mobile exec expo start --ios --port 8081`) | Fail | Metro now starts on Node `22.22.0`; current blocker is local Simulator state (`No iOS devices available in Simulator.app`). |
+| 2026-03-04 | `pnpm --store-dir /Users/contre/Library/pnpm/store/v10 --filter @fulbito/mobile add @react-native-async-storage/async-storage@^2.2.0` | Pass | AsyncStorage installed successfully after registry/DNS recovery. |
+| 2026-03-04 | `pnpm --store-dir /Users/contre/Library/pnpm/store/v10 --filter @fulbito/mobile add -D jest jest-expo @testing-library/react-native @testing-library/jest-native react-test-renderer` | Pass with peer warnings | Test stack installed; then aligned to Expo 52-compatible `jest@29.7`, `jest-expo@52.0.6`, `react-test-renderer@18.3.1`, and `@types/react@^19.0.2`. |
+| 2026-03-04 | `pnpm --store-dir /Users/contre/Library/pnpm/store/v10 --filter @fulbito/mobile add -D @types/jest@^29.5.14` | Pass | Added TypeScript typings for Jest globals used by new mobile smoke tests. |
+| 2026-03-04 | `pnpm --filter @fulbito/mobile test` | Pass | Mobile smoke tests for `GroupSelector`, `FechaSelector`, and `DataModeBadge` are active and passing (`3 suites, 4 tests`). |
+| 2026-03-04 | `pnpm run typecheck:web` | Pass | Verified after mobile persistence + test harness activation changes. |
+| 2026-03-04 | `pnpm --filter @fulbito/mobile typecheck` | Pass | Context persistence and new tests compile with strict TypeScript settings. |
+| 2026-03-04 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by mobile updates. |
 
 ## Risks & Mitigations
 
@@ -157,8 +167,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Switch this machine to Node 22 LTS (or 20 LTS), rerun iOS simulator smoke, and log a successful pass in the Validation Log.
-2. Restore npm registry connectivity, then add a mobile storage dependency (e.g. AsyncStorage or expo-file-system) for persistent group/fecha selections across restarts.
-3. Install mobile test dependencies and activate scaffolded harness (`jest-expo`, `@testing-library/react-native`, `@testing-library/jest-native`).
-4. Add first mobile smoke tests for `GroupSelector`, `FechaSelector`, and `DataModeBadge`.
-5. Add persistence for data-mode diagnostics history in development (last N fallback failures).
+1. Create/start an iOS simulator device in Simulator.app, rerun iOS smoke, and log a successful pass in the Validation Log.
+2. Re-run Android smoke to verify AsyncStorage-backed group/fecha persistence survives full app restart.
+3. Add persistence for data-mode diagnostics history in development (last N fallback failures).
+4. Resolve remaining Expo dependency advisories (`react-native`, `react-native-screens`) via controlled compatibility upgrade and revalidate web/mobile checks.
+5. Expand mobile tests from selector smoke to context-level persistence tests (Group/Period restore behavior on boot).

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Membership } from "@fulbito/domain";
 import { useAuth } from "@/state/AuthContext";
 
@@ -10,13 +11,42 @@ interface GroupContextValue {
 }
 
 const GroupContext = createContext<GroupContextValue | null>(null);
+const GROUP_STORAGE_KEY = "fulbito.mobile.selectedGroupId";
 
 export function GroupProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
   const memberships = session?.memberships ?? [];
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(memberships[0]?.groupId ?? null);
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const stored = await AsyncStorage.getItem(GROUP_STORAGE_KEY);
+        if (!cancelled) {
+          setSelectedGroupId(stored);
+        }
+      } catch {
+        if (!cancelled) {
+          setSelectedGroupId(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setHydrated(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) {
+      return;
+    }
+
     if (memberships.length === 0) {
       if (selectedGroupId !== null) {
         setSelectedGroupId(null);
@@ -28,7 +58,18 @@ export function GroupProvider({ children }: { children: ReactNode }) {
     if (!stillValid) {
       setSelectedGroupId(memberships[0].groupId);
     }
-  }, [memberships, selectedGroupId]);
+  }, [hydrated, memberships, selectedGroupId]);
+
+  useEffect(() => {
+    if (!hydrated) {
+      return;
+    }
+    if (!selectedGroupId) {
+      void AsyncStorage.removeItem(GROUP_STORAGE_KEY);
+      return;
+    }
+    void AsyncStorage.setItem(GROUP_STORAGE_KEY, selectedGroupId);
+  }, [hydrated, selectedGroupId]);
 
   const value = useMemo(
     () => ({

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useGroupSelection } from "@/state/GroupContext";
 
 interface PeriodContextValue {
@@ -14,6 +15,7 @@ const DEFAULT_OPTIONS = [
   { id: "2026-02", label: "Fecha 2" },
   { id: "2026-03", label: "Fecha 3" }
 ];
+const FECHA_STORAGE_KEY = "fulbito.mobile.selectedFecha";
 
 const PeriodContext = createContext<PeriodContextValue | null>(null);
 
@@ -28,6 +30,27 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
   const activeMembership = memberships.find((membership) => membership.groupId === selectedGroupId) ?? memberships[0];
   const [fecha, setFecha] = useState(DEFAULT_FECHA);
   const [options, setOptions] = useState<Array<{ id: string; label: string }>>(DEFAULT_OPTIONS);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const stored = await AsyncStorage.getItem(FECHA_STORAGE_KEY);
+        if (!cancelled && stored) {
+          setFecha(stored);
+        }
+      } finally {
+        if (!cancelled) {
+          setHydrated(true);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const baseUrl = getApiBaseUrl();
@@ -88,6 +111,13 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
       setFecha(options[0].id);
     }
   }, [fecha, options]);
+
+  useEffect(() => {
+    if (!hydrated || !fecha) {
+      return;
+    }
+    void AsyncStorage.setItem(FECHA_STORAGE_KEY, fecha);
+  }, [fecha, hydrated]);
 
   const value = useMemo(
     () => ({
