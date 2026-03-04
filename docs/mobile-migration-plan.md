@@ -99,7 +99,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 ### Phase 4
 - [x] Add first app-level mobile smoke flow test covering `Inicio` -> `Pronósticos` save -> `Grupos` create/join through tab navigation.
 - [x] Expand repository-level contract tests for HTTP + mock adapters on groups/predictions.
-- [ ] Add failure-injection coverage for fallback diagnostics and retry mode transitions.
+- [x] Add failure-injection coverage for fallback diagnostics and retry mode transitions.
 
 ## Decisions Log
 
@@ -165,6 +165,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Add app-level mobile smoke-flow test that traverses tab navigation and asserts core user actions (`Inicio` -> `Pronósticos` save -> `Grupos` create/join). | Kick off Phase 4 with a pragmatic e2e-style regression guard using existing Jest/RTL harness before introducing heavier device-e2e tooling. | `apps/mobile/src/test/MobileE2ESmoke.flow.test.tsx` |
 | 2026-03-04 | Add test-only HTTP base URL fallback hook in mobile HTTP adapters via `globalThis.__FULBITO_TEST_API_BASE_URL__`. | Expo env inlining makes `EXPO_PUBLIC_API_BASE_URL` brittle in Jest adapter tests; this preserves runtime behavior while enabling deterministic HTTP adapter contract coverage. | `apps/mobile/src/repositories/httpDataRepositories.ts`, `apps/mobile/src/test/RepositoryAdapters.contract.test.ts` |
 | 2026-03-04 | Default mobile test runner env to a local API base URL when missing. | Keep HTTP adapter contract tests runnable under local/CI harness without requiring external env wiring for each invocation. | `apps/mobile/scripts/run-mobile-tests.mjs` |
+| 2026-03-04 | Add repository-level failure-injection tests for fallback diagnostics and session-mode transitions. | Verify high-risk fallback behavior (`HTTP Session` to `Mock Fallback` and recovery) with deterministic unit coverage before deeper e2e rollout. | `apps/mobile/src/test/RepositoryFallbackTransitions.test.ts` |
 
 ## Validation Log
 
@@ -417,6 +418,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after Phase 4 slice #2 adapter contract tests and test-harness env fallback updates. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Fail then pass | Initial fail in new adapter test from `fecha` type mismatch (`number` vs `string`); fixed to contract-aligned string and reran successfully. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by Phase 4 slice #2 tests/tooling adjustments. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile test -- RepositoryFallbackTransitions.test.ts` | Pass | New failure-injection suite validates diagnostics reporting and session-mode transitions (`auth.getSession`, `predictions.listPredictions`, `auth.logout`). |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after adding fallback-transition coverage tests. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | New `RepositoryFallbackTransitions.test.ts` compiles cleanly under strict TypeScript. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by Phase 4 slice #3 test addition. |
 
 ## Risks & Mitigations
 
@@ -428,8 +433,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Add failure-injection coverage for fallback diagnostics and `HTTP Session` <-> `Mock Fallback` transitions (Phase 4 slice #3).
-2. Extend the smoke-flow suite with explicit auth-step coverage using `AuthScreen` login path.
-3. Add one CI guard invocation for the new `MobileE2ESmoke.flow.test.tsx` and `RepositoryAdapters.contract.test.ts` paths.
-4. Expand adapter contract parity coverage to fixture/leaderboard normalization edge cases.
+1. Extend the smoke-flow suite with explicit auth-step coverage using `AuthScreen` login path.
+2. Add CI guard invocations for the new `MobileE2ESmoke.flow.test.tsx`, `RepositoryAdapters.contract.test.ts`, and `RepositoryFallbackTransitions.test.ts` paths.
+3. Expand adapter contract parity coverage to fixture/leaderboard normalization edge cases.
+4. Add focused tests for fallback diagnostics history persistence/clear semantics under repeated failures.
 5. Prepare a dedicated Phase 4 tracking section in PR template/checklist if needed.
