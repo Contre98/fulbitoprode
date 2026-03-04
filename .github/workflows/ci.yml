@@ -44,5 +44,14 @@ jobs:
       - name: Mobile Targeted Test Guard
         run: pnpm --filter @fulbito/mobile test -- ConfiguracionScreen.actions.test.tsx
 
+      - name: Mobile Phase 4 Smoke Guard
+        run: pnpm --filter @fulbito/mobile test -- MobileE2ESmoke.flow.test.tsx
+
+      - name: Mobile Adapter Contract Guard
+        run: pnpm --filter @fulbito/mobile test -- RepositoryAdapters.contract.test.ts
+
+      - name: Mobile Fallback Transition Guard
+        run: pnpm --filter @fulbito/mobile test -- RepositoryFallbackTransitions.test.ts
+
       - name: Build
         run: pnpm run build:web
