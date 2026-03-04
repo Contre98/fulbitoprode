@@ -113,6 +113,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Add negative-path app-flow assertion for `Grupos` join validation message before successful join submission.
 - [x] Add malformed-payload rejection assertions for fixture/leaderboard HTTP adapter contract tests.
 - [x] Add focused fallback-history clear assertion across subscribe/unsubscribe cycles in diagnostics utility tests.
+- [x] Add CI guard invocation for `AuthContext.fallbackHistory.integration.test.tsx`.
 
 ## Decisions Log
 
@@ -188,6 +189,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Split adapter parity tests by domain (`groups/predictions` vs `fixture/leaderboard`) and guard both in CI. | Keep suite growth maintainable and isolate failures to narrower adapter scopes while preserving existing parity coverage depth. | `apps/mobile/src/test/RepositoryAdapters.contract.test.ts`, `apps/mobile/src/test/RepositoryAdapters.groupsPredictions.contract.test.ts`, `.github/workflows/ci.yml` |
 | 2026-03-04 | Add AuthContext-level fallback-history integration coverage using `DataModeBadge` probe rendering. | Validate persisted diagnostics hydration and clear-action wiring at context-to-UI boundary without relying solely on isolated utility/component tests. | `apps/mobile/src/test/AuthContext.fallbackHistory.integration.test.tsx` |
 | 2026-03-04 | Extend mobile smoke flow to assert `Posiciones` mode toggle behavior (`STATS` and back to `POSICIONES`). | Increase tab-level regression coverage depth in the app-level flow without introducing additional e2e tooling complexity. | `apps/mobile/src/test/MobileE2ESmoke.flow.test.tsx` |
+| 2026-03-04 | Add CI guard step for `AuthContext.fallbackHistory.integration.test.tsx` in the main workflow. | Keep AuthContext fallback-history integration coverage enforced on every PR/push instead of relying on local targeted runs only. | `.github/workflows/ci.yml` |
 
 ## Validation Log
 
@@ -498,6 +500,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after fallback-history subscribe/unsubscribe coverage expansion. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Updated `FallbackDiagnostics.history.test.ts` compiles cleanly under strict mobile TypeScript checks. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by fallback-history subscribe-cycle test slice. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile test -- AuthContext.fallbackHistory.integration.test.tsx` | Pass | Confirms CI-targeted AuthContext fallback-history integration suite remains stable (`1 test`). |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after adding AuthContext fallback-history CI guard step. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile typecheck clean with workflow guard-step update in place. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by CI-guard tooling slice. |
 
 ## Risks & Mitigations
 
@@ -510,7 +516,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 
 ## Next Actions (Top 5)
 1. Decide whether `MobileE2ESmoke.flow.test.tsx` should be split into smaller flow files as assertions continue to grow.
-2. Add CI guard for the AuthContext fallback-history integration test once stability is confirmed across repeated runs.
-3. Add smoke-flow assertion that verifies `Grupos` join mutation rejection message in app-level flow (network/error-path parity with focused screen tests).
-4. Review whether malformed payload cases should be explicitly routed to mock fallback at repository-composition layer and add tests if adopted.
-5. Capture refreshed Android + iOS screenshots for all tabs after latest Phase 4 test-slice updates and attach to closure summary.
+2. Add smoke-flow assertion that verifies `Grupos` join mutation rejection message in app-level flow (network/error-path parity with focused screen tests).
+3. Review whether malformed payload cases should be explicitly routed to mock fallback at repository-composition layer and add tests if adopted.
+4. Capture refreshed Android + iOS screenshots for all tabs after latest Phase 4 test-slice updates and attach to closure summary.
+5. Add a brief Phase 4 mid-point summary in `docs/mobile-phase3-closure-summary.md` to map current automated guards to each tab.

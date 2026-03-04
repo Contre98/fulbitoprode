@@ -59,5 +59,8 @@ jobs:
       - name: Mobile Fallback History Guard
         run: pnpm --filter @fulbito/mobile test -- FallbackDiagnostics.history.test.ts
 
+      - name: Mobile AuthContext Fallback History Guard
+        run: pnpm --filter @fulbito/mobile test -- AuthContext.fallbackHistory.integration.test.tsx
+
       - name: Build
         run: pnpm run build:web
