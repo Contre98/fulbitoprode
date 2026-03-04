@@ -82,6 +82,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Align mobile runtime package versions to Expo SDK 52 compatibility targets (`react-native`, `react-native-screens`, `@react-native-async-storage/async-storage`). | Reduce startup advisory noise and keep native runtime dependencies on the SDK-supported matrix with minimum architecture change risk. | `apps/mobile/package.json`, `pnpm-lock.yaml` |
 | 2026-03-04 | Add context-level persistence tests for `GroupProvider` and `PeriodProvider`. | Validate boot-time restore and storage writes directly at state-provider level beyond UI selector smoke tests. | `apps/mobile/src/test/GroupContext.persistence.test.tsx`, `apps/mobile/src/test/PeriodContext.persistence.test.tsx` |
 | 2026-03-04 | Add dedicated `ios:smoke` script with explicit Metro port (`8082`). | Standardize repeatable iOS manual QA invocation and avoid interactive port selection prompts when validating simulator launch. | `apps/mobile/package.json` |
+| 2026-03-04 | Add dedicated mobile QA checklist document for cross-tab and restart persistence verification. | Make manual regression checks repeatable across iOS/Android while rollout continues with mock/HTTP dual-mode behavior. | `docs/mobile-qa-checklist.md` |
 
 ## Validation Log
 
@@ -179,6 +180,9 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `pnpm run typecheck:web` | Pass | Verified after adding `ios:smoke` mobile script. |
 | 2026-03-04 | `pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile script additions did not affect TS checks. |
 | 2026-03-04 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by script updates. |
+| 2026-03-04 | `pnpm run typecheck:web` | Pass | Verified after adding manual mobile QA checklist documentation. |
+| 2026-03-04 | `pnpm --filter @fulbito/mobile typecheck` | Pass | No mobile type regressions from checklist/documentation slice. |
+| 2026-03-04 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by docs updates. |
 
 ## Risks & Mitigations
 
@@ -190,8 +194,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Add a short QA checklist doc for cross-tab persistence verification (`Pronósticos`, `Posiciones`, `Fixture`) to keep manual regressions fast.
-2. Add an in-app dev action to clear persisted fallback diagnostics history for cleaner QA cycles.
-3. Decide whether to pin `@types/react` to Expo’s suggested range for mobile-only tooling or keep workspace-wide React 19 typings to avoid cross-app type drift.
-4. Add Android smoke shortcut command with explicit launcher steps (including emulator boot check) for repeatable manual QA.
-5. Add a dedicated `android:smoke` script mirroring `ios:smoke` to standardize manual QA flow across both platforms.
+1. Add an in-app dev action to clear persisted fallback diagnostics history for cleaner QA cycles.
+2. Decide whether to pin `@types/react` to Expo’s suggested range for mobile-only tooling or keep workspace-wide React 19 typings to avoid cross-app type drift.
+3. Add Android smoke shortcut command with explicit launcher steps (including emulator boot check) for repeatable manual QA.
+4. Add a dedicated `android:smoke` script mirroring `ios:smoke` to standardize manual QA flow across both platforms.
+5. Add one end-to-end smoke script doc section combining `ios:smoke`, Android launch, and the new checklist result template.
