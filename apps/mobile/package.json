@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node ./scripts/check-node-version.mjs && expo start",
     "android": "node ./scripts/check-node-version.mjs && expo run:android",
+    "android:smoke": "node ./scripts/check-node-version.mjs && expo start --android --port 8083",
     "ios": "node ./scripts/check-node-version.mjs && expo run:ios",
     "ios:smoke": "node ./scripts/check-node-version.mjs && expo start --ios --port 8082",
     "web": "node ./scripts/check-node-version.mjs && expo start --web",

@@ -10,7 +10,7 @@ Manual regression checklist for the mobile rewrite in `apps/mobile`, focused on 
 1. Use Node `22.x` (or `20.x`) in terminal.
 2. Start app with one of:
    - `pnpm --filter @fulbito/mobile ios:smoke`
-   - `pnpm --filter @fulbito/mobile android`
+   - `pnpm --filter @fulbito/mobile android:smoke`
 3. Ensure the user is authenticated (mock or HTTP session mode).
 
 ## Cross-tab Persistence

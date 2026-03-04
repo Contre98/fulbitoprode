@@ -52,6 +52,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Wire mobile period/group selection state across core tabs and connect query keys.
 - [x] Add mobile smoke run log for iOS simulator.
 - [x] Add mobile smoke run log for Android emulator.
+- [x] Add dedicated `android:smoke` script with explicit Metro port (`8083`) for repeatable manual QA.
 - [x] Add in-app dev action to clear persisted fallback diagnostics history.
 - [x] Start per-screen visual diff execution for 1:1 web-to-mobile parity (Pronósticos first).
 - [x] Add Pronósticos per-card lock/saving/error chips and top action controls for closer web parity.
@@ -97,6 +98,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Align mobile runtime package versions to Expo SDK 52 compatibility targets (`react-native`, `react-native-screens`, `@react-native-async-storage/async-storage`). | Reduce startup advisory noise and keep native runtime dependencies on the SDK-supported matrix with minimum architecture change risk. | `apps/mobile/package.json`, `pnpm-lock.yaml` |
 | 2026-03-04 | Add context-level persistence tests for `GroupProvider` and `PeriodProvider`. | Validate boot-time restore and storage writes directly at state-provider level beyond UI selector smoke tests. | `apps/mobile/src/test/GroupContext.persistence.test.tsx`, `apps/mobile/src/test/PeriodContext.persistence.test.tsx` |
 | 2026-03-04 | Add dedicated `ios:smoke` script with explicit Metro port (`8082`). | Standardize repeatable iOS manual QA invocation and avoid interactive port selection prompts when validating simulator launch. | `apps/mobile/package.json` |
+| 2026-03-04 | Add dedicated `android:smoke` script with explicit Metro port (`8083`). | Standardize repeatable Android manual QA invocation and reduce ambiguity between native prebuild run commands and smoke commands. | `apps/mobile/package.json` |
 | 2026-03-04 | Add dedicated mobile QA checklist document for cross-tab and restart persistence verification. | Make manual regression checks repeatable across iOS/Android while rollout continues with mock/HTTP dual-mode behavior. | `docs/mobile-qa-checklist.md` |
 | 2026-03-04 | Start high-fidelity mobile UI parity pass with `Pronósticos` (tabs + enhanced card layout) using web mobile UX as visual reference. | Preserve original product UX intent while keeping contracts/data flow unchanged and limiting scope to presentational updates. | `apps/mobile/src/screens/PronosticosScreen.tsx` |
 | 2026-03-04 | Refine Pronósticos parity with web-style custom top header and fecha left/right cycler behavior. | Close key UX deltas identified during manual review while retaining existing repository contracts and shared state flow. | `apps/mobile/src/components/ScreenFrame.tsx`, `apps/mobile/src/components/FechaSelector.tsx`, `apps/mobile/src/screens/PronosticosScreen.tsx` |
@@ -293,6 +295,9 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | No web regression after final Posiciones/Fixture typography-spacing polish. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | Posiciones/Fixture density and typography tweaks compile cleanly. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by mobile visual polish slice. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | No web regression after adding `android:smoke` script and QA checklist command update. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile script map with new `android:smoke` command compiles cleanly. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by smoke-command tooling slice. |
 
 ## Risks & Mitigations
 
@@ -304,8 +309,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Add Android smoke shortcut command and dedicated `android:smoke` script for repeatable manual QA.
-2. Run final full-manual parity QA across `Pronósticos`/`Posiciones`/`Fixture` and record sign-off notes in `docs/mobile-qa-checklist.md`.
-3. Apply the same non-emoji brand-badge treatment to remaining tabs (`Inicio`, `Grupos`) once those parity passes are active.
-4. Evaluate replacing local deterministic crests with bundled asset crests for top-flight teams if final visual QA still requires closer logo fidelity.
-5. Start parity pass for `Grupos` screen using `ui reference/Grupos.png` as baseline.
+1. Run final full-manual parity QA across `Pronósticos`/`Posiciones`/`Fixture` and record sign-off notes in `docs/mobile-qa-checklist.md`.
+2. Apply the same non-emoji brand-badge treatment to remaining tabs (`Inicio`, `Grupos`) once those parity passes are active.
+3. Evaluate replacing local deterministic crests with bundled asset crests for top-flight teams if final visual QA still requires closer logo fidelity.
+4. Start parity pass for `Grupos` screen using `ui reference/Grupos.png` as baseline.
+5. Start parity pass for `Inicio` screen using `ui reference/Inicio.png` as baseline.
