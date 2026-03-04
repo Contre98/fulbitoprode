@@ -117,10 +117,14 @@ export function ConfiguracionScreen() {
               {stageLabel(membership.competitionStage)} {membership.leagueName}
             </Text>
           </View>
-          <View style={styles.ownerChip}>
-            <Text allowFontScaling={false} style={styles.ownerChipText}>{membership.role.toUpperCase()}</Text>
+          <View style={styles.groupActions}>
+            <View style={styles.ownerChip}>
+              <Text allowFontScaling={false} style={styles.ownerChipText}>{membership.role.toUpperCase()}</Text>
+            </View>
+            <View style={styles.settingsWrap}>
+              <Text allowFontScaling={false} style={styles.settingsGlyph}>⚙︎</Text>
+            </View>
           </View>
-          <Text allowFontScaling={false} style={styles.settingsGlyph}>⚙</Text>
         </View>
       ))}
 
@@ -334,8 +338,8 @@ const styles = StyleSheet.create({
   },
   listHeader: {
     color: "#111827",
-    fontSize: 24,
-    lineHeight: 28,
+    fontSize: 22,
+    lineHeight: 26,
     fontWeight: "800"
   },
   listCount: {
@@ -349,7 +353,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#D7DCE3",
     backgroundColor: "#F8FAFC",
-    minHeight: 64,
+    minHeight: 62,
     paddingHorizontal: 10,
     flexDirection: "row",
     alignItems: "center",
@@ -397,9 +401,22 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "900"
   },
+  groupActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  settingsWrap: {
+    height: 22,
+    width: 22,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#EEF2F5"
+  },
   settingsGlyph: {
     color: "#98A2B3",
-    fontSize: 16
+    fontSize: 14
   },
   logoutButton: {
     marginTop: 4,

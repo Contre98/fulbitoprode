@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
   },
   summaryRow: {
     flexDirection: "row",
-    gap: 8
+    gap: 10
   },
   summaryCard: {
     flex: 1,
@@ -410,14 +410,14 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     color: "#111827",
-    fontSize: 26,
-    lineHeight: 30,
+    fontSize: 24,
+    lineHeight: 28,
     fontWeight: "800"
   },
   sectionHeaderGlyph: {
     marginLeft: "auto",
     color: "#8A94A4",
-    fontSize: 20
+    fontSize: 18
   },
   filterTabs: {
     flexDirection: "row",
@@ -452,7 +452,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#D7DCE3",
     backgroundColor: "#F8FAFC",
-    padding: 12
+    paddingVertical: 10,
+    paddingHorizontal: 12
   },
   matchMainRow: {
     flexDirection: "row",
@@ -470,7 +471,7 @@ const styles = StyleSheet.create({
   teamName: {
     color: "#1F2937",
     fontWeight: "800",
-    fontSize: 9,
+    fontSize: 8,
     textAlign: "center"
   },
   centerBlock: {

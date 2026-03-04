@@ -124,6 +124,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Apply final typography/spacing density tuning to `Posiciones` and `Fixture` cards/tabs/rows. | Close remaining visual proportion deltas (row height, tab density, headline sizing) without changing repositories, contracts, or query behavior. | `apps/mobile/src/screens/PosicionesScreen.tsx`, `apps/mobile/src/screens/FixtureScreen.tsx` |
 | 2026-03-04 | Start screenshot-driven parity layouts for `Inicio` and `Grupos` with contract-backed data sections and shared mobile header chrome. | Continue migration scope to remaining tabs while preserving contracts-first architecture and avoiding hardcoded screen-only datasets. | `apps/mobile/src/screens/HomeScreen.tsx`, `apps/mobile/src/screens/ConfiguracionScreen.tsx` |
 | 2026-03-04 | Downscale typography and card density on `Inicio`/`Grupos` after first emulator review. | First parity draft overshot text scale in key blocks; this adjustment improves proportional match with references while preserving current data wiring. | `apps/mobile/src/screens/HomeScreen.tsx`, `apps/mobile/src/screens/ConfiguracionScreen.tsx` |
+| 2026-03-04 | Refine `Inicio` and `Grupos` micro-layout from second emulator screenshots (heading scale, group action alignment, card rhythm). | Close remaining polish deltas with small, low-risk visual adjustments while keeping contracts/state logic unchanged. | `apps/mobile/src/screens/HomeScreen.tsx`, `apps/mobile/src/screens/ConfiguracionScreen.tsx` |
 
 ## Validation Log
 
@@ -308,6 +309,9 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | No web regression after `Inicio`/`Grupos` typography downscale adjustments. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | Refined `HomeScreen`/`ConfiguracionScreen` sizing styles compile cleanly. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by `Inicio`/`Grupos` refinement slice. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | No web regression after second `Inicio`/`Grupos` emulator-driven polish pass. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | `Inicio` heading/card rhythm tweaks and `Grupos` action-row alignment compile cleanly. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by second `Inicio`/`Grupos` polish slice. |
 
 ## Risks & Mitigations
 
@@ -319,8 +323,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Run second screenshot-by-screenshot refinement pass on `Inicio` (carousel width/height and section heading scale) to close remaining visual deltas.
-2. Run second screenshot-by-screenshot refinement pass on `Grupos` (owner/settings row balance and form vertical rhythm) to close remaining visual deltas.
-3. Run final full-manual parity QA across `Inicio`/`Grupos`/`Pronósticos`/`Posiciones`/`Fixture` and record sign-off notes in `docs/mobile-qa-checklist.md`.
-4. Evaluate replacing local deterministic crests with bundled asset crests for top-flight teams if final visual QA still requires closer logo fidelity.
-5. Add small focused smoke tests for `Inicio`/`Grupos` critical render paths once layout parity stabilizes.
+1. Run final full-manual parity QA across `Inicio`/`Grupos`/`Pronósticos`/`Posiciones`/`Fixture` and record sign-off notes in `docs/mobile-qa-checklist.md`.
+2. Evaluate replacing local deterministic crests with bundled asset crests for top-flight teams if final visual QA still requires closer logo fidelity.
+3. Add small focused smoke tests for `Inicio`/`Grupos` critical render paths once layout parity stabilizes.
+4. Normalize settings/action icon treatment on `Inicio`/`Grupos` to match non-emoji icon style used in other parity screens.
+5. If needed after QA, add optional second summary card fallback behavior in `Inicio` when only one membership exists to mimic reference carousel composition.
