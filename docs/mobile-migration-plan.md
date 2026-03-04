@@ -100,6 +100,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Add first app-level mobile smoke flow test covering `Inicio` -> `Pronósticos` save -> `Grupos` create/join through tab navigation.
 - [x] Extend smoke-flow coverage with explicit `AuthScreen` login gate transition into `Inicio`.
 - [x] Expand repository-level contract tests for HTTP + mock adapters on groups/predictions.
+- [x] Expand adapter contract parity coverage to fixture/leaderboard normalization edge cases.
 - [x] Add failure-injection coverage for fallback diagnostics and retry mode transitions.
 - [x] Add CI guard invocations for `MobileE2ESmoke.flow.test.tsx`, `RepositoryAdapters.contract.test.ts`, and `RepositoryFallbackTransitions.test.ts`.
 
@@ -169,6 +170,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Default mobile test runner env to a local API base URL when missing. | Keep HTTP adapter contract tests runnable under local/CI harness without requiring external env wiring for each invocation. | `apps/mobile/scripts/run-mobile-tests.mjs` |
 | 2026-03-04 | Add repository-level failure-injection tests for fallback diagnostics and session-mode transitions. | Verify high-risk fallback behavior (`HTTP Session` to `Mock Fallback` and recovery) with deterministic unit coverage before deeper e2e rollout. | `apps/mobile/src/test/RepositoryFallbackTransitions.test.ts` |
 | 2026-03-04 | Add dedicated CI guard steps for new Phase 4 mobile regression suites. | Ensure smoke/contract/fallback transition tests execute in CI on every change and prevent silent drift from local-only test coverage. | `.github/workflows/ci.yml` |
+| 2026-03-04 | Expand adapter contract parity coverage for fixture/leaderboard normalization edge cases. | Lock down high-risk HTTP normalization paths (`kickoffAt` fallback, `userId` synthesis) against mock contract shape to reduce adapter drift risk. | `apps/mobile/src/test/RepositoryAdapters.contract.test.ts` |
 
 ## Validation Log
 
@@ -435,6 +437,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after auth-step smoke coverage extension. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Updated `MobileE2ESmoke.flow.test.tsx` compiles cleanly under strict TypeScript. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by auth-step smoke extension. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile test -- RepositoryAdapters.contract.test.ts` | Pass | Expanded suite now includes fixture and leaderboard normalization parity cases (`4 tests`). |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after adapter parity edge-case test expansion. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Fail then pass | Initial failure due test input including unsupported `mode` field in leaderboard contract input; removed field and reran green. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by adapter parity edge-case slice. |
 
 ## Risks & Mitigations
 
@@ -446,8 +452,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Expand adapter contract parity coverage to fixture/leaderboard normalization edge cases.
-2. Add focused tests for fallback diagnostics history persistence/clear semantics under repeated failures.
-3. Evaluate and suppress noisy non-blocking RN navigation `act(...)` warning in smoke tests if deterministic mitigation is available.
-4. Prepare a dedicated Phase 4 tracking section in PR template/checklist if needed.
-5. Add one targeted CI guard for fallback-diagnostics history tests after that suite lands.
+1. Add focused tests for fallback diagnostics history persistence/clear semantics under repeated failures.
+2. Evaluate and suppress noisy non-blocking RN navigation `act(...)` warning in smoke tests if deterministic mitigation is available.
+3. Prepare a dedicated Phase 4 tracking section in PR template/checklist if needed.
+4. Add one targeted CI guard for fallback-diagnostics history tests after that suite lands.
+5. Review whether `RepositoryAdapters.contract.test.ts` should be split into fixture/leaderboard-specific files as coverage grows.
