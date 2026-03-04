@@ -86,6 +86,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Start high-fidelity mobile UI parity pass with `Pronósticos` (tabs + enhanced card layout) using web mobile UX as visual reference. | Preserve original product UX intent while keeping contracts/data flow unchanged and limiting scope to presentational updates. | `apps/mobile/src/screens/PronosticosScreen.tsx` |
 | 2026-03-04 | Refine Pronósticos parity with web-style custom top header and fecha left/right cycler behavior. | Close key UX deltas identified during manual review while retaining existing repository contracts and shared state flow. | `apps/mobile/src/components/ScreenFrame.tsx`, `apps/mobile/src/components/FechaSelector.tsx`, `apps/mobile/src/screens/PronosticosScreen.tsx` |
 | 2026-03-04 | Continue high-fidelity UI parity on `Posiciones` with web-aligned header, mode controls, and leaderboard card styling. | Keep UX language consistent with web mobile design while preserving existing leaderboard contracts and query behavior. | `apps/mobile/src/screens/PosicionesScreen.tsx` |
+| 2026-03-04 | Continue high-fidelity UI parity on `Fixture` with web-aligned header, filter chips, and match-card structure. | Complete core-tab visual parity (Pronósticos/Posiciones/Fixture) while preserving fixture repository contract and grouped-date behavior. | `apps/mobile/src/screens/FixtureScreen.tsx` |
 
 ## Validation Log
 
@@ -198,6 +199,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `pnpm run typecheck:web` | Pass | No web regressions after `Posiciones` mobile presentation updates. |
 | 2026-03-04 | `pnpm --filter @fulbito/mobile typecheck` | Pass | `PosicionesScreen` parity UI additions compile cleanly. |
 | 2026-03-04 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by `Posiciones` parity slice. |
+| 2026-03-04 | `pnpm --filter @fulbito/mobile test` | Pass | Mobile suites remain green after `Fixture` parity updates (`5 suites, 7 tests`). |
+| 2026-03-04 | `pnpm run typecheck:web` | Pass | No web regressions after `Fixture` mobile presentation updates. |
+| 2026-03-04 | `pnpm --filter @fulbito/mobile typecheck` | Pass | `FixtureScreen` parity UI additions compile cleanly. |
+| 2026-03-04 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by `Fixture` parity slice. |
 
 ## Risks & Mitigations
 
@@ -209,8 +214,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Continue high-fidelity parity pass on `Fixture` screen using current web mobile UX as source reference.
-2. Add an in-app dev action to clear persisted fallback diagnostics history for cleaner QA cycles.
-3. Add Android smoke shortcut command with explicit launcher steps (including emulator boot check) for repeatable manual QA.
-4. Add a dedicated `android:smoke` script mirroring `ios:smoke` to standardize manual QA flow across both platforms.
-5. Decide whether to reintroduce full `STATS` mode parity in mobile `Posiciones` as a second-stage enhancement after base visual parity is complete.
+1. Add an in-app dev action to clear persisted fallback diagnostics history for cleaner QA cycles.
+2. Add Android smoke shortcut command with explicit launcher steps (including emulator boot check) for repeatable manual QA.
+3. Add a dedicated `android:smoke` script mirroring `ios:smoke` to standardize manual QA flow across both platforms.
+4. Decide whether to reintroduce full `STATS` mode parity in mobile `Posiciones` as a second-stage enhancement after base visual parity is complete.
+5. Run full manual parity QA on core tabs using `docs/mobile-qa-checklist.md` and capture visual gap list for final polish pass.
