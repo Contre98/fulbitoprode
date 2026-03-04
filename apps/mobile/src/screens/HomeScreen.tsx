@@ -94,7 +94,7 @@ export function HomeScreen() {
                 <View style={styles.headerAlertDot} />
               </Pressable>
               <Pressable style={styles.headerActionButton}>
-                <Text allowFontScaling={false} style={styles.headerActionGlyph}>⚙</Text>
+                <Text allowFontScaling={false} style={styles.headerActionGlyph}>⌘</Text>
               </Pressable>
               <View style={styles.profileDot}>
                 <Text allowFontScaling={false} style={styles.profileDotText}>

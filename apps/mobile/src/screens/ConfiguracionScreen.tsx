@@ -45,7 +45,7 @@ export function ConfiguracionScreen() {
                 <View style={styles.headerAlertDot} />
               </Pressable>
               <Pressable style={styles.headerActionButton}>
-                <Text allowFontScaling={false} style={styles.headerActionGlyph}>⚙</Text>
+                <Text allowFontScaling={false} style={styles.headerActionGlyph}>⌘</Text>
               </Pressable>
               <View style={styles.profileDot}>
                 <Text allowFontScaling={false} style={styles.profileDotText}>
@@ -122,7 +122,7 @@ export function ConfiguracionScreen() {
               <Text allowFontScaling={false} style={styles.ownerChipText}>{membership.role.toUpperCase()}</Text>
             </View>
             <View style={styles.settingsWrap}>
-              <Text allowFontScaling={false} style={styles.settingsGlyph}>⚙︎</Text>
+              <Text allowFontScaling={false} style={styles.settingsGlyph}>≣</Text>
             </View>
           </View>
         </View>
