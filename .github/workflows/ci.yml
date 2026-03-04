@@ -38,5 +38,11 @@ jobs:
       - name: Test
         run: pnpm run test:run
 
+      - name: Mobile Node Guard
+        run: pnpm --filter @fulbito/mobile exec node ./scripts/check-node-version.mjs
+
+      - name: Mobile Targeted Test Guard
+        run: pnpm --filter @fulbito/mobile test -- ConfiguracionScreen.actions.test.tsx
+
       - name: Build
         run: pnpm run build:web
