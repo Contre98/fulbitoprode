@@ -237,7 +237,9 @@ describe("Mobile E2E smoke flow", () => {
       { userId: "u-1", displayName: "Usuario Fulbito", points: 18, rank: 1 }
     ]);
     mockedGroupsCreate.mockResolvedValue({ id: "g-2", name: "Grupo QA" });
-    mockedGroupsJoin.mockResolvedValue({ id: "g-3", name: "Grupo Join" });
+    mockedGroupsJoin
+      .mockRejectedValueOnce(new Error("invalid invite"))
+      .mockResolvedValueOnce({ id: "g-3", name: "Grupo Join" });
 
     const screen = renderAppNavigation();
 
@@ -319,10 +321,14 @@ describe("Mobile E2E smoke flow", () => {
     fireEvent.press(screen.getByText("Unirse al grupo"));
 
     await waitFor(() => {
+      expect(screen.getByText("No se pudo unir al grupo. Revisá el código e intentá otra vez.")).toBeTruthy();
       expect(mockedGroupsJoin).toHaveBeenCalledWith({ codeOrToken: "INV-123" });
     });
 
+    fireEvent.press(screen.getByText("Unirse al grupo"));
+
     await waitFor(() => {
+      expect(mockedGroupsJoin).toHaveBeenCalledTimes(2);
       expect(refresh).toHaveBeenCalled();
       expect(setSelectedGroupId).toHaveBeenCalled();
     });

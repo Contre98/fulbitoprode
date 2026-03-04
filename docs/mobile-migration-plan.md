@@ -114,6 +114,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Add malformed-payload rejection assertions for fixture/leaderboard HTTP adapter contract tests.
 - [x] Add focused fallback-history clear assertion across subscribe/unsubscribe cycles in diagnostics utility tests.
 - [x] Add CI guard invocation for `AuthContext.fallbackHistory.integration.test.tsx`.
+- [x] Expand app-flow smoke coverage to include `Grupos` join mutation rejection message and retry-success sequence.
 
 ## Decisions Log
 
@@ -504,6 +505,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after adding AuthContext fallback-history CI guard step. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile typecheck clean with workflow guard-step update in place. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by CI-guard tooling slice. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile test -- MobileE2ESmoke.flow.test.tsx` | Pass with warning noise | Added `Grupos` join mutation rejection assertion (`No se pudo unir al grupo...`) followed by retry-success in app-flow smoke test (`2 tests`); non-blocking RN `act(...)` warnings remain. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after smoke-flow join mutation rejection/retry coverage expansion. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Updated `MobileE2ESmoke.flow.test.tsx` compiles cleanly after join mutation rejection/retry assertion addition. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by smoke-flow join mutation rejection/retry slice. |
 
 ## Risks & Mitigations
 
@@ -516,7 +521,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 
 ## Next Actions (Top 5)
 1. Decide whether `MobileE2ESmoke.flow.test.tsx` should be split into smaller flow files as assertions continue to grow.
-2. Add smoke-flow assertion that verifies `Grupos` join mutation rejection message in app-level flow (network/error-path parity with focused screen tests).
-3. Review whether malformed payload cases should be explicitly routed to mock fallback at repository-composition layer and add tests if adopted.
-4. Capture refreshed Android + iOS screenshots for all tabs after latest Phase 4 test-slice updates and attach to closure summary.
-5. Add a brief Phase 4 mid-point summary in `docs/mobile-phase3-closure-summary.md` to map current automated guards to each tab.
+2. Review whether malformed payload cases should be explicitly routed to mock fallback at repository-composition layer and add tests if adopted.
+3. Capture refreshed Android + iOS screenshots for all tabs after latest Phase 4 test-slice updates and attach to closure summary.
+4. Add a brief Phase 4 mid-point summary in `docs/mobile-phase3-closure-summary.md` to map current automated guards to each tab.
+5. Evaluate splitting `MobileE2ESmoke.flow.test.tsx` into `auth-entry`, `tab-flow`, and `group-actions` files while preserving CI guard coverage.
