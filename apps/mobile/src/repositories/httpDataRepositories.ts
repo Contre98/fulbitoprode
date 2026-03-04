@@ -7,7 +7,15 @@ import type {
 import type { Fixture, Group, LeaderboardEntry, Membership, Prediction } from "@fulbito/domain";
 
 function getApiBaseUrl() {
-  const raw = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+  const fromEnv = process.env.EXPO_PUBLIC_API_BASE_URL?.trim();
+  const fromTestGlobal =
+    typeof globalThis === "object" &&
+    globalThis &&
+    "__FULBITO_TEST_API_BASE_URL__" in globalThis &&
+    typeof (globalThis as { __FULBITO_TEST_API_BASE_URL__?: unknown }).__FULBITO_TEST_API_BASE_URL__ === "string"
+      ? (globalThis as { __FULBITO_TEST_API_BASE_URL__?: string }).__FULBITO_TEST_API_BASE_URL__?.trim()
+      : undefined;
+  const raw = fromEnv || fromTestGlobal;
   if (!raw) {
     throw new Error("EXPO_PUBLIC_API_BASE_URL is not configured.");
   }

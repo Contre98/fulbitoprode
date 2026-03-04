@@ -30,7 +30,10 @@ const extraArgs = process.argv.slice(2);
 const result = spawnSync("pnpm", ["exec", "jest", "--config", "jest.config.cjs", "--runInBand", "--detectOpenHandles", ...extraArgs], {
   stdio: "inherit",
   cwd: process.cwd(),
-  env: process.env
+  env: {
+    ...process.env,
+    EXPO_PUBLIC_API_BASE_URL: process.env.EXPO_PUBLIC_API_BASE_URL ?? "http://localhost:3000"
+  }
 });
 
 if (result.error) {
