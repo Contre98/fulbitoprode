@@ -53,6 +53,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Add mobile smoke run log for iOS simulator.
 - [x] Add mobile smoke run log for Android emulator.
 - [x] Add in-app dev action to clear persisted fallback diagnostics history.
+- [x] Start per-screen visual diff execution for 1:1 web-to-mobile parity (Pronósticos first).
 
 ## Decisions Log
 
@@ -89,6 +90,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Continue high-fidelity UI parity on `Posiciones` with web-aligned header, mode controls, and leaderboard card styling. | Keep UX language consistent with web mobile design while preserving existing leaderboard contracts and query behavior. | `apps/mobile/src/screens/PosicionesScreen.tsx` |
 | 2026-03-04 | Continue high-fidelity UI parity on `Fixture` with web-aligned header, filter chips, and match-card structure. | Complete core-tab visual parity (Pronósticos/Posiciones/Fixture) while preserving fixture repository contract and grouped-date behavior. | `apps/mobile/src/screens/FixtureScreen.tsx` |
 | 2026-03-04 | Add mobile in-app dev action to clear persisted fallback diagnostics history from the mock-mode badge. | Keep QA/dev retry cycles clean without app reinstalls while preserving existing contracts-first adapter fallback flow. | `apps/mobile/src/repositories/fallbackDiagnostics.ts`, `apps/mobile/src/state/AuthContext.tsx`, `apps/mobile/src/components/DataModeBadge.tsx`, `apps/mobile/src/test/DataModeBadge.test.tsx` |
+| 2026-03-04 | Begin structured 1:1 Pronósticos visual parity pass by aligning team-code emphasis, match score control treatment, date badge, and mode labels to web mobile UX. | Close the highest-impact visual gaps first while keeping existing repositories/contracts untouched and incremental commits reviewable. | `apps/mobile/src/screens/PronosticosScreen.tsx` |
 
 ## Validation Log
 
@@ -210,6 +212,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | Web typecheck clean after fallback-history clear action slice. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile typecheck clean after new badge action/context contract update. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by diagnostics clear action slice. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile test` | Pass | Mobile suites green after Pronósticos visual parity refinements (`5 suites, 7 tests`). |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | No web regressions after Pronósticos parity refinement slice. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | `PronosticosScreen` parity layout/style updates compile cleanly. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by Pronósticos parity refinement slice. |
 
 ## Risks & Mitigations
 
@@ -221,8 +227,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Add Android smoke shortcut command with explicit launcher steps (including emulator boot check) for repeatable manual QA.
-2. Add a dedicated `android:smoke` script mirroring `ios:smoke` to standardize manual QA flow across both platforms.
-3. Decide whether to reintroduce full `STATS` mode parity in mobile `Posiciones` as a second-stage enhancement after base visual parity is complete.
-4. Continue visual parity polish on `Fixture` and `Posiciones` spacing/typography details from latest manual screenshots.
-5. Run full manual parity QA on core tabs using `docs/mobile-qa-checklist.md` and capture visual gap list for final polish pass.
+1. Continue Pronósticos parity pass by matching remaining web details (top action icons, locked/editing states, and error chip visuals).
+2. Continue visual parity polish on `Fixture` spacing/typography and status treatment using screenshot diffs.
+3. Continue visual parity polish on `Posiciones`, including decision/execution for full `STATS` mode parity.
+4. Add Android smoke shortcut command and dedicated `android:smoke` script for repeatable manual QA.
+5. Run full manual parity QA on core tabs using `docs/mobile-qa-checklist.md` and capture final gap list for closure.

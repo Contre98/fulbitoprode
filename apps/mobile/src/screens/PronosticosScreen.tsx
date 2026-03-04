@@ -17,6 +17,28 @@ import { usePeriod } from "@/state/PeriodContext";
 type DraftByFixture = Record<string, { home: string; away: string }>;
 type PronosticosMode = "upcoming" | "history";
 
+function toTeamCode(name: string) {
+  const clean = name.trim();
+  if (!clean) {
+    return "---";
+  }
+  const words = clean
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((word) => !["de", "del", "la", "el", "the", "fc", "club"].includes(word.toLowerCase()));
+  if (words.length === 0) {
+    return clean.slice(0, 3).toUpperCase();
+  }
+  if (words.length === 1) {
+    return words[0].slice(0, 3).toUpperCase();
+  }
+  return words
+    .slice(0, 3)
+    .map((word) => word[0] ?? "")
+    .join("")
+    .toUpperCase();
+}
+
 export function PronosticosScreen() {
   const queryClient = useQueryClient();
   const { memberships, selectedGroupId } = useGroupSelection();
@@ -156,46 +178,58 @@ export function PronosticosScreen() {
       hour: "2-digit",
       minute: "2-digit"
     });
+    const homeCode = toTeamCode(fixture.homeTeam);
+    const awayCode = toTeamCode(fixture.awayTeam);
+    const hasDraft = draft.home.length > 0 || draft.away.length > 0;
 
     return (
       <View key={fixture.id} style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.kickoffLabel}>{kickoffLabel}</Text>
+        <View style={styles.matchRow}>
+          <View style={styles.teamBlock}>
+            <Text numberOfLines={1} style={styles.teamCode}>
+              {homeCode}
+            </Text>
+            <Text numberOfLines={1} style={styles.teamCaption}>
+              {fixture.homeTeam}
+            </Text>
+          </View>
+          <View style={[styles.inputsPill, hasDraft ? styles.inputsPillActive : null]}>
+            <TextInput
+              style={styles.scoreInput}
+              value={draft.home}
+              onChangeText={(value) => updateDraft(fixture.id, "home", value)}
+              keyboardType="number-pad"
+              maxLength={2}
+              placeholder="-"
+              placeholderTextColor={colors.textSecondary}
+              editable={isEditable}
+            />
+            <Text style={styles.separator}>:</Text>
+            <TextInput
+              style={styles.scoreInput}
+              value={draft.away}
+              onChangeText={(value) => updateDraft(fixture.id, "away", value)}
+              keyboardType="number-pad"
+              maxLength={2}
+              placeholder="-"
+              placeholderTextColor={colors.textSecondary}
+              editable={isEditable}
+            />
+          </View>
+          <View style={[styles.teamBlock, styles.teamBlockRight]}>
+            <Text numberOfLines={1} style={styles.teamCode}>
+              {awayCode}
+            </Text>
+            <Text numberOfLines={1} style={[styles.teamCaption, styles.teamCaptionRight]}>
+              {fixture.awayTeam}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.cardFooter}>
           <View style={[styles.statusBadge, isEditable ? styles.statusBadgeOpen : styles.statusBadgeClosed]}>
             <Text style={[styles.statusBadgeText, isEditable ? styles.statusBadgeTextOpen : styles.statusBadgeTextClosed]}>{statusBadgeLabel}</Text>
           </View>
-        </View>
-        <View style={styles.teamsRow}>
-          <Text numberOfLines={1} style={styles.teamName}>
-            {fixture.homeTeam}
-          </Text>
-          <Text style={styles.vsLabel}>vs</Text>
-          <Text numberOfLines={1} style={[styles.teamName, styles.teamNameRight]}>
-            {fixture.awayTeam}
-          </Text>
-        </View>
-        <View style={styles.inputsRow}>
-          <TextInput
-            style={styles.scoreInput}
-            value={draft.home}
-            onChangeText={(value) => updateDraft(fixture.id, "home", value)}
-            keyboardType="number-pad"
-            maxLength={2}
-            placeholder="0"
-            placeholderTextColor={colors.textSecondary}
-            editable={isEditable}
-          />
-          <Text style={styles.separator}>-</Text>
-          <TextInput
-            style={styles.scoreInput}
-            value={draft.away}
-            onChangeText={(value) => updateDraft(fixture.id, "away", value)}
-            keyboardType="number-pad"
-            maxLength={2}
-            placeholder="0"
-            placeholderTextColor={colors.textSecondary}
-            editable={isEditable}
-          />
+          <Text style={styles.kickoffBadge}>{kickoffLabel}</Text>
         </View>
         <Pressable
           onPress={() => saveFixturePrediction(fixture.id)}
@@ -207,7 +241,7 @@ export function PronosticosScreen() {
           ]}
         >
           <Text style={styles.saveButtonText}>
-            {isEditable ? (savePredictionMutation.isPending ? "Guardando..." : "Guardar") : "Solo lectura"}
+            {isEditable ? (savePredictionMutation.isPending ? "Guardando..." : "Guardar pronóstico") : "Solo lectura"}
           </Text>
         </Pressable>
       </View>
@@ -272,10 +306,10 @@ export function PronosticosScreen() {
       </View>
       <View style={styles.modeTabs}>
         <Pressable onPress={() => setMode("upcoming")} style={[styles.modeTab, mode === "upcoming" ? styles.modeTabActive : null]}>
-          <Text style={[styles.modeTabLabel, mode === "upcoming" ? styles.modeTabLabelActive : null]}>Próximos</Text>
+          <Text style={[styles.modeTabLabel, mode === "upcoming" ? styles.modeTabLabelActive : null]}>Por jugar</Text>
         </Pressable>
         <Pressable onPress={() => setMode("history")} style={[styles.modeTab, mode === "history" ? styles.modeTabActive : null]}>
-          <Text style={[styles.modeTabLabel, mode === "history" ? styles.modeTabLabelActive : null]}>Historial</Text>
+          <Text style={[styles.modeTabLabel, mode === "history" ? styles.modeTabLabelActive : null]}>Jugados</Text>
         </Pressable>
       </View>
       {visibleFixtures.length === 0 ? (
@@ -349,43 +383,45 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.surfaceMuted,
-    padding: spacing.lg,
-    gap: spacing.md
-  },
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center"
-  },
-  teamsRow: {
-    flexDirection: "row",
-    alignItems: "center",
+    padding: spacing.md,
     gap: spacing.sm
   },
-  teamName: {
-    flex: 1,
-    color: colors.textPrimary,
-    fontSize: 15,
-    fontWeight: "700"
+  matchRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.xs
   },
-  teamNameRight: {
+  teamBlock: {
+    flex: 1
+  },
+  teamBlockRight: {
+    alignItems: "flex-end"
+  },
+  teamCode: {
+    color: colors.textPrimary,
+    fontSize: 24,
+    fontWeight: "900",
+    letterSpacing: -0.5
+  },
+  teamCaption: {
+    color: colors.textSecondary,
+    fontSize: 10,
+    marginTop: 2
+  },
+  teamCaptionRight: {
     textAlign: "right"
   },
-  vsLabel: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    fontWeight: "600",
-    textTransform: "uppercase"
-  },
-  kickoffLabel: {
-    color: colors.textSecondary,
-    fontSize: 12
+  cardFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between"
   },
   statusBadge: {
     borderRadius: 999,
     borderWidth: 1,
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs
+    paddingVertical: 2
   },
   statusBadgeOpen: {
     borderColor: colors.primary,
@@ -396,7 +432,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background
   },
   statusBadgeText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "700"
   },
   statusBadgeTextOpen: {
@@ -405,36 +441,53 @@ const styles = StyleSheet.create({
   statusBadgeTextClosed: {
     color: colors.textSecondary
   },
-  inputsRow: {
+  kickoffBadge: {
+    color: colors.textSecondary,
+    fontSize: 10,
+    fontWeight: "700",
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: colors.background
+  },
+  inputsPill: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: spacing.md
-  },
-  scoreInput: {
-    width: 64,
-    height: 52,
-    borderRadius: 14,
+    minWidth: 112,
+    borderRadius: 10,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
     borderWidth: 1,
     borderColor: colors.surfaceMuted,
+    backgroundColor: colors.background
+  },
+  inputsPillActive: {
+    borderColor: colors.primary,
+    backgroundColor: "#123221"
+  },
+  scoreInput: {
+    width: 28,
+    height: 32,
     color: colors.textPrimary,
     textAlign: "center",
     fontSize: 22,
-    fontWeight: "700",
-    backgroundColor: colors.background
+    fontWeight: "900",
+    paddingVertical: 0
   },
   separator: {
     color: colors.textSecondary,
-    fontSize: 20,
-    fontWeight: "700"
+    fontSize: 18,
+    fontWeight: "800",
+    marginHorizontal: spacing.xs
   },
   saveButton: {
-    marginTop: spacing.sm,
     alignItems: "center",
     justifyContent: "center",
-    height: 46,
-    borderRadius: 12,
-    backgroundColor: colors.primary
+    minHeight: 42,
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.md
   },
   saveButtonDisabled: {
     opacity: 0.45
@@ -444,7 +497,8 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     color: colors.primaryText,
-    fontWeight: "700"
+    fontWeight: "800",
+    fontSize: 13
   },
   modeTabs: {
     flexDirection: "row",
