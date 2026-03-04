@@ -50,7 +50,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Add HTTP repository adapters in mobile behind existing interfaces (keep mock fallback).
 - [x] Add reusable loading/error/empty state components in `apps/mobile/src/components` and apply to core tabs.
 - [x] Wire mobile period/group selection state across core tabs and connect query keys.
-- [ ] Add mobile smoke run log for iOS simulator.
+- [x] Add mobile smoke run log for iOS simulator.
 - [x] Add mobile smoke run log for Android emulator.
 
 ## Decisions Log
@@ -156,6 +156,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `pnpm run typecheck:web` | Pass | Verified after mobile persistence + test harness activation changes. |
 | 2026-03-04 | `pnpm --filter @fulbito/mobile typecheck` | Pass | Context persistence and new tests compile with strict TypeScript settings. |
 | 2026-03-04 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by mobile updates. |
+| 2026-03-04 | iOS smoke (`pnpm --filter @fulbito/mobile exec expo start --ios --port 8082`) | Pass | Metro started, Expo opened `exp://...:8082` on `iPhone 17 Pro Max`, and iOS bundle completed successfully. |
 
 ## Risks & Mitigations
 
@@ -167,8 +168,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Create/start an iOS simulator device in Simulator.app, rerun iOS smoke, and log a successful pass in the Validation Log.
-2. Re-run Android smoke to verify AsyncStorage-backed group/fecha persistence survives full app restart.
-3. Add persistence for data-mode diagnostics history in development (last N fallback failures).
-4. Resolve remaining Expo dependency advisories (`react-native`, `react-native-screens`) via controlled compatibility upgrade and revalidate web/mobile checks.
-5. Expand mobile tests from selector smoke to context-level persistence tests (Group/Period restore behavior on boot).
+1. Re-run Android smoke to verify AsyncStorage-backed group/fecha persistence survives full app restart.
+2. Add persistence for data-mode diagnostics history in development (last N fallback failures).
+3. Resolve remaining Expo dependency advisories (`@react-native-async-storage/async-storage`, `react-native`, `react-native-screens`, `@types/react`) via controlled compatibility alignment and revalidate web/mobile checks.
+4. Expand mobile tests from selector smoke to context-level persistence tests (Group/Period restore behavior on boot).
+5. Add an iOS smoke shortcut script (`ios:smoke`) with explicit port to standardize manual QA runs.
