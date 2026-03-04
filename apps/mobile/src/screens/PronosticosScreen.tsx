@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { BrandBadgeIcon } from "@/components/BrandBadgeIcon";
+import { TeamCrest } from "@/components/TeamCrest";
 import { fixtureRepository, predictionsRepository } from "@/repositories";
 import { useGroupSelection } from "@/state/GroupContext";
 import { usePeriod } from "@/state/PeriodContext";
@@ -37,12 +38,6 @@ function toTeamCode(name: string) {
     .map((word) => word[0] ?? "")
     .join("")
     .toUpperCase();
-}
-
-function teamBadgeTone(name: string) {
-  const palette = ["#1D4ED8", "#0EA5E9", "#16A34A", "#9333EA", "#DC2626", "#F97316"];
-  const hash = name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return palette[hash % palette.length];
 }
 
 function explicitScoreFromFixtureId(fixtureId: string) {
@@ -291,9 +286,7 @@ export function PronosticosScreen() {
         <View style={styles.card}>
           <View style={styles.matchRow}>
             <View style={styles.teamBlock}>
-              <View style={[styles.teamBadgeCircle, { borderColor: teamBadgeTone(fixture.homeTeam) }]}>
-                <Text style={styles.teamBadgeText}>{homeCode.slice(0, 2)}</Text>
-              </View>
+              <TeamCrest teamName={fixture.homeTeam} code={homeCode} />
               <Text allowFontScaling={false} numberOfLines={1} style={styles.teamCode}>
                 {homeCode}
               </Text>
@@ -336,9 +329,7 @@ export function PronosticosScreen() {
               <Text allowFontScaling={false} numberOfLines={1} style={styles.teamCode}>
                 {awayCode}
               </Text>
-              <View style={[styles.teamBadgeCircle, { borderColor: teamBadgeTone(fixture.awayTeam) }]}>
-                <Text style={styles.teamBadgeText}>{awayCode.slice(0, 2)}</Text>
-              </View>
+              <TeamCrest teamName={fixture.awayTeam} code={awayCode} />
             </View>
           </View>
 
@@ -712,20 +703,6 @@ const styles = StyleSheet.create({
   },
   teamBlockRight: {
     justifyContent: "flex-end"
-  },
-  teamBadgeCircle: {
-    height: 30,
-    width: 30,
-    borderRadius: 999,
-    borderWidth: 2,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  teamBadgeText: {
-    color: "#1F2937",
-    fontSize: 10,
-    fontWeight: "800"
   },
   teamCode: {
     color: "#111827",

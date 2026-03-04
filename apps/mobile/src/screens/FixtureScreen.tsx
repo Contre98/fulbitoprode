@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { BrandBadgeIcon } from "@/components/BrandBadgeIcon";
+import { TeamCrest } from "@/components/TeamCrest";
 
 type FixtureFilter = "all" | "live" | "final" | "upcoming";
 
@@ -49,12 +50,6 @@ function toTeamCode(name: string) {
     .map((word) => word[0] ?? "")
     .join("")
     .toUpperCase();
-}
-
-function teamBadgeTone(name: string) {
-  const palette = ["#1D4ED8", "#0EA5E9", "#16A34A", "#9333EA", "#DC2626", "#F97316"];
-  const hash = name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return palette[hash % palette.length];
 }
 
 function deriveDisplayScore(fixture: Fixture) {
@@ -245,9 +240,7 @@ export function FixtureScreen() {
             return (
               <View key={fixture.id} style={[styles.row, index > 0 ? styles.rowWithBorder : null]}>
                 <View style={styles.teamSide}>
-                  <View style={[styles.teamBadgeCircle, { borderColor: teamBadgeTone(fixture.homeTeam) }]}>
-                    <Text allowFontScaling={false} style={styles.teamBadgeText}>{homeCode.slice(0, 2)}</Text>
-                  </View>
+                  <TeamCrest teamName={fixture.homeTeam} code={homeCode} size={24} />
                   <Text allowFontScaling={false} numberOfLines={1} style={styles.teamName}>{fixture.homeTeam}</Text>
                 </View>
 
@@ -258,9 +251,7 @@ export function FixtureScreen() {
 
                 <View style={[styles.teamSide, styles.teamSideRight]}>
                   <Text allowFontScaling={false} numberOfLines={1} style={styles.teamNameRight}>{fixture.awayTeam}</Text>
-                  <View style={[styles.teamBadgeCircle, { borderColor: teamBadgeTone(fixture.awayTeam) }]}>
-                    <Text allowFontScaling={false} style={styles.teamBadgeText}>{awayCode.slice(0, 2)}</Text>
-                  </View>
+                  <TeamCrest teamName={fixture.awayTeam} code={awayCode} size={24} />
                 </View>
               </View>
             );
@@ -521,20 +512,6 @@ const styles = StyleSheet.create({
   },
   teamSideRight: {
     justifyContent: "flex-end"
-  },
-  teamBadgeCircle: {
-    height: 24,
-    width: 24,
-    borderRadius: 999,
-    borderWidth: 2,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  teamBadgeText: {
-    color: "#1F2937",
-    fontSize: 8,
-    fontWeight: "800"
   },
   teamName: {
     color: "#1F2937",
