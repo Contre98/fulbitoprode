@@ -31,7 +31,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - Environment drift (Node/runtime/test command mismatch) between local and CI.
 
 ### First 3 Implementation Slices
-1. Add targeted mobile e2e smoke path for login -> `Inicio` -> `Pronósticos` save -> `Grupos` join/create.
+1. Add targeted mobile e2e smoke path for login -> `Inicio` -> `Pronósticos` save -> `Grupos` join/create. ✅
 2. Expand repository-level contract tests for HTTP + mock adapters on groups/fixture/predictions.
 3. Add failure-injection coverage for fallback diagnostics + retry behavior (`HTTP Session` <-> `Mock Fallback` transitions).
 
@@ -96,6 +96,11 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Add contributor runtime notes for Node 20-22 and targeted mobile test command usage.
 - [x] Capture Android medium-device parity screenshots for all tabs after cache reset and verify updated bundle load.
 
+### Phase 4
+- [x] Add first app-level mobile smoke flow test covering `Inicio` -> `Pronósticos` save -> `Grupos` create/join through tab navigation.
+- [ ] Expand repository-level contract tests for HTTP + mock adapters on groups/fixture/predictions.
+- [ ] Add failure-injection coverage for fallback diagnostics and retry mode transitions.
+
 ## Decisions Log
 
 | Date | Decision | Rationale | Impacted Paths |
@@ -157,6 +162,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Update mobile Jest runner to pass CLI test patterns and run with deterministic handle diagnostics (`--runInBand --detectOpenHandles`). | Keep smoke runs predictable, avoid false-positive worker shutdown warnings, and ensure focused test commands actually target requested files. | `apps/mobile/scripts/run-mobile-tests.mjs` |
 | 2026-03-04 | Add CI workflow guard steps for mobile Node range validation and targeted mobile test command execution. | Keep CI aligned with local mobile prerequisites/commands so regressions in mobile runner behavior are detected before merge. | `.github/workflows/ci.yml` |
 | 2026-03-04 | Create a dedicated Phase 3 closure summary draft document grouped by tab (`Inicio`, `Posiciones`, `Pronósticos`, `Fixture`, `Grupos`). | Keep final parity sign-off auditable with one place to attach screenshots, feature evidence, and validation references before merge. | `docs/mobile-phase3-closure-summary.md` |
+| 2026-03-04 | Add app-level mobile smoke-flow test that traverses tab navigation and asserts core user actions (`Inicio` -> `Pronósticos` save -> `Grupos` create/join). | Kick off Phase 4 with a pragmatic e2e-style regression guard using existing Jest/RTL harness before introducing heavier device-e2e tooling. | `apps/mobile/src/test/MobileE2ESmoke.flow.test.tsx` |
 
 ## Validation Log
 
@@ -400,6 +406,11 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after recording Android screenshot evidence and QA status updates in closure docs. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile TS checks unaffected by QA evidence documentation updates. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by QA evidence docs slice. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile test -- MobileE2ESmoke.flow.test.tsx` | Fail then pass | Initial failures due provider/render-path constraints (`safe-area` over-mock, `GestureHandlerRootView` init). Resolved by rendering `AppNavigation` in a local `QueryClientProvider` and refining selectors. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after adding Phase 4 slice #1 smoke-flow test file. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | New `MobileE2ESmoke.flow.test.tsx` compiles cleanly under strict TypeScript. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by Phase 4 slice #1 test addition. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile test -- MobileE2ESmoke.flow.test.tsx` (final rerun) | Pass | Confirmed stable pass after plan/log updates (`1 suite, 1 test`). |
 
 ## Risks & Mitigations
 
@@ -411,8 +422,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Open Phase 4 with slice #1 definition (tool choice, path coverage, acceptance checks for mobile e2e smoke).
-2. Implement initial e2e smoke scaffold for login -> `Inicio` -> `Pronósticos` save -> `Grupos`.
-3. Add adapter contract tests for `groups` and `predictions` HTTP/mock parity.
-4. Expand fallback diagnostics tests around `HTTP Session` <-> `Mock Fallback` transitions.
+1. Expand adapter contract tests for `groups` and `predictions` HTTP/mock parity (Phase 4 slice #2).
+2. Add failure-injection coverage for fallback diagnostics and `HTTP Session` <-> `Mock Fallback` transitions (Phase 4 slice #3).
+3. Extend the smoke-flow suite with explicit auth-step coverage using `AuthScreen` login path.
+4. Add one CI guard invocation for the new `MobileE2ESmoke.flow.test.tsx` path.
 5. Prepare a dedicated Phase 4 tracking section in PR template/checklist if needed.
