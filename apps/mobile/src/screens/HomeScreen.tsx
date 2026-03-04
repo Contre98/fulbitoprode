@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -12,6 +12,7 @@ import { TeamCrest } from "@/components/TeamCrest";
 import { useAuth } from "@/state/AuthContext";
 import { useGroupSelection } from "@/state/GroupContext";
 import { usePeriod } from "@/state/PeriodContext";
+import { filterHomeFixtures, type HomeFixtureFilter } from "@/screens/homeFilters";
 
 function toTeamCode(name: string) {
   const clean = name.trim();
@@ -34,6 +35,7 @@ export function HomeScreen() {
   const { session } = useAuth();
   const { memberships, selectedGroupId } = useGroupSelection();
   const { fecha } = usePeriod();
+  const [fixtureFilter, setFixtureFilter] = useState<HomeFixtureFilter>("all");
   const activeMembership = memberships.find((membership) => membership.groupId === selectedGroupId) ?? memberships[0];
   const groupId = activeMembership?.groupId ?? "grupo-1";
 
@@ -66,7 +68,11 @@ export function HomeScreen() {
   }, [fixtureQuery.data, leaderboardQuery.data]);
 
   const membershipsCards = memberships.slice(0, 2);
-  const fixtures = (fixtureQuery.data ?? []).slice(0, 4);
+  const filteredFixtures = useMemo(
+    () => filterHomeFixtures(fixtureQuery.data ?? [], fixtureFilter),
+    [fixtureQuery.data, fixtureFilter]
+  );
+  const fixtures = filteredFixtures.slice(0, 4);
 
   return (
     <ScreenFrame
@@ -149,21 +155,30 @@ export function HomeScreen() {
       </View>
 
       <View style={styles.filterTabs}>
-        <View style={[styles.filterTab, styles.filterTabActive]}>
-          <Text allowFontScaling={false} style={styles.filterTabLabelActive}>Todos</Text>
-        </View>
-        <View style={styles.filterTab}>
-          <Text allowFontScaling={false} style={styles.filterTabLabel}>En vivo</Text>
-        </View>
-        <View style={styles.filterTab}>
-          <Text allowFontScaling={false} style={styles.filterTabLabel}>Próximos</Text>
-        </View>
+        <Pressable onPress={() => setFixtureFilter("all")} style={[styles.filterTab, fixtureFilter === "all" ? styles.filterTabActive : null]}>
+          <Text allowFontScaling={false} style={fixtureFilter === "all" ? styles.filterTabLabelActive : styles.filterTabLabel}>Todos</Text>
+        </Pressable>
+        <Pressable onPress={() => setFixtureFilter("live")} style={[styles.filterTab, fixtureFilter === "live" ? styles.filterTabActive : null]}>
+          <Text allowFontScaling={false} style={fixtureFilter === "live" ? styles.filterTabLabelActive : styles.filterTabLabel}>En vivo</Text>
+        </Pressable>
+        <Pressable onPress={() => setFixtureFilter("upcoming")} style={[styles.filterTab, fixtureFilter === "upcoming" ? styles.filterTabActive : null]}>
+          <Text allowFontScaling={false} style={fixtureFilter === "upcoming" ? styles.filterTabLabelActive : styles.filterTabLabel}>Próximos</Text>
+        </Pressable>
       </View>
 
       {fixtureQuery.isLoading ? <LoadingState message="Cargando partidos..." /> : null}
       {fixtureQuery.isError ? <ErrorState message="No se pudo cargar el tablero de partidos." retryLabel="Reintentar" onRetry={() => void fixtureQuery.refetch()} /> : null}
       {!fixtureQuery.isLoading && !fixtureQuery.isError && fixtures.length === 0 ? (
-        <EmptyState title="Sin partidos" description="Cuando haya partidos en esta fecha vas a verlos acá." />
+        <EmptyState
+          title="Sin partidos"
+          description={
+            fixtureFilter === "all"
+              ? "Cuando haya partidos en esta fecha vas a verlos acá."
+              : fixtureFilter === "live"
+                ? "No hay partidos en vivo para este grupo y fecha."
+                : "No hay partidos próximos para este grupo y fecha."
+          }
+        />
       ) : null}
 
       {fixtures.map((fixture) => {

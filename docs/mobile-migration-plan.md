@@ -71,6 +71,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Start parity pass for `Grupos` screen using `ui reference/Grupos.png` as baseline.
 - [x] Start parity pass for `Inicio` screen using `ui reference/Inicio.png` as baseline.
 - [x] Make `Grupos` primary actions functional on mobile (`Crear Grupo` / `Unirse`) through contracts-first repositories (HTTP + mock fallback).
+- [x] Make `Inicio` match filter tabs functional (`Todos` / `En vivo` / `Próximos`) with state-driven filtering.
 
 ## Decisions Log
 
@@ -129,6 +130,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Normalize remaining `Inicio`/`Grupos` action icon glyphs to non-emoji symbol set (`⌘`, `≣`). | Keep iconography consistent with the dependency-free glyph approach already used in other parity screens and avoid mixed emoji-style marks. | `apps/mobile/src/screens/HomeScreen.tsx`, `apps/mobile/src/screens/ConfiguracionScreen.tsx` |
 | 2026-03-04 | Extend `GroupsRepository` contract with `createGroup` / `joinGroup` and wire `Grupos` UI actions to repository mutations with session refresh. | Transition key copied parity controls from visual-only to functional behavior using existing backend endpoints and mock fallback without bypassing architecture layers. | `packages/api-contracts/src/index.ts`, `apps/mobile/src/repositories/*`, `apps/mobile/src/screens/ConfiguracionScreen.tsx` |
 | 2026-03-04 | Add `mockGroupStore` and tests to support mutable group actions in mock mode. | Keep local/dev behavior realistic and testable when HTTP session is unavailable. | `apps/mobile/src/repositories/mockGroupStore.ts`, `apps/mobile/src/test/mockGroupStore.test.ts`, `apps/mobile/src/repositories/mockDataRepositories.ts`, `apps/mobile/src/repositories/mockAuthRepository.ts` |
+| 2026-03-04 | Extract `Inicio` fixture filtering helper and wire tabs to state-driven filter behavior. | Make copied parity controls functional while keeping filtering logic isolated and testable via focused unit tests. | `apps/mobile/src/screens/HomeScreen.tsx`, `apps/mobile/src/screens/homeFilters.ts`, `apps/mobile/src/test/homeFilters.test.ts` |
 
 ## Validation Log
 
@@ -324,6 +326,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | No web regression after groups contract/repository action extension. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | `createGroup`/`joinGroup` repository wiring and `ConfiguracionScreen` mutations compile cleanly. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by mobile functional groups slice. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile test` | Pass | Added `homeFilters` tests; total mobile suites `7`, tests `12`. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | No web regression after making `Inicio` filter tabs functional. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | `HomeScreen` filter state wiring and helper extraction compile cleanly. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by `Inicio` filter functionality slice. |
 
 ## Risks & Mitigations
 
@@ -335,8 +341,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Make `Inicio` filter tabs (`Todos` / `En vivo` / `Próximos`) functional on mobile with local state-driven filtering.
-2. Add focused smoke tests for `Grupos` actions (`Crear Grupo` and `Unirse`) at screen/repository integration level.
-3. Add small focused smoke tests for `Inicio` critical render/filter paths.
-4. Do one final notch/top-safe-area cross-device check (iPhone SE + Pro Max + Android medium) before closing Phase 3 visual parity.
-5. Prepare Phase 3 closure commit/PR summary with grouped screenshots per tab and links to validation logs.
+1. Add focused smoke tests for `Grupos` actions (`Crear Grupo` and `Unirse`) at screen/repository integration level.
+2. Add small focused smoke tests for `Inicio` critical render/filter paths (screen-level interaction checks).
+3. Do one final notch/top-safe-area cross-device check (iPhone SE + Pro Max + Android medium) before closing Phase 3 visual parity.
+4. Prepare Phase 3 closure commit/PR summary with grouped screenshots per tab and links to validation logs.
+5. Start planning Phase 4 hardening (targeted mobile e2e smoke and incremental HTTP adapter deepening).
