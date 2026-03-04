@@ -307,14 +307,19 @@ export function PronosticosScreen() {
               <Text style={styles.brandSubtitle}>Pronósticos · Resultados y carga</Text>
             </View>
             <View style={styles.headerActions}>
-              <Pressable style={styles.headerActionButton}>
-                <Text style={styles.headerActionLabel}>Tema</Text>
+              <Pressable style={styles.headerActionButton} accessibilityRole="button" accessibilityLabel="Cambiar tema">
+                <View style={styles.iconSunOuter}>
+                  <View style={styles.iconSunCore} />
+                </View>
               </Pressable>
-              <Pressable style={styles.headerActionButton}>
-                <Text style={styles.headerActionLabel}>Alertas</Text>
+              <Pressable style={styles.headerActionButton} accessibilityRole="button" accessibilityLabel="Notificaciones">
+                <View style={styles.iconBellBody} />
+                <View style={styles.iconBellDot} />
               </Pressable>
-              <Pressable style={styles.headerActionButton}>
-                <Text style={styles.headerActionLabel}>Ajustes</Text>
+              <Pressable style={styles.headerActionButton} accessibilityRole="button" accessibilityLabel="Configuración">
+                <View style={styles.iconGearOuter}>
+                  <View style={styles.iconGearCore} />
+                </View>
               </Pressable>
             </View>
             <View style={styles.profileDot}>
@@ -416,17 +421,64 @@ const styles = StyleSheet.create({
     gap: spacing.xs
   },
   headerActionButton: {
+    height: 24,
+    width: 24,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.surfaceMuted,
     backgroundColor: colors.background,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 5
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative"
   },
-  headerActionLabel: {
-    color: colors.textSecondary,
-    fontSize: 9,
-    fontWeight: "700"
+  iconSunOuter: {
+    height: 12,
+    width: 12,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: colors.textSecondary,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  iconSunCore: {
+    height: 4,
+    width: 4,
+    borderRadius: 999,
+    backgroundColor: colors.textSecondary
+  },
+  iconBellBody: {
+    height: 10,
+    width: 10,
+    borderTopLeftRadius: 5,
+    borderTopRightRadius: 5,
+    borderBottomLeftRadius: 2,
+    borderBottomRightRadius: 2,
+    borderWidth: 1.5,
+    borderColor: colors.textSecondary
+  },
+  iconBellDot: {
+    position: "absolute",
+    top: 3,
+    right: 4,
+    height: 3,
+    width: 3,
+    borderRadius: 999,
+    backgroundColor: "#F7B84B"
+  },
+  iconGearOuter: {
+    height: 12,
+    width: 12,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    borderColor: colors.textSecondary,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  iconGearCore: {
+    height: 4,
+    width: 4,
+    borderRadius: 999,
+    backgroundColor: colors.textSecondary
   },
   card: {
     backgroundColor: colors.surface,
