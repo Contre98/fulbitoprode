@@ -19,10 +19,10 @@ function AppTabs() {
   return (
     <Tabs.Navigator screenOptions={{ headerShown: false }}>
       <Tabs.Screen name="Inicio" component={HomeScreen} />
-      <Tabs.Screen name="Pronosticos" component={PronosticosScreen} />
       <Tabs.Screen name="Posiciones" component={PosicionesScreen} />
+      <Tabs.Screen name="Pronosticos" component={PronosticosScreen} />
       <Tabs.Screen name="Fixture" component={FixtureScreen} />
-      <Tabs.Screen name="Configuracion" component={ConfiguracionScreen} />
+      <Tabs.Screen name="Grupos" component={ConfiguracionScreen} />
     </Tabs.Navigator>
   );
 }

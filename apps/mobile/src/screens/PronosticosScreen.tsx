@@ -259,7 +259,7 @@ export function PronosticosScreen() {
               <View style={[styles.teamBadgeCircle, { borderColor: teamBadgeTone(fixture.homeTeam) }]}>
                 <Text style={styles.teamBadgeText}>{homeCode.slice(0, 2)}</Text>
               </View>
-              <Text numberOfLines={1} style={styles.teamCode}>
+              <Text allowFontScaling={false} numberOfLines={1} style={styles.teamCode}>
                 {homeCode}
               </Text>
             </View>
@@ -276,7 +276,7 @@ export function PronosticosScreen() {
                   placeholderTextColor={colors.textSecondary}
                   editable={isEditable}
                 />
-                <Text style={styles.separator}>:</Text>
+                <Text allowFontScaling={false} style={styles.separator}>:</Text>
                 <TextInput
                   style={styles.scoreInput}
                   value={draft.away}
@@ -290,15 +290,15 @@ export function PronosticosScreen() {
               </View>
             ) : (
               <View style={styles.resultPill}>
-                <Text style={styles.resultText}>
+                <Text allowFontScaling={false} style={styles.resultText}>
                   {readOnlyHome} - {readOnlyAway}
                 </Text>
-                <Text style={styles.resultSub}>{statusBadgeLabel.toUpperCase()}</Text>
+                <Text allowFontScaling={false} style={styles.resultSub}>{statusBadgeLabel.toUpperCase()}</Text>
               </View>
             )}
 
             <View style={[styles.teamBlock, styles.teamBlockRight]}>
-              <Text numberOfLines={1} style={styles.teamCode}>
+              <Text allowFontScaling={false} numberOfLines={1} style={styles.teamCode}>
                 {awayCode}
               </Text>
               <View style={[styles.teamBadgeCircle, { borderColor: teamBadgeTone(fixture.awayTeam) }]}>
@@ -308,7 +308,7 @@ export function PronosticosScreen() {
           </View>
 
           <View style={styles.timeRow}>
-            <Text style={styles.kickoffBadge}>{kickoffLabel}</Text>
+            <Text allowFontScaling={false} style={styles.kickoffBadge}>{kickoffLabel}</Text>
           </View>
         </View>
 
@@ -322,12 +322,12 @@ export function PronosticosScreen() {
               pressed && canSave ? styles.saveButtonPressed : null
             ]}
           >
-            <Text style={styles.saveButtonText}>{isSavingThisFixture ? "Guardando..." : "Guardar pronóstico"}</Text>
+            <Text allowFontScaling={false} style={styles.saveButtonText}>{isSavingThisFixture ? "Guardando..." : "Guardar pronóstico"}</Text>
           </Pressable>
         ) : null}
-        {!isEditable ? <Text style={styles.lockedChip}>Partido bloqueado: no se pueden editar pronósticos.</Text> : null}
-        {isSavingThisFixture ? <Text style={styles.infoChip}>Guardando pronóstico...</Text> : null}
-        {fixtureSaveError ? <Text style={styles.errorChip}>{fixtureSaveError}</Text> : null}
+        {!isEditable ? <Text allowFontScaling={false} style={styles.lockedChip}>Partido bloqueado: no se pueden editar pronósticos.</Text> : null}
+        {isSavingThisFixture ? <Text allowFontScaling={false} style={styles.infoChip}>Guardando pronóstico...</Text> : null}
+        {fixtureSaveError ? <Text allowFontScaling={false} style={styles.errorChip}>{fixtureSaveError}</Text> : null}
       </View>
     );
   }
@@ -360,14 +360,15 @@ export function PronosticosScreen() {
       title="Pronósticos"
       subtitle="Ingresa y guarda tus predicciones"
       hideDataModeBadge
+      containerStyle={styles.screenContainer}
       contentStyle={styles.screenContent}
       header={
         <View style={styles.headerCard}>
           <View style={styles.brandRow}>
             <View style={styles.brandBadge}>
-              <Text style={styles.brandBadgeText}>🏆</Text>
+              <Text allowFontScaling={false} style={styles.brandBadgeText}>🏆</Text>
             </View>
-            <Text style={styles.brandTitle}>
+            <Text allowFontScaling={false} numberOfLines={1} style={styles.brandTitle}>
               <Text style={styles.brandTitleDark}>FULBITO</Text>
               <Text style={styles.brandTitleAccent}>PRODE</Text>
             </Text>
@@ -387,48 +388,48 @@ export function PronosticosScreen() {
                 </View>
               </Pressable>
               <View style={styles.profileDot}>
-                <Text style={styles.profileDotText}>FC</Text>
+                <Text allowFontScaling={false} style={styles.profileDotText}>FC</Text>
               </View>
             </View>
           </View>
           <View style={styles.titleRow}>
             <View style={styles.sectionIcon}>
-              <Text style={styles.sectionIconText}>∿</Text>
+              <Text allowFontScaling={false} style={styles.sectionIconText}>∿</Text>
             </View>
-            <Text style={styles.sectionTitle}>Pronósticos</Text>
-            <Text style={styles.sectionSubtitle}>Resultados y carga</Text>
+            <Text allowFontScaling={false} style={styles.sectionTitle}>Pronósticos</Text>
+            <Text allowFontScaling={false} numberOfLines={1} style={styles.sectionSubtitle}>Resultados y carga</Text>
           </View>
         </View>
       }
     >
       <View style={styles.block}>
-        <Text style={styles.blockLabel}>SELECCION ACTUAL</Text>
+        <Text allowFontScaling={false} style={styles.blockLabel}>SELECCION ACTUAL</Text>
         <Pressable style={styles.selectionButton} onPress={cycleGroup}>
-          <Text numberOfLines={1} style={styles.selectionText}>
+          <Text allowFontScaling={false} numberOfLines={1} style={styles.selectionText}>
             {groupSummary}
           </Text>
-          <Text style={styles.selectionChevron}>⌄</Text>
+          <Text allowFontScaling={false} style={styles.selectionChevron}>⌄</Text>
         </Pressable>
       </View>
 
       <View style={styles.block}>
         <View style={styles.fechaRow}>
           <Pressable testID="fecha-prev" onPress={goPrevFecha} style={styles.fechaNavButton}>
-            <Text style={styles.fechaNavLabel}>‹</Text>
+            <Text allowFontScaling={false} style={styles.fechaNavLabel}>‹</Text>
           </Pressable>
           <View style={styles.fechaCenter}>
-            <Text style={styles.fechaTitle}>{currentPeriod.label}</Text>
-            <Text style={styles.fechaStatus}>{fechaClosed ? "Cerrada" : "Abierta"}</Text>
+            <Text allowFontScaling={false} style={styles.fechaTitle}>{currentPeriod.label}</Text>
+            <Text allowFontScaling={false} style={styles.fechaStatus}>{fechaClosed ? "Cerrada" : "Abierta"}</Text>
           </View>
           <Pressable testID="fecha-next" onPress={goNextFecha} style={styles.fechaNavButton}>
-            <Text style={styles.fechaNavLabel}>›</Text>
+            <Text allowFontScaling={false} style={styles.fechaNavLabel}>›</Text>
           </Pressable>
         </View>
       </View>
 
       <View style={styles.summaryModeRow}>
         <View style={styles.progressCard}>
-          <Text style={styles.progressLabel}>
+          <Text allowFontScaling={false} style={styles.progressLabel}>
             {completionSummary.completed}/{completionSummary.total}
           </Text>
           <View style={styles.progressTrack}>
@@ -437,10 +438,10 @@ export function PronosticosScreen() {
         </View>
         <View style={styles.modeTabs}>
           <Pressable onPress={() => setMode("upcoming")} style={[styles.modeTab, mode === "upcoming" ? styles.modeTabActive : null]}>
-            <Text style={[styles.modeTabLabel, mode === "upcoming" ? styles.modeTabLabelActive : null]}>Por jugar</Text>
+            <Text allowFontScaling={false} style={[styles.modeTabLabel, mode === "upcoming" ? styles.modeTabLabelActive : null]}>Por jugar</Text>
           </Pressable>
           <Pressable onPress={() => setMode("history")} style={[styles.modeTab, mode === "history" ? styles.modeTabActive : null]}>
-            <Text style={[styles.modeTabLabel, mode === "history" ? styles.modeTabLabelActive : null]}>Jugados</Text>
+            <Text allowFontScaling={false} style={[styles.modeTabLabel, mode === "history" ? styles.modeTabLabelActive : null]}>Jugados</Text>
           </Pressable>
         </View>
       </View>
@@ -451,12 +452,17 @@ export function PronosticosScreen() {
         />
       ) : null}
       {visibleFixtures.map((fixture) => renderFixtureCard(fixture))}
-      {statusMessage ? <Text style={styles.statusText}>{statusMessage}</Text> : null}
+      {statusMessage ? <Text allowFontScaling={false} style={styles.statusText}>{statusMessage}</Text> : null}
     </ScreenFrame>
   );
 }
 
 const styles = StyleSheet.create({
+  screenContainer: {
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 0
+  },
   screenContent: {
     gap: 12
   },
@@ -468,7 +474,9 @@ const styles = StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 14,
     borderWidth: 1,
-    borderColor: "#D7DCE3"
+    borderColor: "#D7DCE3",
+    marginHorizontal: -12,
+    marginTop: -8
   },
   brandRow: {
     flexDirection: "row",
@@ -488,9 +496,10 @@ const styles = StyleSheet.create({
   },
   brandTitle: {
     flex: 1,
-    fontSize: 27,
+    fontSize: 14,
     fontWeight: "900",
-    letterSpacing: -0.8
+    letterSpacing: -0.2,
+    marginRight: 6
   },
   brandTitleDark: {
     color: "#0F172A"
@@ -576,10 +585,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#6B7280"
   },
   titleRow: {
-    marginTop: 14,
+    marginTop: 12,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10
+    gap: 8
   },
   sectionIcon: {
     height: 34,
@@ -596,13 +605,13 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: "#0F172A",
-    fontSize: 36,
+    fontSize: 22,
     fontWeight: "800"
   },
   sectionSubtitle: {
     marginLeft: "auto",
     color: "#7A8698",
-    fontSize: 24,
+    fontSize: 11,
     fontWeight: "700"
   },
   block: {
@@ -633,11 +642,11 @@ const styles = StyleSheet.create({
     flex: 1,
     color: "#0F172A",
     fontWeight: "800",
-    fontSize: 17
+    fontSize: 10
   },
   selectionChevron: {
     color: "#98A2B3",
-    fontSize: 18
+    fontSize: 14
   },
   fechaRow: {
     minHeight: 56,
@@ -669,13 +678,13 @@ const styles = StyleSheet.create({
   },
   fechaTitle: {
     color: "#A3C90A",
-    fontSize: 34,
+    fontSize: 22,
     fontWeight: "900"
   },
   fechaStatus: {
     marginTop: 2,
     color: "#8A94A4",
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: "700"
   },
   summaryModeRow: {
@@ -726,9 +735,9 @@ const styles = StyleSheet.create({
   },
   teamCode: {
     color: "#111827",
-    fontSize: 34,
+    fontSize: 18,
     fontWeight: "900",
-    letterSpacing: -1
+    letterSpacing: -0.3
   },
   inputsPill: {
     flexDirection: "row",
@@ -767,17 +776,17 @@ const styles = StyleSheet.create({
     fontWeight: "800"
   },
   scoreInput: {
-    width: 36,
-    height: 34,
+    width: 28,
+    height: 28,
     color: "#4B5563",
     textAlign: "center",
-    fontSize: 36,
+    fontSize: 18,
     fontWeight: "900",
     paddingVertical: 0
   },
   separator: {
     color: "#9AA4B2",
-    fontSize: 28,
+    fontSize: 18,
     fontWeight: "800",
     marginHorizontal: 2
   },
@@ -786,7 +795,7 @@ const styles = StyleSheet.create({
   },
   kickoffBadge: {
     color: "#97A1B1",
-    fontSize: 15,
+    fontSize: 10,
     fontWeight: "800"
   },
   saveButton: {
@@ -806,7 +815,7 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: "#1F2937",
     fontWeight: "800",
-    fontSize: 14
+    fontSize: 11
   },
   lockedChip: {
     borderRadius: 12,
@@ -816,7 +825,7 @@ const styles = StyleSheet.create({
     color: "#D09044",
     paddingHorizontal: 10,
     paddingVertical: 7,
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: "700"
   },
   infoChip: {
@@ -827,7 +836,7 @@ const styles = StyleSheet.create({
     color: "#7A8698",
     paddingHorizontal: 10,
     paddingVertical: 7,
-    fontSize: 13
+    fontSize: 11
   },
   errorChip: {
     borderRadius: 12,
@@ -837,7 +846,7 @@ const styles = StyleSheet.create({
     color: "#DB5E6D",
     paddingHorizontal: 10,
     paddingVertical: 7,
-    fontSize: 13
+    fontSize: 11
   },
   modeTabs: {
     flexDirection: "row",
@@ -860,7 +869,7 @@ const styles = StyleSheet.create({
   },
   modeTabLabel: {
     color: "#8A94A4",
-    fontSize: 13,
+    fontSize: 10,
     fontWeight: "700"
   },
   modeTabLabelActive: {
@@ -880,7 +889,7 @@ const styles = StyleSheet.create({
   },
   progressLabel: {
     color: "#7A8698",
-    fontSize: 14,
+    fontSize: 10,
     fontWeight: "700"
   },
   progressTrack: {
@@ -897,6 +906,6 @@ const styles = StyleSheet.create({
   },
   statusText: {
     color: "#7A8698",
-    fontSize: 13
+    fontSize: 11
   }
 });

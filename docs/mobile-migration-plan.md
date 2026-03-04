@@ -57,6 +57,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Add Pronósticos per-card lock/saving/error chips and top action controls for closer web parity.
 - [x] Replace Pronósticos header text control pills with icon-style controls.
 - [x] Apply screenshot-driven Pronósticos layout parity pass using `ui reference/Pronosticos-*.png`.
+- [x] Apply Pronósticos pixel-pass adjustments (header no-wrap scale + text scaling guard + tab order/labels alignment).
 
 ## Decisions Log
 
@@ -97,6 +98,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Add Pronósticos per-card status chips (`bloqueado`, `guardando`, error) and header action controls in mobile. | Move parity beyond static styling into web-like feedback states and top-bar affordances while keeping contracts/adapters unchanged. | `apps/mobile/src/screens/PronosticosScreen.tsx` |
 | 2026-03-04 | Use dependency-free shape glyphs for Pronósticos header action icons because npm registry DNS is intermittently unavailable. | Preserve parity momentum without blocking on package installation; swap to `@expo/vector-icons` once registry connectivity is stable. | `apps/mobile/src/screens/PronosticosScreen.tsx` |
 | 2026-03-04 | Extend `ScreenFrame` with optional badge/content overrides and rebuild Pronósticos layout from screenshot references. | Allow high-fidelity per-screen parity when generic frame chrome diverges from original web mobile UI while preserving shared repository contracts/state flow. | `apps/mobile/src/components/ScreenFrame.tsx`, `apps/mobile/src/screens/PronosticosScreen.tsx` |
+| 2026-03-04 | Add `ScreenFrame` container-style override and disable font scaling on key Pronósticos labels for pixel parity. | Prevent oversized text/wrapping under device accessibility scaling and match screenshot proportions more consistently across simulators. | `apps/mobile/src/components/ScreenFrame.tsx`, `apps/mobile/src/screens/PronosticosScreen.tsx` |
+| 2026-03-04 | Reorder/rename bottom tabs to `Inicio · Posiciones · Pronósticos · Fixture · Grupos` for visual parity with references. | Align core navigation information architecture with original web-mobile UX before final per-screen polish. | `apps/mobile/src/navigation/AppNavigation.tsx` |
 
 ## Validation Log
 
@@ -235,6 +238,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | `ScreenFrame` optional props (`hideDataModeBadge`, `contentStyle`) and new Pronósticos layout compile cleanly. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | No web regression after screenshot-driven Pronósticos parity slice. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by Pronósticos screenshot parity slice. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile test` | Pass | Mobile suites green after Pronósticos pixel-pass and tab order alignment (`5 suites, 7 tests`). |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | `ScreenFrame` `containerStyle` and Pronósticos scaling/layout refinements compile cleanly. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | No web regression after mobile pixel-pass changes. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by Pronósticos pixel-pass slice. |
 
 ## Risks & Mitigations
 
@@ -246,8 +253,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Run visual QA against `ui reference/Pronosticos-Por Jugar.png` and `ui reference/Pronosticos-Jugados.png` and close any remaining micro-spacing/logo/icon gaps.
+1. Run one more Pronósticos screenshot comparison pass focused on team logos/iconography parity (replace placeholder badge glyphs).
 2. Execute screenshot-driven parity pass for `Posiciones` using `ui reference/Posiciones*.png` (including `STATS` mode).
 3. Execute screenshot-driven parity pass for `Fixture` using `ui reference/Fixture.png`.
-4. Align bottom tab labels/order/icons to `Inicio · Posiciones · Pronósticos · Fixture · Grupos`.
+4. Align bottom-tab icon artwork/states with reference styling (labels/order already aligned).
 5. Add Android smoke shortcut command and dedicated `android:smoke` script for repeatable manual QA.

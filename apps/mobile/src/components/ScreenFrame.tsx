@@ -9,6 +9,7 @@ export function ScreenFrame({
   subtitle,
   header,
   hideDataModeBadge,
+  containerStyle,
   contentStyle,
   children
 }: {
@@ -16,11 +17,12 @@ export function ScreenFrame({
   subtitle?: string;
   header?: ReactNode;
   hideDataModeBadge?: boolean;
+  containerStyle?: StyleProp<ViewStyle>;
   contentStyle?: StyleProp<ViewStyle>;
   children?: ReactNode;
 }) {
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, containerStyle]}>
       {header ? (
         header
       ) : (
