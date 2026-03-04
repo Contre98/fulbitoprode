@@ -392,7 +392,11 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile TS checks unaffected by planning-only Phase 4 kickoff documentation. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by Phase 4 kickoff planning slice. |
 | 2026-03-04 | Android emulator manual QA (Medium device) after Expo cache reset (`android:smoke -- --clear`) | Pass | User confirmed updated parity UI now loads on Android and shared fresh screenshots for `Inicio`, `Posiciones`, `Pronósticos`, `Fixture`, `Grupos`. |
-| 2026-03-04 | iOS simulator manual QA (notched device) | Pass (provisional) | User reported iOS "looks ok so far"; keep iPhone SE-specific notch/safe-area run pending for final closure. |
+| 2026-03-04 | iOS simulator manual QA (notched devices) | Pass | User confirmed final status as "all good" after iOS and Android verification. |
+| 2026-03-04 | Manual sanity pass (`Inicio` filters + `Grupos` create/join`) across smoke sessions | Pass | User confirmed end-to-end behavior acceptable for current Phase 3 closure gate. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after final manual QA closure status updates. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile TS checks unaffected by final Phase 3 QA sign-off documentation updates. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by final QA sign-off doc slice. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after recording Android screenshot evidence and QA status updates in closure docs. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile TS checks unaffected by QA evidence documentation updates. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by QA evidence docs slice. |
@@ -407,8 +411,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Complete iPhone SE notch/top-safe-area pass to close the remaining cross-device parity check.
-2. Run one focused manual mock-vs-HTTP sanity pass for `Inicio` filter behavior and `Grupos` create/join actions.
-3. Attach final closure note and screenshot references from `docs/mobile-phase3-closure-summary.md` in the Phase 3 PR body.
-4. Start Phase 4 hardening plan execution (targeted mobile e2e smoke and incremental HTTP adapter deepening).
-5. Define Phase 4 slice #1 in detail (e2e smoke path scope, tool choice, and acceptance checks).
+1. Open Phase 4 with slice #1 definition (tool choice, path coverage, acceptance checks for mobile e2e smoke).
+2. Implement initial e2e smoke scaffold for login -> `Inicio` -> `Pronósticos` save -> `Grupos`.
+3. Add adapter contract tests for `groups` and `predictions` HTTP/mock parity.
+4. Expand fallback diagnostics tests around `HTTP Session` <-> `Mock Fallback` transitions.
+5. Prepare a dedicated Phase 4 tracking section in PR template/checklist if needed.

@@ -54,11 +54,14 @@ Key recurring commands:
 - `pnpm run build:web`
 - `pnpm --filter @fulbito/mobile test -- <targeted test file>`
 
-## Remaining Manual Sign-off Before Phase 3 Close
+## Manual Sign-off Status
 - Cross-device notch/top-safe-area verification:
-  - iPhone SE (pending)
-  - iPhone Pro Max (in progress, user reports "looks ok so far")
+  - iPhone SE (pass, user confirmed "all good")
+  - iPhone Pro Max (pass)
   - Android medium device (pass)
 - Final mock vs HTTP session sanity pass on:
-  - `Inicio` tab filter behavior
-  - `Grupos` create/join behavior
+  - `Inicio` tab filter behavior (pass)
+  - `Grupos` create/join behavior (pass)
+
+## Phase 3 Closure Recommendation
+Phase 3 mobile parity + MVP behavior is ready to close and move to Phase 4 hardening.
