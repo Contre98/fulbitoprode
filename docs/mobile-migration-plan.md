@@ -98,6 +98,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 
 ### Phase 4
 - [x] Add first app-level mobile smoke flow test covering `Inicio` -> `Pronósticos` save -> `Grupos` create/join through tab navigation.
+- [x] Extend smoke-flow coverage with explicit `AuthScreen` login gate transition into `Inicio`.
 - [x] Expand repository-level contract tests for HTTP + mock adapters on groups/predictions.
 - [x] Add failure-injection coverage for fallback diagnostics and retry mode transitions.
 - [x] Add CI guard invocations for `MobileE2ESmoke.flow.test.tsx`, `RepositoryAdapters.contract.test.ts`, and `RepositoryFallbackTransitions.test.ts`.
@@ -430,6 +431,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after CI Phase 4 guard-step additions. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile TypeScript checks remain green after CI workflow + plan updates. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by CI Phase 4 guard-step slice. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile test -- MobileE2ESmoke.flow.test.tsx` | Pass | Auth-gate extended smoke flow now covers unauthenticated `AuthScreen` login transition plus tabbed flow (`2 tests`); non-blocking RN Animated `act(...)` warning remains from navigation internals. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after auth-step smoke coverage extension. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Updated `MobileE2ESmoke.flow.test.tsx` compiles cleanly under strict TypeScript. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by auth-step smoke extension. |
 
 ## Risks & Mitigations
 
@@ -441,8 +446,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Extend the smoke-flow suite with explicit auth-step coverage using `AuthScreen` login path.
-2. Expand adapter contract parity coverage to fixture/leaderboard normalization edge cases.
-3. Add focused tests for fallback diagnostics history persistence/clear semantics under repeated failures.
-4. Add CI guard invocation for the future auth-extended smoke suite once test path is introduced.
-5. Prepare a dedicated Phase 4 tracking section in PR template/checklist if needed.
+1. Expand adapter contract parity coverage to fixture/leaderboard normalization edge cases.
+2. Add focused tests for fallback diagnostics history persistence/clear semantics under repeated failures.
+3. Evaluate and suppress noisy non-blocking RN navigation `act(...)` warning in smoke tests if deterministic mitigation is available.
+4. Prepare a dedicated Phase 4 tracking section in PR template/checklist if needed.
+5. Add one targeted CI guard for fallback-diagnostics history tests after that suite lands.
