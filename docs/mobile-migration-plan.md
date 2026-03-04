@@ -111,6 +111,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Add focused fallback-history integration test through `AuthContext` to confirm badge-facing state wiring under persisted diagnostics.
 - [x] Expand smoke-flow assertions to include `Posiciones` mode toggle behavior (`POSICIONES` <-> `STATS`) after auth-gated entry.
 - [x] Add negative-path app-flow assertion for `Grupos` join validation message before successful join submission.
+- [x] Add malformed-payload rejection assertions for fixture/leaderboard HTTP adapter contract tests.
 
 ## Decisions Log
 
@@ -488,6 +489,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after smoke-flow join-validation assertion expansion. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Updated `MobileE2ESmoke.flow.test.tsx` compiles cleanly after join-validation negative-path assertion addition. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by smoke-flow join-validation assertion slice. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile test -- RepositoryAdapters.contract.test.ts` | Pass | Added malformed fixture/leaderboard payload rejection assertions in HTTP adapter parity suite (`4 tests`). |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after malformed payload rejection coverage expansion in adapter contract tests. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Updated `RepositoryAdapters.contract.test.ts` compiles cleanly under strict mobile TypeScript checks. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by adapter rejection-coverage test slice. |
 
 ## Risks & Mitigations
 
@@ -499,8 +504,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Evaluate whether fixture/leaderboard adapter suite should also assert malformed payload rejection semantics.
-2. Add one focused assertion for fallback-history clear behavior under repeated subscribe/unsubscribe cycles.
-3. Decide whether `MobileE2ESmoke.flow.test.tsx` should be split into smaller flow files as assertions continue to grow.
-4. Add CI guard for the AuthContext fallback-history integration test once stability is confirmed across repeated runs.
-5. Add smoke-flow assertion that verifies `Grupos` join mutation rejection message in app-level flow (network/error-path parity with focused screen tests).
+1. Add one focused assertion for fallback-history clear behavior under repeated subscribe/unsubscribe cycles.
+2. Decide whether `MobileE2ESmoke.flow.test.tsx` should be split into smaller flow files as assertions continue to grow.
+3. Add CI guard for the AuthContext fallback-history integration test once stability is confirmed across repeated runs.
+4. Add smoke-flow assertion that verifies `Grupos` join mutation rejection message in app-level flow (network/error-path parity with focused screen tests).
+5. Review whether malformed payload cases should be explicitly routed to mock fallback at repository-composition layer and add tests if adopted.

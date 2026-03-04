@@ -144,4 +144,44 @@ describe("Repository adapters contract parity", () => {
       );
     });
   });
+
+  it("rejects malformed fixture payloads that do not satisfy contract shape", async () => {
+    const fetchMock = jest.fn<Promise<MockResponse>, [string, RequestInit | undefined]>();
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        predictions: {}
+      })
+    });
+    global.fetch = fetchMock as unknown as typeof global.fetch;
+    const { httpFixtureRepository } = require("@/repositories/httpDataRepositories");
+
+    await expect(
+      httpFixtureRepository.listFixture({
+        groupId: "g-1",
+        fecha: "3"
+      })
+    ).rejects.toBeInstanceOf(Error);
+  });
+
+  it("rejects malformed leaderboard payloads that do not satisfy contract shape", async () => {
+    const fetchMock = jest.fn<Promise<MockResponse>, [string, RequestInit | undefined]>();
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        entries: []
+      })
+    });
+    global.fetch = fetchMock as unknown as typeof global.fetch;
+    const { httpLeaderboardRepository } = require("@/repositories/httpDataRepositories");
+
+    await expect(
+      httpLeaderboardRepository.getLeaderboard({
+        groupId: "g-1",
+        fecha: "3"
+      })
+    ).rejects.toBeInstanceOf(Error);
+  });
 });
