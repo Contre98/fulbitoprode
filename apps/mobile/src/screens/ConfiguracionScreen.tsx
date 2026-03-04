@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#DDE2E8"
   },
   screenContent: {
-    gap: 12
+    gap: 10
   },
   headerCard: {
     borderBottomLeftRadius: 24,
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    minHeight: 42,
+    minHeight: 40,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -268,7 +268,7 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     color: "#7A8698",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700"
   },
   tabLabelActive: {
@@ -280,18 +280,18 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#D7DCE3",
     backgroundColor: "#F8FAFC",
-    padding: 12,
-    gap: 8
+    padding: 10,
+    gap: 7
   },
   input: {
-    height: 38,
+    height: 36,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: "#DDE3EA",
     backgroundColor: "#E9EDF2",
     paddingHorizontal: 12,
     color: "#8A94A4",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700"
   },
   row: {
@@ -303,8 +303,8 @@ const styles = StyleSheet.create({
     flex: 1
   },
   plusButton: {
-    height: 38,
-    width: 44,
+    height: 36,
+    width: 42,
     borderRadius: 10,
     backgroundColor: "#CFE77A",
     alignItems: "center",
@@ -312,8 +312,8 @@ const styles = StyleSheet.create({
   },
   plusText: {
     color: "#64748B",
-    fontSize: 24,
-    lineHeight: 24
+    fontSize: 22,
+    lineHeight: 22
   },
   joinButton: {
     minHeight: 40,
@@ -334,14 +334,14 @@ const styles = StyleSheet.create({
   },
   listHeader: {
     color: "#111827",
-    fontSize: 32,
-    lineHeight: 34,
+    fontSize: 24,
+    lineHeight: 28,
     fontWeight: "800"
   },
   listCount: {
-    marginTop: 8,
+    marginTop: 5,
     color: "#6B7280",
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: "700"
   },
   groupCard: {
@@ -349,15 +349,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#D7DCE3",
     backgroundColor: "#F8FAFC",
-    minHeight: 70,
+    minHeight: 64,
     paddingHorizontal: 10,
     flexDirection: "row",
     alignItems: "center",
     gap: 8
   },
   avatarBox: {
-    height: 40,
-    width: 40,
+    height: 36,
+    width: 36,
     borderRadius: 10,
     backgroundColor: "#E8EDCD",
     alignItems: "center",
@@ -365,8 +365,8 @@ const styles = StyleSheet.create({
   },
   avatarText: {
     color: "#9DBB00",
-    fontSize: 22,
-    lineHeight: 24,
+    fontSize: 16,
+    lineHeight: 18,
     fontWeight: "900"
   },
   groupInfo: {
@@ -374,8 +374,8 @@ const styles = StyleSheet.create({
   },
   groupName: {
     color: "#111827",
-    fontSize: 32,
-    lineHeight: 34,
+    fontSize: 16,
+    lineHeight: 20,
     fontWeight: "800"
   },
   groupMeta: {

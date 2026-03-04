@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#DDE2E8"
   },
   screenContent: {
-    gap: 12
+    gap: 10
   },
   headerCard: {
     borderBottomLeftRadius: 24,
@@ -320,7 +320,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#D7DCE3",
     backgroundColor: "#F8FAFC",
-    padding: 12
+    padding: 11
   },
   topCardLabel: {
     color: "#8A94A4",
@@ -331,8 +331,8 @@ const styles = StyleSheet.create({
   topCardTitle: {
     marginTop: 6,
     color: "#111827",
-    fontSize: 32,
-    lineHeight: 34,
+    fontSize: 18,
+    lineHeight: 22,
     fontWeight: "800"
   },
   topCardStatsRow: {
@@ -355,26 +355,26 @@ const styles = StyleSheet.create({
   },
   statBoxLabel: {
     color: "#8A94A4",
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "800"
   },
   statBoxLabelAccent: {
     color: "#A3C90A",
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "800"
   },
   statBoxValue: {
     marginTop: 2,
     color: "#111827",
-    fontSize: 40,
-    lineHeight: 42,
+    fontSize: 28,
+    lineHeight: 30,
     fontWeight: "900"
   },
   statBoxValueAccent: {
     marginTop: 2,
     color: "#A3C90A",
-    fontSize: 40,
-    lineHeight: 42,
+    fontSize: 28,
+    lineHeight: 30,
     fontWeight: "900"
   },
   summaryRow: {
@@ -389,18 +389,18 @@ const styles = StyleSheet.create({
     backgroundColor: "#F8FAFC",
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 64
+    minHeight: 58
   },
   summaryLabel: {
     color: "#8A94A4",
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "800"
   },
   summaryValue: {
     marginTop: 3,
     color: "#111827",
-    fontSize: 34,
-    lineHeight: 36,
+    fontSize: 24,
+    lineHeight: 26,
     fontWeight: "900"
   },
   sectionHeaderRow: {
@@ -410,8 +410,8 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     color: "#111827",
-    fontSize: 40,
-    lineHeight: 42,
+    fontSize: 26,
+    lineHeight: 30,
     fontWeight: "800"
   },
   sectionHeaderGlyph: {
@@ -439,12 +439,12 @@ const styles = StyleSheet.create({
   },
   filterTabLabel: {
     color: "#7A8698",
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: "700"
   },
   filterTabLabelActive: {
     color: "#111827",
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: "800"
   },
   matchCard: {
@@ -470,7 +470,7 @@ const styles = StyleSheet.create({
   teamName: {
     color: "#1F2937",
     fontWeight: "800",
-    fontSize: 10,
+    fontSize: 9,
     textAlign: "center"
   },
   centerBlock: {
@@ -479,13 +479,13 @@ const styles = StyleSheet.create({
   },
   centerVersus: {
     color: "#111827",
-    fontSize: 24,
-    lineHeight: 26,
+    fontSize: 20,
+    lineHeight: 22,
     fontWeight: "900"
   },
   centerMeta: {
     color: "#8A94A4",
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "700"
   }
 });
