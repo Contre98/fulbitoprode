@@ -79,6 +79,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Persist mobile group/fecha selections with AsyncStorage in context state. | Keep user filter choices across app restarts without bypassing repository contracts or hardcoding screen state. | `apps/mobile/src/state/GroupContext.tsx`, `apps/mobile/src/state/PeriodContext.tsx`, `apps/mobile/package.json` |
 | 2026-03-04 | Activate mobile Jest harness with alias mapping and first selector/data-mode smoke tests. | Move from scaffolded harness to runnable tests that validate core shared tab state interactions. | `apps/mobile/jest.config.cjs`, `apps/mobile/jest.setup.js`, `apps/mobile/src/test/*.test.tsx`, `apps/mobile/package.json` |
 | 2026-03-04 | Persist dev fallback diagnostics history (last N entries) and surface recent scopes in mock-mode badge. | Preserve transient fallback root-cause visibility across app restarts and speed up QA/debugging without backend dependency. | `apps/mobile/src/repositories/fallbackDiagnostics.ts`, `apps/mobile/src/state/AuthContext.tsx`, `apps/mobile/src/components/DataModeBadge.tsx`, `apps/mobile/src/test/DataModeBadge.test.tsx` |
+| 2026-03-04 | Align mobile runtime package versions to Expo SDK 52 compatibility targets (`react-native`, `react-native-screens`, `@react-native-async-storage/async-storage`). | Reduce startup advisory noise and keep native runtime dependencies on the SDK-supported matrix with minimum architecture change risk. | `apps/mobile/package.json`, `pnpm-lock.yaml` |
 
 ## Validation Log
 
@@ -163,6 +164,12 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `pnpm run typecheck:web` | Pass | Verified no web regression after diagnostics history slice. |
 | 2026-03-04 | `pnpm --filter @fulbito/mobile typecheck` | Pass | `fallbackHistory` auth-context contract and badge rendering compile cleanly. |
 | 2026-03-04 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by diagnostics history updates. |
+| 2026-03-04 | `pnpm --store-dir /Users/contre/Library/pnpm/store/v10 --filter @fulbito/mobile add react-native@0.76.9 react-native-screens@~4.4.0 @react-native-async-storage/async-storage@1.23.1` | Pass | Mobile runtime dependencies aligned to Expo SDK 52 advisory targets. |
+| 2026-03-04 | `pnpm --filter @fulbito/mobile exec expo install --check` | Pass | Local Expo compatibility check reports dependencies up to date (offline validation mode). |
+| 2026-03-04 | `pnpm --filter @fulbito/mobile test` | Pass | Mobile smoke tests remain green after runtime dependency alignment. |
+| 2026-03-04 | `pnpm run typecheck:web` | Pass | Verified no web regression after mobile dependency alignment. |
+| 2026-03-04 | `pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile TypeScript checks pass with updated runtime packages. |
+| 2026-03-04 | `pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by dependency alignment. |
 
 ## Risks & Mitigations
 
@@ -174,8 +181,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Resolve remaining Expo dependency advisories (`@react-native-async-storage/async-storage`, `react-native`, `react-native-screens`, `@types/react`) via controlled compatibility alignment and revalidate web/mobile checks.
-2. Expand mobile tests from selector smoke to context-level persistence tests (Group/Period restore behavior on boot).
-3. Add an iOS smoke shortcut script (`ios:smoke`) with explicit port to standardize manual QA runs.
-4. Add a short QA checklist doc for cross-tab persistence verification (`Pronósticos`, `Posiciones`, `Fixture`) to keep manual regressions fast.
-5. Add an in-app dev action to clear persisted fallback diagnostics history for cleaner QA cycles.
+1. Expand mobile tests from selector smoke to context-level persistence tests (Group/Period restore behavior on boot).
+2. Add an iOS smoke shortcut script (`ios:smoke`) with explicit port to standardize manual QA runs.
+3. Add a short QA checklist doc for cross-tab persistence verification (`Pronósticos`, `Posiciones`, `Fixture`) to keep manual regressions fast.
+4. Add an in-app dev action to clear persisted fallback diagnostics history for cleaner QA cycles.
+5. Decide whether to pin `@types/react` to Expo’s suggested range for mobile-only tooling or keep workspace-wide React 19 typings to avoid cross-app type drift.
