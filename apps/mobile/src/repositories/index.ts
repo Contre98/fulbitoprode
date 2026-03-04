@@ -99,6 +99,32 @@ export const groupsRepository: GroupsRepository = {
       logFallback("groups.listMemberships", error);
       return mockGroupsRepository.listMemberships();
     }
+  },
+  async createGroup(input) {
+    if (!canUseHttpSession()) {
+      return mockGroupsRepository.createGroup(input);
+    }
+    try {
+      const result = await httpGroupsRepository.createGroup(input);
+      clearFallbackFailure();
+      return result;
+    } catch (error) {
+      logFallback("groups.createGroup", error);
+      return mockGroupsRepository.createGroup(input);
+    }
+  },
+  async joinGroup(input) {
+    if (!canUseHttpSession()) {
+      return mockGroupsRepository.joinGroup(input);
+    }
+    try {
+      const result = await httpGroupsRepository.joinGroup(input);
+      clearFallbackFailure();
+      return result;
+    } catch (error) {
+      logFallback("groups.joinGroup", error);
+      return mockGroupsRepository.joinGroup(input);
+    }
   }
 };
 

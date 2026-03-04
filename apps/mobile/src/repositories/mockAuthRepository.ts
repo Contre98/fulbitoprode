@@ -1,21 +1,7 @@
 import type { AuthRepository, AuthSession } from "@fulbito/api-contracts";
+import { listMockMemberships } from "@/repositories/mockGroupStore";
 
 let inMemorySession: AuthSession | null = null;
-
-const defaultMemberships: AuthSession["memberships"] = [
-  {
-    groupId: "grupo-1",
-    groupName: "Grupo Amigos",
-    leagueId: 128,
-    leagueName: "Liga Profesional",
-    season: "2026",
-    role: "owner",
-    joinedAt: new Date().toISOString(),
-    competitionKey: "argentina-128",
-    competitionName: "Liga Profesional",
-    competitionStage: "apertura"
-  }
-];
 
 function createSession(email: string, name: string): AuthSession {
   return {
@@ -26,12 +12,18 @@ function createSession(email: string, name: string): AuthSession {
       username: name.toLowerCase().replace(/\s+/g, ""),
       favoriteTeam: "River Plate"
     },
-    memberships: defaultMemberships
+    memberships: listMockMemberships()
   };
 }
 
 export const mockAuthRepository: AuthRepository = {
   async getSession() {
+    if (inMemorySession) {
+      inMemorySession = {
+        ...inMemorySession,
+        memberships: listMockMemberships()
+      };
+    }
     return inMemorySession;
   },
   async loginWithPassword(email: string) {

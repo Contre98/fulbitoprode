@@ -4,33 +4,20 @@ import type {
   LeaderboardRepository,
   PredictionsRepository
 } from "@fulbito/api-contracts";
+import { createMockGroup, joinMockGroup, listMockGroups, listMockMemberships } from "@/repositories/mockGroupStore";
 
 export const mockGroupsRepository: GroupsRepository = {
   async listGroups() {
-    return [
-      {
-        id: "grupo-1",
-        name: "Grupo Amigos",
-        leagueId: 128,
-        season: "2026"
-      }
-    ];
+    return listMockGroups();
   },
   async listMemberships() {
-    return [
-      {
-        groupId: "grupo-1",
-        groupName: "Grupo Amigos",
-        leagueId: 128,
-        leagueName: "Liga Profesional",
-        season: "2026",
-        role: "owner",
-        joinedAt: new Date().toISOString(),
-        competitionKey: "argentina-128",
-        competitionName: "Liga Profesional",
-        competitionStage: "apertura"
-      }
-    ];
+    return listMockMemberships();
+  },
+  async createGroup(input) {
+    return createMockGroup(input);
+  },
+  async joinGroup(input) {
+    return joinMockGroup(input);
   }
 };
 

@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useMutation } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { BrandBadgeIcon } from "@/components/BrandBadgeIcon";
+import { groupsRepository } from "@/repositories";
 import { useAuth } from "@/state/AuthContext";
 import { useGroupSelection } from "@/state/GroupContext";
 
@@ -15,9 +17,68 @@ function stageLabel(value: string | undefined) {
 
 export function ConfiguracionScreen() {
   const insets = useSafeAreaInsets();
-  const { session, logout } = useAuth();
-  const { memberships } = useGroupSelection();
+  const { session, logout, refresh } = useAuth();
+  const { memberships, setSelectedGroupId } = useGroupSelection();
   const [mode, setMode] = useState<Mode>("create");
+  const [groupNameInput, setGroupNameInput] = useState("");
+  const [joinCodeInput, setJoinCodeInput] = useState("");
+  const [actionStatus, setActionStatus] = useState<string | null>(null);
+
+  const createGroupMutation = useMutation({
+    mutationFn: async (name: string) =>
+      groupsRepository.createGroup({
+        name,
+        competitionStage: "apertura",
+        competitionName: "Liga Profesional",
+        competitionKey: "argentina-128",
+        leagueId: 128,
+        season: "2026"
+      }),
+    onSuccess: async (group) => {
+      await refresh();
+      setSelectedGroupId(group.id);
+      setGroupNameInput("");
+      setActionStatus("Grupo creado correctamente.");
+    },
+    onError: () => {
+      setActionStatus("No se pudo crear el grupo. Reintentá.");
+    }
+  });
+
+  const joinGroupMutation = useMutation({
+    mutationFn: async (codeOrToken: string) => groupsRepository.joinGroup({ codeOrToken }),
+    onSuccess: async (group) => {
+      await refresh();
+      setSelectedGroupId(group.id);
+      setJoinCodeInput("");
+      setActionStatus("Te uniste al grupo correctamente.");
+    },
+    onError: () => {
+      setActionStatus("No se pudo unir al grupo. Revisá el código e intentá otra vez.");
+    }
+  });
+
+  const actionLoading = createGroupMutation.isPending || joinGroupMutation.isPending;
+
+  function submitCreateGroup() {
+    const clean = groupNameInput.trim();
+    if (!clean) {
+      setActionStatus("Ingresá un nombre de grupo.");
+      return;
+    }
+    setActionStatus(null);
+    void createGroupMutation.mutateAsync(clean);
+  }
+
+  function submitJoinGroup() {
+    const clean = joinCodeInput.trim();
+    if (!clean) {
+      setActionStatus("Ingresá un código de invitación.");
+      return;
+    }
+    setActionStatus(null);
+    void joinGroupMutation.mutateAsync(clean);
+  }
 
   return (
     <ScreenFrame
@@ -76,23 +137,39 @@ export function ConfiguracionScreen() {
       <View style={styles.formCard}>
         {mode === "create" ? (
           <>
-            <TextInput editable={false} value="Nombre del nuevo grupo" style={styles.input} />
+            <TextInput
+              editable={!actionLoading}
+              value={groupNameInput}
+              onChangeText={setGroupNameInput}
+              placeholder="Nombre del nuevo grupo"
+              placeholderTextColor="#8A94A4"
+              style={styles.input}
+            />
             <View style={styles.row}>
               <TextInput editable={false} value="Liga Profesional Apertura" style={[styles.input, styles.rowInput]} />
-              <Pressable style={styles.plusButton}>
-                <Text allowFontScaling={false} style={styles.plusText}>+</Text>
+              <Pressable disabled={actionLoading} onPress={submitCreateGroup} style={[styles.plusButton, actionLoading ? styles.buttonDisabled : null]}>
+                <Text allowFontScaling={false} style={styles.plusText}>{actionLoading ? "…" : "+"}</Text>
               </Pressable>
             </View>
           </>
         ) : (
           <>
-            <TextInput editable={false} value="Código de invitación" style={styles.input} />
-            <Pressable style={styles.joinButton}>
-              <Text allowFontScaling={false} style={styles.joinButtonText}>Unirse al grupo</Text>
+            <TextInput
+              editable={!actionLoading}
+              value={joinCodeInput}
+              onChangeText={setJoinCodeInput}
+              placeholder="Código de invitación"
+              placeholderTextColor="#8A94A4"
+              autoCapitalize="none"
+              style={styles.input}
+            />
+            <Pressable disabled={actionLoading} onPress={submitJoinGroup} style={[styles.joinButton, actionLoading ? styles.buttonDisabled : null]}>
+              <Text allowFontScaling={false} style={styles.joinButtonText}>{actionLoading ? "Uniendo..." : "Unirse al grupo"}</Text>
             </Pressable>
           </>
         )}
       </View>
+      {actionStatus ? <Text allowFontScaling={false} style={styles.statusText}>{actionStatus}</Text> : null}
 
       <View style={styles.listHeaderRow}>
         <Text allowFontScaling={false} style={styles.listHeader}>Mis Grupos</Text>
@@ -319,6 +396,9 @@ const styles = StyleSheet.create({
     fontSize: 22,
     lineHeight: 22
   },
+  buttonDisabled: {
+    opacity: 0.65
+  },
   joinButton: {
     minHeight: 40,
     borderRadius: 10,
@@ -417,6 +497,11 @@ const styles = StyleSheet.create({
   settingsGlyph: {
     color: "#98A2B3",
     fontSize: 14
+  },
+  statusText: {
+    color: "#667085",
+    fontSize: 11,
+    fontWeight: "700"
   },
   logoutButton: {
     marginTop: 4,

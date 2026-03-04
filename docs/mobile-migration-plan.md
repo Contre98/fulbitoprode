@@ -70,6 +70,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Run final typography/spacing polish pass on `Posiciones` and `Fixture` against screenshot references.
 - [x] Start parity pass for `Grupos` screen using `ui reference/Grupos.png` as baseline.
 - [x] Start parity pass for `Inicio` screen using `ui reference/Inicio.png` as baseline.
+- [x] Make `Grupos` primary actions functional on mobile (`Crear Grupo` / `Unirse`) through contracts-first repositories (HTTP + mock fallback).
 
 ## Decisions Log
 
@@ -126,6 +127,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Downscale typography and card density on `Inicio`/`Grupos` after first emulator review. | First parity draft overshot text scale in key blocks; this adjustment improves proportional match with references while preserving current data wiring. | `apps/mobile/src/screens/HomeScreen.tsx`, `apps/mobile/src/screens/ConfiguracionScreen.tsx` |
 | 2026-03-04 | Refine `Inicio` and `Grupos` micro-layout from second emulator screenshots (heading scale, group action alignment, card rhythm). | Close remaining polish deltas with small, low-risk visual adjustments while keeping contracts/state logic unchanged. | `apps/mobile/src/screens/HomeScreen.tsx`, `apps/mobile/src/screens/ConfiguracionScreen.tsx` |
 | 2026-03-04 | Normalize remaining `Inicio`/`Grupos` action icon glyphs to non-emoji symbol set (`⌘`, `≣`). | Keep iconography consistent with the dependency-free glyph approach already used in other parity screens and avoid mixed emoji-style marks. | `apps/mobile/src/screens/HomeScreen.tsx`, `apps/mobile/src/screens/ConfiguracionScreen.tsx` |
+| 2026-03-04 | Extend `GroupsRepository` contract with `createGroup` / `joinGroup` and wire `Grupos` UI actions to repository mutations with session refresh. | Transition key copied parity controls from visual-only to functional behavior using existing backend endpoints and mock fallback without bypassing architecture layers. | `packages/api-contracts/src/index.ts`, `apps/mobile/src/repositories/*`, `apps/mobile/src/screens/ConfiguracionScreen.tsx` |
+| 2026-03-04 | Add `mockGroupStore` and tests to support mutable group actions in mock mode. | Keep local/dev behavior realistic and testable when HTTP session is unavailable. | `apps/mobile/src/repositories/mockGroupStore.ts`, `apps/mobile/src/test/mockGroupStore.test.ts`, `apps/mobile/src/repositories/mockDataRepositories.ts`, `apps/mobile/src/repositories/mockAuthRepository.ts` |
 
 ## Validation Log
 
@@ -317,6 +320,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | Updated `⌘/≣` icon glyph replacements compile cleanly. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by icon normalization slice. |
 | 2026-03-04 | Final manual parity QA (all 5 tabs) + persistence/diagnostics checklist | Pass | Sign-off recorded in `docs/mobile-qa-checklist.md` using emulator run evidence and screenshot comparisons. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile test` | Pass | New `mockGroupStore` tests passed; total mobile suites `6`, tests `9`. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | No web regression after groups contract/repository action extension. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | `createGroup`/`joinGroup` repository wiring and `ConfiguracionScreen` mutations compile cleanly. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by mobile functional groups slice. |
 
 ## Risks & Mitigations
 
@@ -328,8 +335,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Add small focused smoke tests for `Inicio`/`Grupos` critical render paths now that visual parity is stabilized.
-2. Evaluate replacing local deterministic crests with bundled asset crests for top-flight teams if a future QA cycle requires closer logo fidelity.
-3. Do one final notch/top-safe-area cross-device check (iPhone SE + Pro Max + Android medium) before closing Phase 3 visual parity.
-4. Prepare Phase 3 closure commit/PR summary with grouped screenshots per tab and links to validation logs.
-5. Start planning Phase 4 hardening (targeted mobile e2e smoke and incremental HTTP adapter deepening).
+1. Make `Inicio` filter tabs (`Todos` / `En vivo` / `Próximos`) functional on mobile with local state-driven filtering.
+2. Add focused smoke tests for `Grupos` actions (`Crear Grupo` and `Unirse`) at screen/repository integration level.
+3. Add small focused smoke tests for `Inicio` critical render/filter paths.
+4. Do one final notch/top-safe-area cross-device check (iPhone SE + Pro Max + Android medium) before closing Phase 3 visual parity.
+5. Prepare Phase 3 closure commit/PR summary with grouped screenshots per tab and links to validation logs.

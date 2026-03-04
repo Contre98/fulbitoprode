@@ -73,6 +73,15 @@ interface GroupsHttpPayload {
   }>;
 }
 
+interface GroupMutationResponse {
+  group: {
+    id: string;
+    name: string;
+    season: string;
+    leagueId: number;
+  };
+}
+
 export const httpPredictionsRepository: PredictionsRepository = {
   async listPredictions(input) {
     const payload = await requestJson<PronosticosHttpPayload>(
@@ -162,5 +171,38 @@ export const httpGroupsRepository: GroupsRepository = {
       competitionName: membership.competitionName,
       competitionStage: membership.competitionStage
     }));
+  },
+  async createGroup(input) {
+    const payload = await requestJson<GroupMutationResponse>("/api/groups", {
+      method: "POST",
+      body: JSON.stringify({
+        name: input.name,
+        season: input.season,
+        leagueId: input.leagueId,
+        competitionStage: input.competitionStage,
+        competitionName: input.competitionName,
+        competitionKey: input.competitionKey
+      })
+    });
+    return {
+      id: payload.group.id,
+      name: payload.group.name,
+      season: payload.group.season,
+      leagueId: payload.group.leagueId
+    };
+  },
+  async joinGroup(input) {
+    const payload = await requestJson<GroupMutationResponse>("/api/groups/join", {
+      method: "POST",
+      body: JSON.stringify({
+        codeOrToken: input.codeOrToken
+      })
+    });
+    return {
+      id: payload.group.id,
+      name: payload.group.name,
+      season: payload.group.season,
+      leagueId: payload.group.leagueId
+    };
   }
 };

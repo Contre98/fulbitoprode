@@ -15,6 +15,15 @@ export interface AuthRepository {
 export interface GroupsRepository {
   listGroups(): Promise<Group[]>;
   listMemberships(): Promise<Membership[]>;
+  createGroup(input: {
+    name: string;
+    season?: string;
+    leagueId?: number;
+    competitionStage?: "apertura" | "clausura" | "general";
+    competitionName?: string;
+    competitionKey?: string;
+  }): Promise<Group>;
+  joinGroup(input: { codeOrToken: string }): Promise<Group>;
 }
 
 export interface PredictionsRepository {
