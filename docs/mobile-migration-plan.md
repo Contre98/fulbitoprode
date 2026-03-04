@@ -109,6 +109,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Evaluate RN navigation `act(...)` warning suppression options and document as known non-blocking noise when deterministic mitigation is unavailable.
 - [x] Split adapter contract parity tests into focused suites (`groups/predictions` and `fixture/leaderboard`) and align CI guards.
 - [x] Add focused fallback-history integration test through `AuthContext` to confirm badge-facing state wiring under persisted diagnostics.
+- [x] Expand smoke-flow assertions to include `Posiciones` mode toggle behavior (`POSICIONES` <-> `STATS`) after auth-gated entry.
 
 ## Decisions Log
 
@@ -183,6 +184,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Treat current RN/React Navigation `act(...)` warnings in smoke tests as known non-blocking noise for now. | Attempted deterministic mitigation paths did not fully suppress warnings without broader test-runtime tradeoffs; preserve signal in logs and continue with functional pass criteria. | `apps/mobile/src/test/MobileE2ESmoke.flow.test.tsx`, `docs/mobile-migration-plan.md` |
 | 2026-03-04 | Split adapter parity tests by domain (`groups/predictions` vs `fixture/leaderboard`) and guard both in CI. | Keep suite growth maintainable and isolate failures to narrower adapter scopes while preserving existing parity coverage depth. | `apps/mobile/src/test/RepositoryAdapters.contract.test.ts`, `apps/mobile/src/test/RepositoryAdapters.groupsPredictions.contract.test.ts`, `.github/workflows/ci.yml` |
 | 2026-03-04 | Add AuthContext-level fallback-history integration coverage using `DataModeBadge` probe rendering. | Validate persisted diagnostics hydration and clear-action wiring at context-to-UI boundary without relying solely on isolated utility/component tests. | `apps/mobile/src/test/AuthContext.fallbackHistory.integration.test.tsx` |
+| 2026-03-04 | Extend mobile smoke flow to assert `Posiciones` mode toggle behavior (`STATS` and back to `POSICIONES`). | Increase tab-level regression coverage depth in the app-level flow without introducing additional e2e tooling complexity. | `apps/mobile/src/test/MobileE2ESmoke.flow.test.tsx` |
 
 ## Validation Log
 
@@ -477,6 +479,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after adding AuthContext fallback-history integration test. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | New `AuthContext.fallbackHistory.integration.test.tsx` compiles cleanly under strict TypeScript. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by AuthContext integration-test slice. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile test -- MobileE2ESmoke.flow.test.tsx` | Fail then pass | Initial fail from duplicate `PREMIOS Y CASTIGOS` text query in new Posiciones assertion; changed to `getAllByText(...).length > 0` and reran green (`2 tests`). |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after smoke-flow Posiciones toggle assertion extension. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Updated `MobileE2ESmoke.flow.test.tsx` compiles cleanly after Posiciones assertion addition. |
+| 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by smoke-flow Posiciones toggle slice. |
 
 ## Risks & Mitigations
 
@@ -488,9 +494,9 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Expand smoke flow assertions to include `Posiciones` stat-mode toggle behavior after auth-gated entry.
-2. Add CI guard command update for `MobileE2ESmoke.flow.test.tsx` once `Posiciones` stat-mode assertions are included.
-3. Add one targeted negative-path smoke assertion for `Grupos` join validation error from tab flow context.
-4. Evaluate whether fixture/leaderboard adapter suite should also assert malformed payload rejection semantics.
-5. Add one focused assertion for fallback-history clear behavior under repeated subscribe/unsubscribe cycles.
+1. Add one targeted negative-path smoke assertion for `Grupos` join validation error from tab-flow context.
+2. Evaluate whether fixture/leaderboard adapter suite should also assert malformed payload rejection semantics.
+3. Add one focused assertion for fallback-history clear behavior under repeated subscribe/unsubscribe cycles.
+4. Decide whether `MobileE2ESmoke.flow.test.tsx` should be split into smaller flow files as assertions continue to grow.
+5. Add CI guard for the AuthContext fallback-history integration test once stability is confirmed across repeated runs.
 5. Add CI guard command for `MobileE2ESmoke.flow.test.tsx` once Posiciones stat-mode assertions are included.

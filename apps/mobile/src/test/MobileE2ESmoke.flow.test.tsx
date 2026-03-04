@@ -246,6 +246,25 @@ describe("Mobile E2E smoke flow", () => {
       expect(screen.getByText("Próximos Partidos")).toBeTruthy();
     });
 
+    fireEvent.press(screen.getAllByText("Posiciones")[0]);
+
+    await waitFor(() => {
+      expect(screen.getByText("POSICIONES")).toBeTruthy();
+      expect(screen.getByText("STATS")).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByText("STATS"));
+
+    await waitFor(() => {
+      expect(screen.getAllByText("PREMIOS Y CASTIGOS").length).toBeGreaterThan(0);
+    });
+
+    fireEvent.press(screen.getByText("POSICIONES"));
+
+    await waitFor(() => {
+      expect(screen.getByText("PRED")).toBeTruthy();
+    });
+
     fireEvent.press(screen.getAllByText("Pronósticos")[0]);
 
     await waitFor(() => {
