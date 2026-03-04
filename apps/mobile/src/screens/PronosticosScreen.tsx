@@ -4,8 +4,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Fixture, Prediction } from "@fulbito/domain";
 import { colors, spacing } from "@fulbito/design-tokens";
 import { isPredictionInputComplete, normalizePredictionInput } from "@fulbito/domain";
-import { FechaSelector } from "@/components/FechaSelector";
-import { GroupSelector } from "@/components/GroupSelector";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
@@ -39,10 +37,16 @@ function toTeamCode(name: string) {
     .toUpperCase();
 }
 
+function teamBadgeTone(name: string) {
+  const palette = ["#1D4ED8", "#0EA5E9", "#16A34A", "#9333EA", "#DC2626", "#F97316"];
+  const hash = name.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return palette[hash % palette.length];
+}
+
 export function PronosticosScreen() {
   const queryClient = useQueryClient();
-  const { memberships, selectedGroupId } = useGroupSelection();
-  const { fecha } = usePeriod();
+  const { memberships, selectedGroupId, setSelectedGroupId } = useGroupSelection();
+  const { fecha, options, setFecha } = usePeriod();
   const groupId = memberships.find((membership) => membership.groupId === selectedGroupId)?.groupId ?? memberships[0]?.groupId ?? "grupo-1";
   const [draftByFixture, setDraftByFixture] = useState<DraftByFixture>({});
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -139,6 +143,23 @@ export function PronosticosScreen() {
     [fixtureQuery.data]
   );
   const visibleFixtures = mode === "upcoming" ? upcomingFixtures : historyFixtures;
+  const predictionByFixture = useMemo(
+    () => new Map((predictionsQuery.data ?? []).map((prediction) => [prediction.fixtureId, prediction])),
+    [predictionsQuery.data]
+  );
+  const selectedMembership = useMemo(
+    () => memberships.find((membership) => membership.groupId === groupId) ?? memberships[0],
+    [groupId, memberships]
+  );
+  const safeOptions = options.length > 0 ? options : [{ id: fecha, label: fecha }];
+  const periodIndex = Math.max(
+    0,
+    safeOptions.findIndex((option) => option.id === fecha)
+  );
+  const currentPeriod = safeOptions[periodIndex] ?? safeOptions[0];
+  const fechaClosed = (fixtureQuery.data ?? []).every((fixture) => fixture.status !== "upcoming");
+  const groupSummary = selectedMembership ? `${selectedMembership.leagueName} · ${selectedMembership.groupName}` : "Sin grupo activo";
+
   const completionSummary = useMemo(() => {
     const total = Math.max(1, (fixtureQuery.data ?? []).length);
     const completed = (fixtureQuery.data ?? []).filter((fixture) => {
@@ -182,6 +203,32 @@ export function PronosticosScreen() {
     });
   }
 
+  function cycleGroup() {
+    if (memberships.length <= 1) {
+      return;
+    }
+    const currentIndex = memberships.findIndex((membership) => membership.groupId === groupId);
+    const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % memberships.length : 0;
+    const nextGroupId = memberships[nextIndex]?.groupId;
+    if (nextGroupId) {
+      void setSelectedGroupId(nextGroupId);
+    }
+  }
+
+  function goPrevFecha() {
+    const next = safeOptions[(periodIndex - 1 + safeOptions.length) % safeOptions.length];
+    if (next) {
+      setFecha(next.id);
+    }
+  }
+
+  function goNextFecha() {
+    const next = safeOptions[(periodIndex + 1) % safeOptions.length];
+    if (next) {
+      setFecha(next.id);
+    }
+  }
+
   function renderFixtureCard(fixture: Fixture) {
     const draft = draftByFixture[fixture.id] ?? { home: "", away: "" };
     const normalized = normalizePredictionInput(draft);
@@ -200,69 +247,85 @@ export function PronosticosScreen() {
     const isSavingThisFixture = pendingFixtureId === fixture.id && savePredictionMutation.isPending;
     const fixtureSaveError = saveErrorByFixture[fixture.id];
 
+    const committed = predictionByFixture.get(fixture.id);
+    const readOnlyHome = committed ? String(committed.home) : draft.home || "0";
+    const readOnlyAway = committed ? String(committed.away) : draft.away || "0";
+
     return (
-      <View key={fixture.id} style={styles.card}>
-        <View style={styles.matchRow}>
-          <View style={styles.teamBlock}>
-            <Text numberOfLines={1} style={styles.teamCode}>
-              {homeCode}
-            </Text>
-            <Text numberOfLines={1} style={styles.teamCaption}>
-              {fixture.homeTeam}
-            </Text>
+      <View key={fixture.id} style={styles.cardWrap}>
+        <View style={styles.card}>
+          <View style={styles.matchRow}>
+            <View style={styles.teamBlock}>
+              <View style={[styles.teamBadgeCircle, { borderColor: teamBadgeTone(fixture.homeTeam) }]}>
+                <Text style={styles.teamBadgeText}>{homeCode.slice(0, 2)}</Text>
+              </View>
+              <Text numberOfLines={1} style={styles.teamCode}>
+                {homeCode}
+              </Text>
+            </View>
+
+            {isEditable ? (
+              <View style={[styles.inputsPill, hasDraft ? styles.inputsPillActive : null]}>
+                <TextInput
+                  style={styles.scoreInput}
+                  value={draft.home}
+                  onChangeText={(value) => updateDraft(fixture.id, "home", value)}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  placeholder="-"
+                  placeholderTextColor={colors.textSecondary}
+                  editable={isEditable}
+                />
+                <Text style={styles.separator}>:</Text>
+                <TextInput
+                  style={styles.scoreInput}
+                  value={draft.away}
+                  onChangeText={(value) => updateDraft(fixture.id, "away", value)}
+                  keyboardType="number-pad"
+                  maxLength={2}
+                  placeholder="-"
+                  placeholderTextColor={colors.textSecondary}
+                  editable={isEditable}
+                />
+              </View>
+            ) : (
+              <View style={styles.resultPill}>
+                <Text style={styles.resultText}>
+                  {readOnlyHome} - {readOnlyAway}
+                </Text>
+                <Text style={styles.resultSub}>{statusBadgeLabel.toUpperCase()}</Text>
+              </View>
+            )}
+
+            <View style={[styles.teamBlock, styles.teamBlockRight]}>
+              <Text numberOfLines={1} style={styles.teamCode}>
+                {awayCode}
+              </Text>
+              <View style={[styles.teamBadgeCircle, { borderColor: teamBadgeTone(fixture.awayTeam) }]}>
+                <Text style={styles.teamBadgeText}>{awayCode.slice(0, 2)}</Text>
+              </View>
+            </View>
           </View>
-          <View style={[styles.inputsPill, hasDraft ? styles.inputsPillActive : null]}>
-            <TextInput
-              style={styles.scoreInput}
-              value={draft.home}
-              onChangeText={(value) => updateDraft(fixture.id, "home", value)}
-              keyboardType="number-pad"
-              maxLength={2}
-              placeholder="-"
-              placeholderTextColor={colors.textSecondary}
-              editable={isEditable}
-            />
-            <Text style={styles.separator}>:</Text>
-            <TextInput
-              style={styles.scoreInput}
-              value={draft.away}
-              onChangeText={(value) => updateDraft(fixture.id, "away", value)}
-              keyboardType="number-pad"
-              maxLength={2}
-              placeholder="-"
-              placeholderTextColor={colors.textSecondary}
-              editable={isEditable}
-            />
-          </View>
-          <View style={[styles.teamBlock, styles.teamBlockRight]}>
-            <Text numberOfLines={1} style={styles.teamCode}>
-              {awayCode}
-            </Text>
-            <Text numberOfLines={1} style={[styles.teamCaption, styles.teamCaptionRight]}>
-              {fixture.awayTeam}
-            </Text>
+
+          <View style={styles.timeRow}>
+            <Text style={styles.kickoffBadge}>{kickoffLabel}</Text>
           </View>
         </View>
-        <View style={styles.cardFooter}>
-          <View style={[styles.statusBadge, isEditable ? styles.statusBadgeOpen : styles.statusBadgeClosed]}>
-            <Text style={[styles.statusBadgeText, isEditable ? styles.statusBadgeTextOpen : styles.statusBadgeTextClosed]}>{statusBadgeLabel}</Text>
-          </View>
-          <Text style={styles.kickoffBadge}>{kickoffLabel}</Text>
-        </View>
-        <Pressable
-          onPress={() => saveFixturePrediction(fixture.id)}
-          disabled={!canSave}
-          style={({ pressed }) => [
-            styles.saveButton,
-            !canSave ? styles.saveButtonDisabled : null,
-            pressed && canSave ? styles.saveButtonPressed : null
-          ]}
-        >
-          <Text style={styles.saveButtonText}>
-            {isEditable ? (isSavingThisFixture ? "Guardando..." : "Guardar pronóstico") : "Solo lectura"}
-          </Text>
-        </Pressable>
-        {!isEditable ? <Text style={styles.lockedChip}>Partido bloqueado: no se puede editar.</Text> : null}
+
+        {isEditable ? (
+          <Pressable
+            onPress={() => saveFixturePrediction(fixture.id)}
+            disabled={!canSave}
+            style={({ pressed }) => [
+              styles.saveButton,
+              !canSave ? styles.saveButtonDisabled : null,
+              pressed && canSave ? styles.saveButtonPressed : null
+            ]}
+          >
+            <Text style={styles.saveButtonText}>{isSavingThisFixture ? "Guardando..." : "Guardar pronóstico"}</Text>
+          </Pressable>
+        ) : null}
+        {!isEditable ? <Text style={styles.lockedChip}>Partido bloqueado: no se pueden editar pronósticos.</Text> : null}
         {isSavingThisFixture ? <Text style={styles.infoChip}>Guardando pronóstico...</Text> : null}
         {fixtureSaveError ? <Text style={styles.errorChip}>{fixtureSaveError}</Text> : null}
       </View>
@@ -296,16 +359,18 @@ export function PronosticosScreen() {
     <ScreenFrame
       title="Pronósticos"
       subtitle="Ingresa y guarda tus predicciones"
+      hideDataModeBadge
+      contentStyle={styles.screenContent}
       header={
         <View style={styles.headerCard}>
           <View style={styles.brandRow}>
             <View style={styles.brandBadge}>
-              <Text style={styles.brandBadgeText}>FP</Text>
+              <Text style={styles.brandBadgeText}>🏆</Text>
             </View>
-            <View style={styles.brandTextWrap}>
-              <Text style={styles.brandTitle}>Fulbito Prode</Text>
-              <Text style={styles.brandSubtitle}>Pronósticos · Resultados y carga</Text>
-            </View>
+            <Text style={styles.brandTitle}>
+              <Text style={styles.brandTitleDark}>FULBITO</Text>
+              <Text style={styles.brandTitleAccent}>PRODE</Text>
+            </Text>
             <View style={styles.headerActions}>
               <Pressable style={styles.headerActionButton} accessibilityRole="button" accessibilityLabel="Cambiar tema">
                 <View style={styles.iconSunOuter}>
@@ -321,17 +386,47 @@ export function PronosticosScreen() {
                   <View style={styles.iconGearCore} />
                 </View>
               </Pressable>
+              <View style={styles.profileDot}>
+                <Text style={styles.profileDotText}>FC</Text>
+              </View>
             </View>
-            <View style={styles.profileDot}>
-              <Text style={styles.profileDotText}>U</Text>
+          </View>
+          <View style={styles.titleRow}>
+            <View style={styles.sectionIcon}>
+              <Text style={styles.sectionIconText}>∿</Text>
             </View>
+            <Text style={styles.sectionTitle}>Pronósticos</Text>
+            <Text style={styles.sectionSubtitle}>Resultados y carga</Text>
           </View>
         </View>
       }
     >
-      <GroupSelector />
-      <FechaSelector />
-      <View style={styles.summaryRow}>
+      <View style={styles.block}>
+        <Text style={styles.blockLabel}>SELECCION ACTUAL</Text>
+        <Pressable style={styles.selectionButton} onPress={cycleGroup}>
+          <Text numberOfLines={1} style={styles.selectionText}>
+            {groupSummary}
+          </Text>
+          <Text style={styles.selectionChevron}>⌄</Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.block}>
+        <View style={styles.fechaRow}>
+          <Pressable testID="fecha-prev" onPress={goPrevFecha} style={styles.fechaNavButton}>
+            <Text style={styles.fechaNavLabel}>‹</Text>
+          </Pressable>
+          <View style={styles.fechaCenter}>
+            <Text style={styles.fechaTitle}>{currentPeriod.label}</Text>
+            <Text style={styles.fechaStatus}>{fechaClosed ? "Cerrada" : "Abierta"}</Text>
+          </View>
+          <Pressable testID="fecha-next" onPress={goNextFecha} style={styles.fechaNavButton}>
+            <Text style={styles.fechaNavLabel}>›</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.summaryModeRow}>
         <View style={styles.progressCard}>
           <Text style={styles.progressLabel}>
             {completionSummary.completed}/{completionSummary.total}
@@ -340,14 +435,14 @@ export function PronosticosScreen() {
             <View style={[styles.progressFill, { width: `${completionSummary.pct}%` }]} />
           </View>
         </View>
-      </View>
-      <View style={styles.modeTabs}>
-        <Pressable onPress={() => setMode("upcoming")} style={[styles.modeTab, mode === "upcoming" ? styles.modeTabActive : null]}>
-          <Text style={[styles.modeTabLabel, mode === "upcoming" ? styles.modeTabLabelActive : null]}>Por jugar</Text>
-        </Pressable>
-        <Pressable onPress={() => setMode("history")} style={[styles.modeTab, mode === "history" ? styles.modeTabActive : null]}>
-          <Text style={[styles.modeTabLabel, mode === "history" ? styles.modeTabLabelActive : null]}>Jugados</Text>
-        </Pressable>
+        <View style={styles.modeTabs}>
+          <Pressable onPress={() => setMode("upcoming")} style={[styles.modeTab, mode === "upcoming" ? styles.modeTabActive : null]}>
+            <Text style={[styles.modeTabLabel, mode === "upcoming" ? styles.modeTabLabelActive : null]}>Por jugar</Text>
+          </Pressable>
+          <Pressable onPress={() => setMode("history")} style={[styles.modeTab, mode === "history" ? styles.modeTabActive : null]}>
+            <Text style={[styles.modeTabLabel, mode === "history" ? styles.modeTabLabelActive : null]}>Jugados</Text>
+          </Pressable>
+        </View>
       </View>
       {visibleFixtures.length === 0 ? (
         <EmptyState
@@ -362,81 +457,81 @@ export function PronosticosScreen() {
 }
 
 const styles = StyleSheet.create({
+  screenContent: {
+    gap: 12
+  },
   headerCard: {
-    borderRadius: 16,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 14,
     borderWidth: 1,
-    borderColor: colors.surfaceMuted,
-    backgroundColor: colors.surface,
-    padding: spacing.md
+    borderColor: "#D7DCE3"
   },
   brandRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm
+    gap: 8
   },
   brandBadge: {
-    height: 34,
-    width: 34,
+    height: 28,
+    width: 28,
     borderRadius: 10,
-    backgroundColor: colors.primary,
+    backgroundColor: "#EFF4E6",
     alignItems: "center",
     justifyContent: "center"
   },
   brandBadgeText: {
-    color: colors.primaryText,
-    fontSize: 12,
-    fontWeight: "800"
-  },
-  brandTextWrap: {
-    flex: 1
+    fontSize: 13
   },
   brandTitle: {
-    color: colors.textPrimary,
-    fontSize: 18,
-    fontWeight: "900"
+    flex: 1,
+    fontSize: 27,
+    fontWeight: "900",
+    letterSpacing: -0.8
   },
-  brandSubtitle: {
-    color: colors.textSecondary,
-    fontSize: 11,
-    marginTop: 2
+  brandTitleDark: {
+    color: "#0F172A"
+  },
+  brandTitleAccent: {
+    color: "#A3C90A"
   },
   profileDot: {
-    height: 30,
-    width: 30,
+    height: 32,
+    width: 32,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.surfaceMuted,
-    backgroundColor: colors.background,
+    backgroundColor: "#E8EDCD",
     alignItems: "center",
     justifyContent: "center"
   },
   profileDotText: {
-    color: colors.textPrimary,
-    fontWeight: "700",
-    fontSize: 12
+    color: "#374151",
+    fontWeight: "800",
+    fontSize: 12,
+    letterSpacing: 0.2
   },
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.xs
+    gap: 6
   },
   headerActionButton: {
-    height: 24,
-    width: 24,
+    height: 32,
+    width: 32,
     borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.surfaceMuted,
-    backgroundColor: colors.background,
+    backgroundColor: "#ECEFF3",
     alignItems: "center",
     justifyContent: "center",
     position: "relative"
   },
   iconSunOuter: {
-    height: 12,
-    width: 12,
+    height: 14,
+    width: 14,
     borderRadius: 999,
     borderWidth: 1.5,
-    borderColor: colors.textSecondary,
+    borderColor: "#6B7280",
     alignItems: "center",
     justifyContent: "center"
   },
@@ -444,33 +539,33 @@ const styles = StyleSheet.create({
     height: 4,
     width: 4,
     borderRadius: 999,
-    backgroundColor: colors.textSecondary
+    backgroundColor: "#6B7280"
   },
   iconBellBody: {
-    height: 10,
-    width: 10,
+    height: 12,
+    width: 11,
     borderTopLeftRadius: 5,
     borderTopRightRadius: 5,
     borderBottomLeftRadius: 2,
     borderBottomRightRadius: 2,
     borderWidth: 1.5,
-    borderColor: colors.textSecondary
+    borderColor: "#6B7280"
   },
   iconBellDot: {
     position: "absolute",
-    top: 3,
-    right: 4,
-    height: 3,
-    width: 3,
+    top: 7,
+    right: 9,
+    height: 4,
+    width: 4,
     borderRadius: 999,
-    backgroundColor: "#F7B84B"
+    backgroundColor: "#D94651"
   },
   iconGearOuter: {
-    height: 12,
-    width: 12,
-    borderRadius: 4,
+    height: 14,
+    width: 14,
+    borderRadius: 5,
     borderWidth: 1.5,
-    borderColor: colors.textSecondary,
+    borderColor: "#6B7280",
     alignItems: "center",
     justifyContent: "center"
   },
@@ -478,220 +573,330 @@ const styles = StyleSheet.create({
     height: 4,
     width: 4,
     borderRadius: 999,
-    backgroundColor: colors.textSecondary
+    backgroundColor: "#6B7280"
   },
-  card: {
-    backgroundColor: colors.surface,
+  titleRow: {
+    marginTop: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10
+  },
+  sectionIcon: {
+    height: 34,
+    width: 34,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#B7D70A"
+  },
+  sectionIconText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#1F2937"
+  },
+  sectionTitle: {
+    color: "#0F172A",
+    fontSize: 36,
+    fontWeight: "800"
+  },
+  sectionSubtitle: {
+    marginLeft: "auto",
+    color: "#7A8698",
+    fontSize: 24,
+    fontWeight: "700"
+  },
+  block: {
+    backgroundColor: "#F8FAFC",
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.surfaceMuted,
-    padding: spacing.md,
-    gap: spacing.sm
+    borderColor: "#D7DCE3",
+    padding: 10
+  },
+  blockLabel: {
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#8A94A4",
+    letterSpacing: 0.8
+  },
+  selectionButton: {
+    marginTop: 8,
+    minHeight: 44,
+    borderRadius: 10,
+    backgroundColor: "#EDF1F5",
+    borderWidth: 1,
+    borderColor: "#DDE3EA",
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center"
+  },
+  selectionText: {
+    flex: 1,
+    color: "#0F172A",
+    fontWeight: "800",
+    fontSize: 17
+  },
+  selectionChevron: {
+    color: "#98A2B3",
+    fontSize: 18
+  },
+  fechaRow: {
+    minHeight: 56,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#DDE3EA",
+    backgroundColor: "#F8FAFC",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8
+  },
+  fechaNavButton: {
+    height: 34,
+    width: 34,
+    borderRadius: 10,
+    backgroundColor: "#EDF1F5",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  fechaNavLabel: {
+    color: "#98A2B3",
+    fontSize: 22,
+    fontWeight: "700",
+    lineHeight: 24
+  },
+  fechaCenter: {
+    flex: 1,
+    alignItems: "center"
+  },
+  fechaTitle: {
+    color: "#A3C90A",
+    fontSize: 34,
+    fontWeight: "900"
+  },
+  fechaStatus: {
+    marginTop: 2,
+    color: "#8A94A4",
+    fontSize: 14,
+    fontWeight: "700"
+  },
+  summaryModeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  cardWrap: {
+    gap: 6
+  },
+  card: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#D7DCE3",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 8
   },
   matchRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: spacing.xs
+    gap: 6
   },
   teamBlock: {
-    flex: 1
-  },
-  teamBlockRight: {
-    alignItems: "flex-end"
-  },
-  teamCode: {
-    color: colors.textPrimary,
-    fontSize: 24,
-    fontWeight: "900",
-    letterSpacing: -0.5
-  },
-  teamCaption: {
-    color: colors.textSecondary,
-    fontSize: 10,
-    marginTop: 2
-  },
-  teamCaptionRight: {
-    textAlign: "right"
-  },
-  cardFooter: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between"
+    gap: 7
   },
-  statusBadge: {
+  teamBlockRight: {
+    justifyContent: "flex-end"
+  },
+  teamBadgeCircle: {
+    height: 30,
+    width: 30,
     borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2
+    borderWidth: 2,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center"
   },
-  statusBadgeOpen: {
-    borderColor: colors.primary,
-    backgroundColor: "#123221"
-  },
-  statusBadgeClosed: {
-    borderColor: colors.surfaceMuted,
-    backgroundColor: colors.background
-  },
-  statusBadgeText: {
-    fontSize: 9,
-    fontWeight: "700"
-  },
-  statusBadgeTextOpen: {
-    color: colors.primary
-  },
-  statusBadgeTextClosed: {
-    color: colors.textSecondary
-  },
-  kickoffBadge: {
-    color: colors.textSecondary,
+  teamBadgeText: {
+    color: "#1F2937",
     fontSize: 10,
-    fontWeight: "700",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: 999,
-    backgroundColor: colors.background
+    fontWeight: "800"
+  },
+  teamCode: {
+    color: "#111827",
+    fontSize: 34,
+    fontWeight: "900",
+    letterSpacing: -1
   },
   inputsPill: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    minWidth: 112,
+    minWidth: 132,
     borderRadius: 10,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderWidth: 1,
-    borderColor: colors.surfaceMuted,
-    backgroundColor: colors.background
+    borderColor: "#CED5DE",
+    backgroundColor: "#EEF2F5"
   },
   inputsPillActive: {
-    borderColor: colors.primary,
-    backgroundColor: "#123221"
+    borderColor: "#B7D70A",
+    backgroundColor: "#F4F8E7"
+  },
+  resultPill: {
+    minWidth: 132,
+    borderRadius: 10,
+    backgroundColor: "#E9EDF2",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 8
+  },
+  resultText: {
+    color: "#111827",
+    fontWeight: "900",
+    fontSize: 18
+  },
+  resultSub: {
+    marginTop: 1,
+    color: "#6B7280",
+    fontSize: 10,
+    fontWeight: "800"
   },
   scoreInput: {
-    width: 28,
-    height: 32,
-    color: colors.textPrimary,
+    width: 36,
+    height: 34,
+    color: "#4B5563",
     textAlign: "center",
-    fontSize: 22,
+    fontSize: 36,
     fontWeight: "900",
     paddingVertical: 0
   },
   separator: {
-    color: colors.textSecondary,
-    fontSize: 18,
+    color: "#9AA4B2",
+    fontSize: 28,
     fontWeight: "800",
-    marginHorizontal: spacing.xs
+    marginHorizontal: 2
+  },
+  timeRow: {
+    alignItems: "center"
+  },
+  kickoffBadge: {
+    color: "#97A1B1",
+    fontSize: 15,
+    fontWeight: "800"
   },
   saveButton: {
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 42,
+    minHeight: 38,
     borderRadius: 10,
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.md
+    backgroundColor: "#B7D70A",
+    paddingHorizontal: 10
   },
   saveButtonDisabled: {
-    opacity: 0.45
+    opacity: 0.5
   },
   saveButtonPressed: {
     transform: [{ scale: 0.98 }]
   },
   saveButtonText: {
-    color: colors.primaryText,
+    color: "#1F2937",
     fontWeight: "800",
-    fontSize: 13
+    fontSize: 14
   },
   lockedChip: {
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255, 180, 84, 0.35)",
-    backgroundColor: "rgba(255, 180, 84, 0.12)",
-    color: "#F7B84B",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    fontSize: 11
+    borderColor: "#F1C38C",
+    backgroundColor: "#FDF3E8",
+    color: "#D09044",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    fontSize: 14,
+    fontWeight: "700"
   },
   infoChip: {
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.surfaceMuted,
-    backgroundColor: colors.background,
-    color: colors.textSecondary,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    fontSize: 11
+    borderColor: "#D8DEE7",
+    backgroundColor: "#F5F7FA",
+    color: "#7A8698",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    fontSize: 13
   },
   errorChip: {
-    borderRadius: 10,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(255, 107, 125, 0.35)",
-    backgroundColor: "rgba(255, 107, 125, 0.12)",
-    color: "#FF6B7D",
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    fontSize: 11
+    borderColor: "#F1A4AC",
+    backgroundColor: "#FFECEE",
+    color: "#DB5E6D",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    fontSize: 13
   },
   modeTabs: {
     flexDirection: "row",
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 14,
-    padding: spacing.xs,
-    gap: spacing.xs
+    backgroundColor: "#E8EDF2",
+    borderRadius: 10,
+    padding: 2,
+    gap: 2
   },
   modeTab: {
-    flex: 1,
-    borderRadius: 10,
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
-    height: 36
+    height: 34,
+    paddingHorizontal: 12
   },
   modeTabActive: {
-    backgroundColor: colors.surface
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#DDE3EA"
   },
   modeTabLabel: {
-    color: colors.textSecondary,
+    color: "#8A94A4",
     fontSize: 13,
     fontWeight: "700"
   },
   modeTabLabelActive: {
-    color: colors.textPrimary
-  },
-  summaryRow: {
-    flexDirection: "row",
-    alignItems: "center"
+    color: "#374151"
   },
   progressCard: {
-    flex: 1,
+    width: "56%",
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
+    gap: 6,
     borderWidth: 1,
-    borderColor: colors.surfaceMuted,
-    backgroundColor: colors.surface,
+    borderColor: "#D7DCE3",
+    backgroundColor: "#F8FAFC",
     borderRadius: 12,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm
+    paddingHorizontal: 8,
+    paddingVertical: 6
   },
   progressLabel: {
-    color: colors.textSecondary,
-    fontSize: 11,
+    color: "#7A8698",
+    fontSize: 14,
     fontWeight: "700"
   },
   progressTrack: {
     flex: 1,
-    height: 6,
+    height: 9,
     borderRadius: 999,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: "#E8EDF2",
     overflow: "hidden"
   },
   progressFill: {
     height: "100%",
     borderRadius: 999,
-    backgroundColor: colors.primary
+    backgroundColor: "#B7D70A"
   },
   statusText: {
-    color: colors.textSecondary,
-    fontSize: 12
+    color: "#7A8698",
+    fontSize: 13
   }
 });

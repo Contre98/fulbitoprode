@@ -56,6 +56,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Start per-screen visual diff execution for 1:1 web-to-mobile parity (Pronósticos first).
 - [x] Add Pronósticos per-card lock/saving/error chips and top action controls for closer web parity.
 - [x] Replace Pronósticos header text control pills with icon-style controls.
+- [x] Apply screenshot-driven Pronósticos layout parity pass using `ui reference/Pronosticos-*.png`.
 
 ## Decisions Log
 
@@ -95,6 +96,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Begin structured 1:1 Pronósticos visual parity pass by aligning team-code emphasis, match score control treatment, date badge, and mode labels to web mobile UX. | Close the highest-impact visual gaps first while keeping existing repositories/contracts untouched and incremental commits reviewable. | `apps/mobile/src/screens/PronosticosScreen.tsx` |
 | 2026-03-04 | Add Pronósticos per-card status chips (`bloqueado`, `guardando`, error) and header action controls in mobile. | Move parity beyond static styling into web-like feedback states and top-bar affordances while keeping contracts/adapters unchanged. | `apps/mobile/src/screens/PronosticosScreen.tsx` |
 | 2026-03-04 | Use dependency-free shape glyphs for Pronósticos header action icons because npm registry DNS is intermittently unavailable. | Preserve parity momentum without blocking on package installation; swap to `@expo/vector-icons` once registry connectivity is stable. | `apps/mobile/src/screens/PronosticosScreen.tsx` |
+| 2026-03-04 | Extend `ScreenFrame` with optional badge/content overrides and rebuild Pronósticos layout from screenshot references. | Allow high-fidelity per-screen parity when generic frame chrome diverges from original web mobile UI while preserving shared repository contracts/state flow. | `apps/mobile/src/components/ScreenFrame.tsx`, `apps/mobile/src/screens/PronosticosScreen.tsx` |
 
 ## Validation Log
 
@@ -229,6 +231,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | No web regressions after Pronósticos icon-control slice. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | `PronosticosScreen` icon-style header controls compile cleanly without new dependencies. |
 | 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by Pronósticos icon-control slice. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile test` | Pass | Mobile suites green after screenshot-driven Pronósticos layout rewrite (`5 suites, 7 tests`). |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm --filter @fulbito/mobile typecheck` | Pass | `ScreenFrame` optional props (`hideDataModeBadge`, `contentStyle`) and new Pronósticos layout compile cleanly. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run typecheck:web` | Pass | No web regression after screenshot-driven Pronósticos parity slice. |
+| 2026-03-04 | `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"; pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unaffected by Pronósticos screenshot parity slice. |
 
 ## Risks & Mitigations
 
@@ -240,8 +246,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Swap Pronósticos dependency-free header glyph icons to `@expo/vector-icons` once npm registry connectivity is stable.
-2. Continue visual parity polish on `Fixture` spacing/typography and status treatment using screenshot diffs.
-3. Continue visual parity polish on `Posiciones`, including decision/execution for full `STATS` mode parity.
-4. Add Android smoke shortcut command and dedicated `android:smoke` script for repeatable manual QA.
-5. Run full manual parity QA on core tabs using `docs/mobile-qa-checklist.md` and capture final gap list for closure.
+1. Run visual QA against `ui reference/Pronosticos-Por Jugar.png` and `ui reference/Pronosticos-Jugados.png` and close any remaining micro-spacing/logo/icon gaps.
+2. Execute screenshot-driven parity pass for `Posiciones` using `ui reference/Posiciones*.png` (including `STATS` mode).
+3. Execute screenshot-driven parity pass for `Fixture` using `ui reference/Fixture.png`.
+4. Align bottom tab labels/order/icons to `Inicio · Posiciones · Pronósticos · Fixture · Grupos`.
+5. Add Android smoke shortcut command and dedicated `android:smoke` script for repeatable manual QA.
