@@ -20,6 +20,19 @@ const rewardRows = [
   { key: "robin", title: "ROBIN HOOD", subtitle: "Más repartidor de puntos", icon: "◎", tone: "#22C55E" }
 ];
 
+function stageLabel(value: string | undefined) {
+  if (!value) return "";
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+}
+
+function competitionLabelForPosiciones(input: {
+  competitionStage?: string;
+  competitionName?: string;
+  leagueName?: string;
+}) {
+  return stageLabel(input.competitionStage?.trim()) || input.competitionName?.trim() || input.leagueName?.trim() || "Sin competencia";
+}
+
 export function PosicionesScreen() {
   const insets = useSafeAreaInsets();
   const { memberships, selectedGroupId, setSelectedGroupId } = useGroupSelection();
@@ -70,7 +83,7 @@ export function PosicionesScreen() {
     }
   }
 
-  const groupSummary = selectedMembership ? `${selectedMembership.competitionName ?? selectedMembership.leagueName} · ${selectedMembership.groupName}` : "Sin grupo activo";
+  const groupSummary = selectedMembership ? `${competitionLabelForPosiciones(selectedMembership)} · ${selectedMembership.groupName}` : "Sin grupo activo";
   const entries = leaderboardQuery.data ?? [];
   const topEntry = entries[0] ?? null;
   const selectedModeLabel = mode === "positions" ? "GLOBAL ACUMULADO" : "PREMIOS Y CASTIGOS";

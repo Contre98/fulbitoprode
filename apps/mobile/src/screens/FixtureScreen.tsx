@@ -21,6 +21,19 @@ const filterLabels: Record<FixtureFilter, string> = {
   upcoming: "Próximos"
 };
 
+function stageLabel(value: string | undefined) {
+  if (!value) return "";
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+}
+
+function competitionLabelForFixture(input: {
+  competitionStage?: string;
+  competitionName?: string;
+  leagueName?: string;
+}) {
+  return stageLabel(input.competitionStage?.trim()) || input.competitionName?.trim() || input.leagueName?.trim() || "Sin competencia";
+}
+
 function toTeamCode(name: string) {
   const clean = name.trim();
   if (!clean) return "---";
@@ -126,7 +139,7 @@ export function FixtureScreen() {
     }
   }
 
-  const groupSummary = selectedMembership ? `${selectedMembership.competitionName ?? selectedMembership.leagueName} · ${selectedMembership.groupName}` : "Sin grupo activo";
+  const groupSummary = selectedMembership ? `${competitionLabelForFixture(selectedMembership)} · ${selectedMembership.groupName}` : "Sin grupo activo";
 
   return (
     <ScreenFrame

@@ -55,6 +55,24 @@ function explicitScoreFromFixtureId(fixtureId: string) {
   };
 }
 
+function stageLabel(value: string | undefined) {
+  if (!value) return "";
+  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+}
+
+function competitionLabelForPronosticos(input: {
+  leagueName?: string;
+  competitionName?: string;
+  competitionStage?: string;
+}) {
+  const leagueOrCompetition = input.competitionName?.trim() || input.leagueName?.trim() || "";
+  const stage = stageLabel(input.competitionStage?.trim());
+  if (leagueOrCompetition && stage && !leagueOrCompetition.toLowerCase().includes(stage.toLowerCase())) {
+    return `${leagueOrCompetition} ${stage}`;
+  }
+  return leagueOrCompetition || stage || "Sin competencia";
+}
+
 export function PronosticosScreen() {
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
@@ -171,7 +189,9 @@ export function PronosticosScreen() {
   );
   const currentPeriod = safeOptions[periodIndex] ?? safeOptions[0];
   const fechaClosed = (fixtureQuery.data ?? []).every((fixture) => fixture.status !== "upcoming");
-  const groupSummary = selectedMembership ? `${selectedMembership.leagueName} · ${selectedMembership.groupName}` : "Sin grupo activo";
+  const groupSummary = selectedMembership
+    ? `${competitionLabelForPronosticos(selectedMembership)} · ${selectedMembership.groupName}`
+    : "Sin grupo activo";
 
   const completionSummary = useMemo(() => {
     const total = Math.max(1, (fixtureQuery.data ?? []).length);
@@ -388,18 +408,14 @@ export function PronosticosScreen() {
             </Text>
             <View style={styles.headerActions}>
               <Pressable style={styles.headerActionButton} accessibilityRole="button" accessibilityLabel="Cambiar tema">
-                <View style={styles.iconSunOuter}>
-                  <View style={styles.iconSunCore} />
-                </View>
+                <Text allowFontScaling={false} style={styles.headerActionGlyph}>◔</Text>
               </Pressable>
               <Pressable style={styles.headerActionButton} accessibilityRole="button" accessibilityLabel="Notificaciones">
-                <View style={styles.iconBellBody} />
+                <Text allowFontScaling={false} style={styles.headerActionGlyph}>⌂</Text>
                 <View style={styles.iconBellDot} />
               </Pressable>
               <Pressable style={styles.headerActionButton} accessibilityRole="button" accessibilityLabel="Configuración">
-                <View style={styles.iconGearOuter}>
-                  <View style={styles.iconGearCore} />
-                </View>
+                <Text allowFontScaling={false} style={styles.headerActionGlyph}>⚙</Text>
               </Pressable>
               <View style={styles.profileDot}>
                 <Text allowFontScaling={false} style={styles.profileDotText}>FC</Text>
@@ -550,30 +566,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     position: "relative"
   },
-  iconSunOuter: {
-    height: 14,
-    width: 14,
-    borderRadius: 999,
-    borderWidth: 1.5,
-    borderColor: "#6B7280",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  iconSunCore: {
-    height: 4,
-    width: 4,
-    borderRadius: 999,
-    backgroundColor: "#6B7280"
-  },
-  iconBellBody: {
-    height: 12,
-    width: 11,
-    borderTopLeftRadius: 5,
-    borderTopRightRadius: 5,
-    borderBottomLeftRadius: 2,
-    borderBottomRightRadius: 2,
-    borderWidth: 1.5,
-    borderColor: "#6B7280"
+  headerActionGlyph: {
+    color: "#6B7280",
+    fontSize: 14
   },
   iconBellDot: {
     position: "absolute",
@@ -584,21 +579,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: "#D94651"
   },
-  iconGearOuter: {
-    height: 14,
-    width: 14,
-    borderRadius: 5,
-    borderWidth: 1.5,
-    borderColor: "#6B7280",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  iconGearCore: {
-    height: 4,
-    width: 4,
-    borderRadius: 999,
-    backgroundColor: "#6B7280"
-  },
+  // icon drawing is intentionally glyph-based for consistency with other parity screens.
   titleRow: {
     marginTop: 12,
     flexDirection: "row",
