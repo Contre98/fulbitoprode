@@ -1,12 +1,16 @@
 import { fireEvent, waitFor } from "@testing-library/react-native";
 import {
   createNavigationTree,
+  DEFAULT_USER,
   mockedFixtureList,
   mockedLeaderboardGet,
   mockedPredictionsList,
   mockedUseAuth,
   mockedUseGroupSelection,
   mockedUsePeriod,
+  mockAuthState,
+  mockGroupSelectionState,
+  mockPeriodState,
   renderAppNavigation
 } from "./mobileSmokeTestHarness";
 
@@ -22,48 +26,23 @@ describe("Mobile E2E smoke auth-entry", () => {
     const logout = jest.fn().mockResolvedValue(undefined);
     let isAuthenticated = false;
 
-    mockedUseAuth.mockImplementation(() => ({
-      loading: false,
-      isAuthenticated,
-      session: isAuthenticated
-        ? {
-            user: { id: "u-1", email: "qa@example.com", name: "QA User" },
-            memberships: []
-          }
-        : null,
-      dataMode: "mock",
-      fallbackIssue: null,
-      fallbackHistory: [],
-      refresh: jest.fn(),
-      login,
-      register: jest.fn(),
-      logout,
-      retryHttpMode: jest.fn(),
-      clearFallbackDiagnosticsHistory: jest.fn()
-    }));
+    mockedUseAuth.mockImplementation(() =>
+      mockAuthState({
+        isAuthenticated,
+        session: isAuthenticated
+          ? {
+              user: DEFAULT_USER,
+              memberships: []
+            }
+          : null,
+        login,
+        logout
+      })
+    );
 
-    mockedUseGroupSelection.mockReturnValue({
-      memberships: [
-        {
-          groupId: "g-1",
-          groupName: "Grupo Amigos",
-          leagueId: 128,
-          leagueName: "Liga Profesional",
-          competitionStage: "apertura",
-          season: "2026",
-          role: "owner",
-          joinedAt: "2026-01-01T00:00:00.000Z"
-        }
-      ],
-      selectedGroupId: "g-1",
-      setSelectedGroupId: jest.fn()
-    });
+    mockedUseGroupSelection.mockReturnValue(mockGroupSelectionState());
 
-    mockedUsePeriod.mockReturnValue({
-      fecha: 1,
-      options: [{ id: 1, label: "Fecha 1" }],
-      setFecha: jest.fn()
-    });
+    mockedUsePeriod.mockReturnValue(mockPeriodState());
 
     mockedFixtureList.mockResolvedValue([
       {

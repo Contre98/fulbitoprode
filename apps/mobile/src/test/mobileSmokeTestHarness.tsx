@@ -6,6 +6,7 @@ import { fixtureRepository, groupsRepository, leaderboardRepository, predictions
 import { useAuth } from "@/state/AuthContext";
 import { useGroupSelection } from "@/state/GroupContext";
 import { usePeriod } from "@/state/PeriodContext";
+import type { Membership, User } from "@fulbito/domain";
 
 jest.mock("@/repositories", () => ({
   fixtureRepository: {
@@ -49,6 +50,62 @@ export const mockedPredictionsSave = predictionsRepository.savePrediction as unk
 export const mockedLeaderboardGet = leaderboardRepository.getLeaderboard as unknown as jest.Mock;
 export const mockedGroupsCreate = groupsRepository.createGroup as unknown as jest.Mock;
 export const mockedGroupsJoin = groupsRepository.joinGroup as unknown as jest.Mock;
+
+export const DEFAULT_USER: User = {
+  id: "u-1",
+  email: "qa@example.com",
+  name: "QA User"
+};
+
+export const DEFAULT_MEMBERSHIP: Membership = {
+  groupId: "g-1",
+  groupName: "Grupo Amigos",
+  leagueId: 128,
+  leagueName: "Liga Profesional",
+  competitionStage: "apertura",
+  season: "2026",
+  role: "owner",
+  joinedAt: "2026-01-01T00:00:00.000Z"
+};
+
+export function mockAuthState(overrides?: Record<string, unknown>) {
+  return {
+    loading: false,
+    isAuthenticated: true,
+    session: {
+      user: DEFAULT_USER,
+      memberships: []
+    },
+    dataMode: "mock",
+    fallbackIssue: null,
+    fallbackHistory: [],
+    refresh: jest.fn(),
+    login: jest.fn(),
+    register: jest.fn(),
+    logout: jest.fn().mockResolvedValue(undefined),
+    retryHttpMode: jest.fn(),
+    clearFallbackDiagnosticsHistory: jest.fn(),
+    ...(overrides ?? {})
+  };
+}
+
+export function mockGroupSelectionState(overrides?: Record<string, unknown>) {
+  return {
+    memberships: [DEFAULT_MEMBERSHIP],
+    selectedGroupId: DEFAULT_MEMBERSHIP.groupId,
+    setSelectedGroupId: jest.fn(),
+    ...(overrides ?? {})
+  };
+}
+
+export function mockPeriodState(overrides?: Record<string, unknown>) {
+  return {
+    fecha: 1,
+    options: [{ id: 1, label: "Fecha 1" }],
+    setFecha: jest.fn(),
+    ...(overrides ?? {})
+  };
+}
 
 export function createNavigationTree() {
   const queryClient = new QueryClient({

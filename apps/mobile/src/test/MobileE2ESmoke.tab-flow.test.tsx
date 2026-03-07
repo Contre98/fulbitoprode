@@ -1,5 +1,8 @@
 import { fireEvent, waitFor } from "@testing-library/react-native";
 import {
+  mockAuthState,
+  mockGroupSelectionState,
+  mockPeriodState,
   mockedFixtureList,
   mockedGroupsCreate,
   mockedGroupsJoin,
@@ -21,49 +24,26 @@ describe("Mobile E2E smoke tab-flow", () => {
     const setSelectedGroupId = jest.fn();
     const refresh = jest.fn().mockResolvedValue(undefined);
 
-    mockedUseAuth.mockReturnValue({
-      loading: false,
-      isAuthenticated: true,
-      session: {
-        user: { id: "u-1", email: "qa@example.com", name: "QA User" },
-        memberships: []
-      },
-      dataMode: "mock",
-      fallbackIssue: null,
-      fallbackHistory: [],
-      refresh,
-      login: jest.fn(),
-      register: jest.fn(),
-      logout: jest.fn().mockResolvedValue(undefined),
-      retryHttpMode: jest.fn(),
-      clearFallbackDiagnosticsHistory: jest.fn()
-    });
+    mockedUseAuth.mockReturnValue(
+      mockAuthState({
+        refresh
+      })
+    );
 
-    mockedUseGroupSelection.mockReturnValue({
-      memberships: [
-        {
-          groupId: "g-1",
-          groupName: "Grupo Amigos",
-          leagueId: 128,
-          leagueName: "Liga Profesional",
-          competitionStage: "apertura",
-          season: "2026",
-          role: "owner",
-          joinedAt: "2026-01-01T00:00:00.000Z"
-        }
-      ],
-      selectedGroupId: "g-1",
-      setSelectedGroupId
-    });
+    mockedUseGroupSelection.mockReturnValue(
+      mockGroupSelectionState({
+        setSelectedGroupId
+      })
+    );
 
-    mockedUsePeriod.mockReturnValue({
-      fecha: 1,
-      options: [
-        { id: 1, label: "Fecha 1" },
-        { id: 2, label: "Fecha 2" }
-      ],
-      setFecha: jest.fn()
-    });
+    mockedUsePeriod.mockReturnValue(
+      mockPeriodState({
+        options: [
+          { id: 1, label: "Fecha 1" },
+          { id: 2, label: "Fecha 2" }
+        ]
+      })
+    );
 
     mockedFixtureList.mockResolvedValue([
       {
