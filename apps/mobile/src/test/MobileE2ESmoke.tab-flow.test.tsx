@@ -67,7 +67,9 @@ describe("Mobile E2E smoke tab-flow", () => {
     mockedLeaderboardGet.mockResolvedValue([
       { userId: "u-1", displayName: "Usuario Fulbito", points: 18, rank: 1 }
     ]);
-    mockedGroupsCreate.mockResolvedValue({ id: "g-2", name: "Grupo QA" });
+    mockedGroupsCreate
+      .mockRejectedValueOnce(new Error("create failed"))
+      .mockResolvedValueOnce({ id: "g-2", name: "Grupo QA" });
     mockedGroupsJoin
       .mockRejectedValueOnce(new Error("invalid invite"))
       .mockResolvedValueOnce({ id: "g-3", name: "Grupo Join" });
@@ -131,6 +133,7 @@ describe("Mobile E2E smoke tab-flow", () => {
     fireEvent.press(screen.getByText("+"));
 
     await waitFor(() => {
+      expect(screen.getByText("No se pudo crear el grupo. Reintentá.")).toBeTruthy();
       expect(mockedGroupsCreate).toHaveBeenCalledWith({
         name: "Grupo QA",
         competitionStage: "apertura",
@@ -139,6 +142,12 @@ describe("Mobile E2E smoke tab-flow", () => {
         leagueId: 128,
         season: "2026"
       });
+    });
+
+    fireEvent.press(screen.getByText("+"));
+
+    await waitFor(() => {
+      expect(mockedGroupsCreate).toHaveBeenCalledTimes(2);
     });
 
     fireEvent.press(screen.getByText("Unirse"));
