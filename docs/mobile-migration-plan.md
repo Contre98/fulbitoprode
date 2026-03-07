@@ -122,6 +122,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Decide smoke-suite granularity: keep `auth-entry` + `tab-flow` for now, defer separate `group-actions` file unless runtime/mutation assertions grow materially.
 - [x] Split CI smoke guard into dedicated `auth-entry` and `tab-flow` steps for clearer failure isolation.
 - [x] Add shared smoke-test fixture helpers for auth/group/period setup and refactor split smoke suites to use them.
+- [x] Draft explicit Phase 4 closure checklist document with automated/manual/contracts/doc gates.
 
 ## Decisions Log
 
@@ -202,6 +203,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-07 | Keep two-file smoke structure (`auth-entry`, `tab-flow`) and defer a third `group-actions` file. | Current `tab-flow` suite already exercises group creation/join validation/rejection/retry in app context; additional split now would add maintenance overhead without materially improving failure isolation. | `apps/mobile/src/test/MobileE2ESmoke.auth-entry.test.tsx`, `apps/mobile/src/test/MobileE2ESmoke.tab-flow.test.tsx` |
 | 2026-03-07 | Split CI smoke guard into separate `auth-entry` and `tab-flow` commands. | Keep mobile smoke failures more actionable in PRs by identifying whether auth-gate path or tab-flow path regressed without re-running the full suite. | `.github/workflows/ci.yml` |
 | 2026-03-07 | Introduce shared smoke fixture helpers (`mockAuthState`, `mockGroupSelectionState`, `mockPeriodState`) and default entities in test harness. | Reduce duplicate setup across split smoke suites and keep future scenario additions focused on behavior assertions rather than repeated mock object scaffolding. | `apps/mobile/src/test/mobileSmokeTestHarness.tsx`, `apps/mobile/src/test/MobileE2ESmoke.auth-entry.test.tsx`, `apps/mobile/src/test/MobileE2ESmoke.tab-flow.test.tsx` |
+| 2026-03-07 | Create a dedicated Phase 4 closure checklist draft with explicit pass/fail gates. | Make final hardening sign-off criteria concrete and reviewable across automated coverage, manual QA evidence, contracts/fallback behavior, and documentation hygiene. | `docs/mobile-phase4-closure-checklist.md` |
 | 2026-03-04 | Add CI guard step for `AuthContext.fallbackHistory.integration.test.tsx` in the main workflow. | Keep AuthContext fallback-history integration coverage enforced on every PR/push instead of relying on local targeted runs only. | `.github/workflows/ci.yml` |
 
 ## Validation Log
@@ -540,6 +542,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-07 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Fail then pass | Initial failure from using non-exported domain type `SessionUser` in smoke harness; fixed by switching to exported `User` type and reran green. |
 | 2026-03-07 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after smoke helper extraction/refactor. |
 | 2026-03-07 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by smoke helper extraction slice. |
+| 2026-03-07 | Phase 4 closure checklist draft update (`docs/mobile-phase4-closure-checklist.md`) | Pass | Added first closure-gate draft to structure remaining completion work; no runtime behavior change. |
 
 ## Risks & Mitigations
 
@@ -552,7 +555,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 
 ## Next Actions (Top 5)
 1. Capture one full manual QA pass in `HTTP Session` mode (not mock fallback) and attach screenshots/log notes.
-2. Prepare a Phase 4 closure checklist draft with explicit “done” gates for tests, CI, and manual QA artifacts.
-3. Add one focused smoke assertion for `Grupos` create mutation rejection/retry in tab-flow (to mirror join rejection depth).
-4. Consider whether fallback-transition warnings should be silenced in tests (stub `console.warn`) or intentionally preserved for diagnostics visibility.
-5. Evaluate if shared smoke helper defaults should be reused by additional mobile test files beyond smoke suites.
+2. Add one focused smoke assertion for `Grupos` create mutation rejection/retry in tab-flow (to mirror join rejection depth).
+3. Consider whether fallback-transition warnings should be silenced in tests (stub `console.warn`) or intentionally preserved for diagnostics visibility.
+4. Evaluate if shared smoke helper defaults should be reused by additional mobile test files beyond smoke suites.
+5. Run through Phase 4 closure checklist draft and mark current pass/fail state per gate before final recommendation.
