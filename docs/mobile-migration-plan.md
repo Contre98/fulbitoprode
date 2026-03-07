@@ -120,6 +120,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Capture refreshed iOS + Android all-tab screenshots under `ui reference/current iOS` and `ui reference/current Android`.
 - [x] Add Phase 4 mid-point guard-coverage summary to closure draft document.
 - [x] Decide smoke-suite granularity: keep `auth-entry` + `tab-flow` for now, defer separate `group-actions` file unless runtime/mutation assertions grow materially.
+- [x] Split CI smoke guard into dedicated `auth-entry` and `tab-flow` steps for clearer failure isolation.
 
 ## Decisions Log
 
@@ -198,6 +199,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-07 | Split monolithic `MobileE2ESmoke` suite into focused `auth-entry` and `tab-flow` files backed by a shared harness, and update CI smoke guard command to pattern match both suites. | Keep app-level smoke coverage maintainable as assertions grow while preserving the same guard scope in CI with less test-file churn risk. | `apps/mobile/src/test/mobileSmokeTestHarness.tsx`, `apps/mobile/src/test/MobileE2ESmoke.auth-entry.test.tsx`, `apps/mobile/src/test/MobileE2ESmoke.tab-flow.test.tsx`, `.github/workflows/ci.yml` |
 | 2026-03-07 | Keep malformed fixture/leaderboard HTTP payload handling routed through repository-level fallback to mock adapters (validated in composition tests). | Preserve contracts-first resilience in app runtime when HTTP normalization throws, instead of letting malformed backend payloads break core mobile tabs. | `apps/mobile/src/test/RepositoryFallbackTransitions.test.ts`, `apps/mobile/src/repositories/index.ts` |
 | 2026-03-07 | Keep two-file smoke structure (`auth-entry`, `tab-flow`) and defer a third `group-actions` file. | Current `tab-flow` suite already exercises group creation/join validation/rejection/retry in app context; additional split now would add maintenance overhead without materially improving failure isolation. | `apps/mobile/src/test/MobileE2ESmoke.auth-entry.test.tsx`, `apps/mobile/src/test/MobileE2ESmoke.tab-flow.test.tsx` |
+| 2026-03-07 | Split CI smoke guard into separate `auth-entry` and `tab-flow` commands. | Keep mobile smoke failures more actionable in PRs by identifying whether auth-gate path or tab-flow path regressed without re-running the full suite. | `.github/workflows/ci.yml` |
 | 2026-03-04 | Add CI guard step for `AuthContext.fallbackHistory.integration.test.tsx` in the main workflow. | Keep AuthContext fallback-history integration coverage enforced on every PR/push instead of relying on local targeted runs only. | `.github/workflows/ci.yml` |
 
 ## Validation Log
@@ -526,6 +528,11 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-07 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Updated `RepositoryFallbackTransitions.test.ts` compiles cleanly under strict mobile TypeScript checks. |
 | 2026-03-07 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by fallback-transition coverage slice. |
 | 2026-03-07 | Manual QA evidence refresh (`ui reference/current iOS/*`, `ui reference/current Android/*`) | Pass | User provided updated iOS + Android screenshots covering all 5 tabs; paths linked into `docs/mobile-phase3-closure-summary.md`. |
+| 2026-03-07 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile test -- MobileE2ESmoke.auth-entry.test.tsx` | Pass with warning noise | Dedicated auth-entry smoke suite passes (`1 test`); existing non-blocking RN `act(...)` warning noise persists. |
+| 2026-03-07 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile test -- MobileE2ESmoke.tab-flow.test.tsx` | Pass | Dedicated tab-flow smoke suite passes (`1 test`) with full cross-tab + group action assertions. |
+| 2026-03-07 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after CI smoke guard split and docs updates. |
+| 2026-03-07 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Mobile typecheck remains green after CI smoke guard split. |
+| 2026-03-07 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by CI smoke-guard split slice. |
 
 ## Risks & Mitigations
 
@@ -538,7 +545,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 
 ## Next Actions (Top 5)
 1. Evaluate adding an explicit test-helper utility for common auth/group/period mock fixtures to reduce per-suite setup duplication beyond smoke tests.
-2. Consider adding CI smoke guard matrix split (`auth-entry` and `tab-flow` separate steps) if we need finer-grained failure visibility in PR runs.
-3. Capture one full manual QA pass in `HTTP Session` mode (not mock fallback) and attach screenshots/log notes.
-4. Prepare a Phase 4 closure checklist draft with explicit “done” gates for tests, CI, and manual QA artifacts.
-5. Add one focused smoke assertion for `Grupos` create mutation rejection/retry in tab-flow (to mirror join rejection depth).
+2. Capture one full manual QA pass in `HTTP Session` mode (not mock fallback) and attach screenshots/log notes.
+3. Prepare a Phase 4 closure checklist draft with explicit “done” gates for tests, CI, and manual QA artifacts.
+4. Add one focused smoke assertion for `Grupos` create mutation rejection/retry in tab-flow (to mirror join rejection depth).
+5. Consider whether fallback-transition warnings should be silenced in tests (stub `console.warn`) or intentionally preserved for diagnostics visibility.
