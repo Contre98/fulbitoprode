@@ -115,6 +115,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Add focused fallback-history clear assertion across subscribe/unsubscribe cycles in diagnostics utility tests.
 - [x] Add CI guard invocation for `AuthContext.fallbackHistory.integration.test.tsx`.
 - [x] Expand app-flow smoke coverage to include `Grupos` join mutation rejection message and retry-success sequence.
+- [x] Split app-level smoke coverage into focused `auth-entry` and `tab-flow` files with shared test harness.
 
 ## Decisions Log
 
@@ -190,6 +191,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Split adapter parity tests by domain (`groups/predictions` vs `fixture/leaderboard`) and guard both in CI. | Keep suite growth maintainable and isolate failures to narrower adapter scopes while preserving existing parity coverage depth. | `apps/mobile/src/test/RepositoryAdapters.contract.test.ts`, `apps/mobile/src/test/RepositoryAdapters.groupsPredictions.contract.test.ts`, `.github/workflows/ci.yml` |
 | 2026-03-04 | Add AuthContext-level fallback-history integration coverage using `DataModeBadge` probe rendering. | Validate persisted diagnostics hydration and clear-action wiring at context-to-UI boundary without relying solely on isolated utility/component tests. | `apps/mobile/src/test/AuthContext.fallbackHistory.integration.test.tsx` |
 | 2026-03-04 | Extend mobile smoke flow to assert `Posiciones` mode toggle behavior (`STATS` and back to `POSICIONES`). | Increase tab-level regression coverage depth in the app-level flow without introducing additional e2e tooling complexity. | `apps/mobile/src/test/MobileE2ESmoke.flow.test.tsx` |
+| 2026-03-07 | Split monolithic `MobileE2ESmoke` suite into focused `auth-entry` and `tab-flow` files backed by a shared harness, and update CI smoke guard command to pattern match both suites. | Keep app-level smoke coverage maintainable as assertions grow while preserving the same guard scope in CI with less test-file churn risk. | `apps/mobile/src/test/mobileSmokeTestHarness.tsx`, `apps/mobile/src/test/MobileE2ESmoke.auth-entry.test.tsx`, `apps/mobile/src/test/MobileE2ESmoke.tab-flow.test.tsx`, `.github/workflows/ci.yml` |
 | 2026-03-04 | Add CI guard step for `AuthContext.fallbackHistory.integration.test.tsx` in the main workflow. | Keep AuthContext fallback-history integration coverage enforced on every PR/push instead of relying on local targeted runs only. | `.github/workflows/ci.yml` |
 
 ## Validation Log
@@ -509,6 +511,10 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after smoke-flow join mutation rejection/retry coverage expansion. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Updated `MobileE2ESmoke.flow.test.tsx` compiles cleanly after join mutation rejection/retry assertion addition. |
 | 2026-03-04 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by smoke-flow join mutation rejection/retry slice. |
+| 2026-03-07 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile test -- MobileE2ESmoke` | Fail then pass with warning noise | Initial split run failed from `AuthContext` mock ordering (`AsyncStorage is null`) due direct `AppNavigation` import in auth-entry test; fixed by moving rerender tree into shared harness and reran green (`2 suites, 2 tests`). |
+| 2026-03-07 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after splitting smoke suites and updating CI smoke command pattern. |
+| 2026-03-07 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | New smoke harness plus split test files compile cleanly under strict TypeScript checks. |
+| 2026-03-07 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by smoke-suite split slice. |
 
 ## Risks & Mitigations
 
@@ -520,8 +526,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Decide whether `MobileE2ESmoke.flow.test.tsx` should be split into smaller flow files as assertions continue to grow.
-2. Review whether malformed payload cases should be explicitly routed to mock fallback at repository-composition layer and add tests if adopted.
-3. Capture refreshed Android + iOS screenshots for all tabs after latest Phase 4 test-slice updates and attach to closure summary.
-4. Add a brief Phase 4 mid-point summary in `docs/mobile-phase3-closure-summary.md` to map current automated guards to each tab.
-5. Evaluate splitting `MobileE2ESmoke.flow.test.tsx` into `auth-entry`, `tab-flow`, and `group-actions` files while preserving CI guard coverage.
+1. Review whether malformed payload cases should be explicitly routed to mock fallback at repository-composition layer and add tests if adopted.
+2. Capture refreshed Android + iOS screenshots for all tabs after latest Phase 4 test-slice updates and attach to closure summary.
+3. Add a brief Phase 4 mid-point summary in `docs/mobile-phase3-closure-summary.md` to map current automated guards to each tab.
+4. Decide whether a third `group-actions` smoke file should be introduced or whether current `tab-flow` coverage is sufficient.
+5. Evaluate adding an explicit test-helper utility for common auth/group/period mock fixtures to reduce per-suite setup duplication beyond smoke tests.

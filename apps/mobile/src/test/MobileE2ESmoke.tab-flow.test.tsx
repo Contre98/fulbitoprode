@@ -1,169 +1,20 @@
-import { fireEvent, render, waitFor } from "@testing-library/react-native";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactNode } from "react";
-import { AppNavigation } from "@/navigation/AppNavigation";
-import { fixtureRepository, groupsRepository, leaderboardRepository, predictionsRepository } from "@/repositories";
-import { useAuth } from "@/state/AuthContext";
-import { useGroupSelection } from "@/state/GroupContext";
-import { usePeriod } from "@/state/PeriodContext";
+import { fireEvent, waitFor } from "@testing-library/react-native";
+import {
+  mockedFixtureList,
+  mockedGroupsCreate,
+  mockedGroupsJoin,
+  mockedLeaderboardGet,
+  mockedPredictionsList,
+  mockedPredictionsSave,
+  mockedUseAuth,
+  mockedUseGroupSelection,
+  mockedUsePeriod,
+  renderAppNavigation
+} from "./mobileSmokeTestHarness";
 
-jest.mock("@/repositories", () => ({
-  fixtureRepository: {
-    listFixture: jest.fn()
-  },
-  predictionsRepository: {
-    listPredictions: jest.fn(),
-    savePrediction: jest.fn()
-  },
-  leaderboardRepository: {
-    getLeaderboard: jest.fn()
-  },
-  groupsRepository: {
-    createGroup: jest.fn(),
-    joinGroup: jest.fn()
-  }
-}));
-
-jest.mock("@/state/AuthContext", () => ({
-  AuthProvider: ({ children }: { children: ReactNode }) => children,
-  useAuth: jest.fn()
-}));
-
-jest.mock("@/state/GroupContext", () => ({
-  GroupProvider: ({ children }: { children: ReactNode }) => children,
-  useGroupSelection: jest.fn()
-}));
-
-jest.mock("@/state/PeriodContext", () => ({
-  PeriodProvider: ({ children }: { children: ReactNode }) => children,
-  usePeriod: jest.fn()
-}));
-
-const mockedUseAuth = useAuth as unknown as jest.Mock;
-const mockedUseGroupSelection = useGroupSelection as unknown as jest.Mock;
-const mockedUsePeriod = usePeriod as unknown as jest.Mock;
-
-const mockedFixtureList = fixtureRepository.listFixture as unknown as jest.Mock;
-const mockedPredictionsList = predictionsRepository.listPredictions as unknown as jest.Mock;
-const mockedPredictionsSave = predictionsRepository.savePrediction as unknown as jest.Mock;
-const mockedLeaderboardGet = leaderboardRepository.getLeaderboard as unknown as jest.Mock;
-const mockedGroupsCreate = groupsRepository.createGroup as unknown as jest.Mock;
-const mockedGroupsJoin = groupsRepository.joinGroup as unknown as jest.Mock;
-
-function renderAppNavigation() {
-  const client = new QueryClient({
-    defaultOptions: {
-      queries: { retry: false },
-      mutations: { retry: false }
-    }
-  });
-
-  return render(
-    <QueryClientProvider client={client}>
-      <AppNavigation />
-    </QueryClientProvider>
-  );
-}
-
-describe("Mobile E2E smoke flow", () => {
+describe("Mobile E2E smoke tab-flow", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-  });
-
-  it("covers AuthScreen login gate into Inicio", async () => {
-    const login = jest.fn(async () => {
-      isAuthenticated = true;
-    });
-    const logout = jest.fn().mockResolvedValue(undefined);
-    let isAuthenticated = false;
-
-    mockedUseAuth.mockImplementation(() => ({
-      loading: false,
-      isAuthenticated,
-      session: isAuthenticated
-        ? {
-            user: { id: "u-1", email: "qa@example.com", name: "QA User" },
-            memberships: []
-          }
-        : null,
-      dataMode: "mock",
-      fallbackIssue: null,
-      fallbackHistory: [],
-      refresh: jest.fn(),
-      login,
-      register: jest.fn(),
-      logout,
-      retryHttpMode: jest.fn(),
-      clearFallbackDiagnosticsHistory: jest.fn()
-    }));
-
-    mockedUseGroupSelection.mockReturnValue({
-      memberships: [
-        {
-          groupId: "g-1",
-          groupName: "Grupo Amigos",
-          leagueId: 128,
-          leagueName: "Liga Profesional",
-          competitionStage: "apertura",
-          season: "2026",
-          role: "owner",
-          joinedAt: "2026-01-01T00:00:00.000Z"
-        }
-      ],
-      selectedGroupId: "g-1",
-      setSelectedGroupId: jest.fn()
-    });
-
-    mockedUsePeriod.mockReturnValue({
-      fecha: 1,
-      options: [{ id: 1, label: "Fecha 1" }],
-      setFecha: jest.fn()
-    });
-
-    mockedFixtureList.mockResolvedValue([
-      {
-        id: "fx-upcoming-arg-lan",
-        homeTeam: "Argentinos Juniors",
-        awayTeam: "Lanus",
-        kickoffAt: "2026-03-06T22:00:00.000Z",
-        status: "upcoming"
-      }
-    ]);
-    mockedPredictionsList.mockResolvedValue([]);
-    mockedLeaderboardGet.mockResolvedValue([
-      { userId: "u-1", displayName: "Usuario Fulbito", points: 18, rank: 1 }
-    ]);
-
-    const screen = renderAppNavigation();
-
-    expect(screen.getByText("Iniciar sesión")).toBeTruthy();
-    fireEvent.changeText(screen.getByPlaceholderText("Email"), "qa@example.com");
-    fireEvent.changeText(screen.getByPlaceholderText("Contraseña"), "secret");
-    fireEvent.press(screen.getByText("Entrar"));
-
-    await waitFor(() => {
-      expect(login).toHaveBeenCalledWith("qa@example.com", "secret");
-    });
-
-    screen.rerender(
-      <QueryClientProvider
-        client={
-          new QueryClient({
-            defaultOptions: {
-              queries: { retry: false },
-              mutations: { retry: false }
-            }
-          })
-        }
-      >
-        <AppNavigation />
-      </QueryClientProvider>
-    );
-
-    await waitFor(() => {
-      expect(screen.getAllByText("Inicio").length).toBeGreaterThan(0);
-      expect(screen.getByText("Próximos Partidos")).toBeTruthy();
-    });
   });
 
   it("covers Inicio -> Pronosticos save -> Grupos create/join", async () => {

@@ -45,7 +45,7 @@ jobs:
         run: pnpm --filter @fulbito/mobile test -- ConfiguracionScreen.actions.test.tsx
 
       - name: Mobile Phase 4 Smoke Guard
-        run: pnpm --filter @fulbito/mobile test -- MobileE2ESmoke.flow.test.tsx
+        run: pnpm --filter @fulbito/mobile test -- MobileE2ESmoke
 
       - name: Mobile Adapter Contract Guard (Fixture + Leaderboard)
         run: pnpm --filter @fulbito/mobile test -- RepositoryAdapters.contract.test.ts
