@@ -119,6 +119,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Add repository-composition fallback tests for fixture/leaderboard malformed-payload failures to confirm mock continuity.
 - [x] Capture refreshed iOS + Android all-tab screenshots under `ui reference/current iOS` and `ui reference/current Android`.
 - [x] Add Phase 4 mid-point guard-coverage summary to closure draft document.
+- [x] Decide smoke-suite granularity: keep `auth-entry` + `tab-flow` for now, defer separate `group-actions` file unless runtime/mutation assertions grow materially.
 
 ## Decisions Log
 
@@ -196,6 +197,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-04 | Extend mobile smoke flow to assert `Posiciones` mode toggle behavior (`STATS` and back to `POSICIONES`). | Increase tab-level regression coverage depth in the app-level flow without introducing additional e2e tooling complexity. | `apps/mobile/src/test/MobileE2ESmoke.flow.test.tsx` |
 | 2026-03-07 | Split monolithic `MobileE2ESmoke` suite into focused `auth-entry` and `tab-flow` files backed by a shared harness, and update CI smoke guard command to pattern match both suites. | Keep app-level smoke coverage maintainable as assertions grow while preserving the same guard scope in CI with less test-file churn risk. | `apps/mobile/src/test/mobileSmokeTestHarness.tsx`, `apps/mobile/src/test/MobileE2ESmoke.auth-entry.test.tsx`, `apps/mobile/src/test/MobileE2ESmoke.tab-flow.test.tsx`, `.github/workflows/ci.yml` |
 | 2026-03-07 | Keep malformed fixture/leaderboard HTTP payload handling routed through repository-level fallback to mock adapters (validated in composition tests). | Preserve contracts-first resilience in app runtime when HTTP normalization throws, instead of letting malformed backend payloads break core mobile tabs. | `apps/mobile/src/test/RepositoryFallbackTransitions.test.ts`, `apps/mobile/src/repositories/index.ts` |
+| 2026-03-07 | Keep two-file smoke structure (`auth-entry`, `tab-flow`) and defer a third `group-actions` file. | Current `tab-flow` suite already exercises group creation/join validation/rejection/retry in app context; additional split now would add maintenance overhead without materially improving failure isolation. | `apps/mobile/src/test/MobileE2ESmoke.auth-entry.test.tsx`, `apps/mobile/src/test/MobileE2ESmoke.tab-flow.test.tsx` |
 | 2026-03-04 | Add CI guard step for `AuthContext.fallbackHistory.integration.test.tsx` in the main workflow. | Keep AuthContext fallback-history integration coverage enforced on every PR/push instead of relying on local targeted runs only. | `.github/workflows/ci.yml` |
 
 ## Validation Log
@@ -535,8 +537,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Decide whether a third `group-actions` smoke file should be introduced or whether current `tab-flow` coverage is sufficient.
-2. Evaluate adding an explicit test-helper utility for common auth/group/period mock fixtures to reduce per-suite setup duplication beyond smoke tests.
-3. Consider adding CI smoke guard matrix split (`auth-entry` and `tab-flow` separate steps) if we need finer-grained failure visibility in PR runs.
-4. Capture one full manual QA pass in `HTTP Session` mode (not mock fallback) and attach screenshots/log notes.
-5. Prepare a Phase 4 closure checklist draft with explicit “done” gates for tests, CI, and manual QA artifacts.
+1. Evaluate adding an explicit test-helper utility for common auth/group/period mock fixtures to reduce per-suite setup duplication beyond smoke tests.
+2. Consider adding CI smoke guard matrix split (`auth-entry` and `tab-flow` separate steps) if we need finer-grained failure visibility in PR runs.
+3. Capture one full manual QA pass in `HTTP Session` mode (not mock fallback) and attach screenshots/log notes.
+4. Prepare a Phase 4 closure checklist draft with explicit “done” gates for tests, CI, and manual QA artifacts.
+5. Add one focused smoke assertion for `Grupos` create mutation rejection/retry in tab-flow (to mirror join rejection depth).
