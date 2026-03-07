@@ -16,27 +16,41 @@ This draft summarizes Phase 3 delivery status for `mobile/react-native-rewrite` 
 - Mobile adapters + fallback composition: `apps/mobile/src/repositories`
 
 ## Tab-by-Tab Visual Evidence
-Evidence captured from user-run emulator/simulator QA on 2026-03-04.
+Evidence captured from user-run emulator/simulator QA on 2026-03-07.
+
+Current screenshot sets:
+- iOS: `ui reference/current iOS/`
+- Android: `ui reference/current Android/`
 
 ### Inicio
 - Reference: `ui reference/Inicio.png`
-- Mobile parity screenshot: Android Medium (`shared in chat, 19:17 local time`) - pass
+- iOS current: `ui reference/current iOS/Screenshot 2026-03-07 at 18.41.13.png`
+- Android current: `ui reference/current Android/Screenshot 2026-03-07 at 18.41.47.png`
+- Status: pass
 
 ### Posiciones
 - Reference: `ui reference/Posiciones.png`
-- Mobile parity screenshot: Android Medium (`shared in chat, 19:17 local time`) - pass
+- iOS current: `ui reference/current iOS/Screenshot 2026-03-07 at 18.42.03.png`
+- Android current: `ui reference/current Android/Screenshot 2026-03-07 at 18.41.56.png`
+- Status: pass
 
 ### Pronósticos
 - Reference: `ui reference/Pronosticos.png`
-- Mobile parity screenshot: Android Medium (`shared in chat, 19:18 local time`) - pass
+- iOS current: `ui reference/current iOS/Screenshot 2026-03-07 at 18.42.19.png`
+- Android current: `ui reference/current Android/Screenshot 2026-03-07 at 18.42.12.png`
+- Status: pass
 
 ### Fixture
 - Reference: `ui reference/Fixture.png`
-- Mobile parity screenshot: Android Medium (`shared in chat, 19:18 local time`) - pass
+- iOS current: `ui reference/current iOS/Screenshot 2026-03-07 at 18.42.34.png`
+- Android current: `ui reference/current Android/Screenshot 2026-03-07 at 18.42.27.png`
+- Status: pass
 
 ### Grupos
 - Reference: `ui reference/Grupos.png`
-- Mobile parity screenshot: Android Medium (`shared in chat, 19:18 local time`) - pass
+- iOS current: `ui reference/current iOS/Screenshot 2026-03-07 at 18.42.48.png`
+- Android current: `ui reference/current Android/Screenshot 2026-03-07 at 18.42.42.png`
+- Status: pass
 
 ## Functional Test Evidence
 - `Grupos` action smoke tests:
@@ -65,3 +79,27 @@ Key recurring commands:
 
 ## Phase 3 Closure Recommendation
 Phase 3 mobile parity + MVP behavior is ready to close and move to Phase 4 hardening.
+
+## Phase 4 Mid-point Guard Coverage (2026-03-07)
+Automated guards now mapped to tab-level behavior:
+
+- Inicio:
+  - `apps/mobile/src/test/MobileE2ESmoke.auth-entry.test.tsx`
+  - `apps/mobile/src/test/MobileE2ESmoke.tab-flow.test.tsx`
+  - `apps/mobile/src/test/HomeScreen.filters.test.tsx`
+- Posiciones:
+  - `apps/mobile/src/test/MobileE2ESmoke.tab-flow.test.tsx` (`POSICIONES`/`STATS` toggle assertion)
+- Pronósticos:
+  - `apps/mobile/src/test/MobileE2ESmoke.tab-flow.test.tsx` (save flow assertion)
+  - `apps/mobile/src/test/RepositoryAdapters.groupsPredictions.contract.test.ts`
+- Fixture:
+  - `apps/mobile/src/test/RepositoryAdapters.contract.test.ts` (normalization + malformed payload rejection)
+  - `apps/mobile/src/test/RepositoryFallbackTransitions.test.ts` (composition fallback continuity)
+- Grupos:
+  - `apps/mobile/src/test/ConfiguracionScreen.actions.test.tsx`
+  - `apps/mobile/src/test/MobileE2ESmoke.tab-flow.test.tsx` (create/join validation, rejection, retry-success)
+
+Cross-cutting mode/fallback guards:
+- `apps/mobile/src/test/AuthContext.fallbackHistory.integration.test.tsx`
+- `apps/mobile/src/test/FallbackDiagnostics.history.test.ts`
+- `apps/mobile/src/test/RepositoryFallbackTransitions.test.ts`

@@ -117,6 +117,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 - [x] Expand app-flow smoke coverage to include `Grupos` join mutation rejection message and retry-success sequence.
 - [x] Split app-level smoke coverage into focused `auth-entry` and `tab-flow` files with shared test harness.
 - [x] Add repository-composition fallback tests for fixture/leaderboard malformed-payload failures to confirm mock continuity.
+- [x] Capture refreshed iOS + Android all-tab screenshots under `ui reference/current iOS` and `ui reference/current Android`.
+- [x] Add Phase 4 mid-point guard-coverage summary to closure draft document.
 
 ## Decisions Log
 
@@ -521,6 +523,7 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | 2026-03-07 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run typecheck:web` | Pass | No web regression after fallback-transition coverage expansion. |
 | 2026-03-07 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm --filter @fulbito/mobile typecheck` | Pass | Updated `RepositoryFallbackTransitions.test.ts` compiles cleanly under strict mobile TypeScript checks. |
 | 2026-03-07 | `PATH="/opt/homebrew/opt/node@22/bin:$PATH" pnpm run build:web` | Pass with warnings | Same pre-existing Next warnings (`<img>` usage, one hook dependency warning), unchanged by fallback-transition coverage slice. |
+| 2026-03-07 | Manual QA evidence refresh (`ui reference/current iOS/*`, `ui reference/current Android/*`) | Pass | User provided updated iOS + Android screenshots covering all 5 tabs; paths linked into `docs/mobile-phase3-closure-summary.md`. |
 
 ## Risks & Mitigations
 
@@ -532,8 +535,8 @@ Deliver a native-first iOS/Android app (Expo React Native) from the existing Ful
 | Web regressions from future shared extraction refactors. | Medium | Require `typecheck:web` + `build:web` log entry for each extraction commit. | `@contre` |
 
 ## Next Actions (Top 5)
-1. Capture refreshed Android + iOS screenshots for all tabs after latest Phase 4 test-slice updates and attach to closure summary.
-2. Add a brief Phase 4 mid-point summary in `docs/mobile-phase3-closure-summary.md` to map current automated guards to each tab.
-3. Decide whether a third `group-actions` smoke file should be introduced or whether current `tab-flow` coverage is sufficient.
-4. Evaluate adding an explicit test-helper utility for common auth/group/period mock fixtures to reduce per-suite setup duplication beyond smoke tests.
-5. Consider adding CI smoke guard matrix split (`auth-entry` and `tab-flow` separate steps) if we need finer-grained failure visibility in PR runs.
+1. Decide whether a third `group-actions` smoke file should be introduced or whether current `tab-flow` coverage is sufficient.
+2. Evaluate adding an explicit test-helper utility for common auth/group/period mock fixtures to reduce per-suite setup duplication beyond smoke tests.
+3. Consider adding CI smoke guard matrix split (`auth-entry` and `tab-flow` separate steps) if we need finer-grained failure visibility in PR runs.
+4. Capture one full manual QA pass in `HTTP Session` mode (not mock fallback) and attach screenshots/log notes.
+5. Prepare a Phase 4 closure checklist draft with explicit “done” gates for tests, CI, and manual QA artifacts.
