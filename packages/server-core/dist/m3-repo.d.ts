@@ -252,3 +252,31 @@ export declare function getGroupInvite(input: {
     } | null;
     error?: undefined;
 }>;
+export interface M3AuthSessionRecord {
+    recordId: string;
+    sessionId: string;
+    userId: string;
+    refreshTokenHash: string;
+    issuedAt: string;
+    expiresAt: string;
+    revokedAt: string | null;
+    replacedBySessionId: string | null;
+}
+export declare function createAuthSessionRecord(input: {
+    sessionId: string;
+    userId: string;
+    refreshTokenHash: string;
+    issuedAt: string;
+    expiresAt: string;
+}, authToken: string): Promise<M3AuthSessionRecord>;
+export declare function getAuthSessionRecord(input: {
+    sessionId: string;
+    userId: string;
+}, authToken: string): Promise<M3AuthSessionRecord | null>;
+export declare function patchAuthSessionRecord(input: {
+    recordId: string;
+    refreshTokenHash?: string;
+    expiresAt?: string;
+    revokedAt?: string | null;
+    replacedBySessionId?: string | null;
+}, authToken: string): Promise<M3AuthSessionRecord>;

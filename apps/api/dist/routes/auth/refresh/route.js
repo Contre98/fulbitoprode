@@ -34,12 +34,14 @@ export async function POST(request) {
         pbToken: refreshPayload.pbt,
         sessionId: nextSessionId
     });
-    const rotateResult = rotateRefreshSession({
+    const rotateResult = await rotateRefreshSession({
         priorSessionId: refreshPayload.sid,
         priorUserId: refreshPayload.uid,
         priorRefreshToken: refreshToken,
+        nextSessionId,
         nextRefreshToken,
-        nextExpiresAt: new Date(Date.now() + getRefreshTokenMaxAgeSeconds() * 1000)
+        nextExpiresAt: new Date(Date.now() + getRefreshTokenMaxAgeSeconds() * 1000),
+        authToken: refreshPayload.pbt
     });
     if (!rotateResult.ok) {
         return jsonResponse({ error: "Unauthorized" }, { status: 401 });

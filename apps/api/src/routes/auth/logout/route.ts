@@ -6,7 +6,11 @@ import { clearAuthCookieHeaders } from "../../../auth-cookies";
 export async function POST(request: Request) {
   const refreshPayload = getRefreshPayloadFromRequest(request);
   if (refreshPayload?.sid) {
-    revokeRefreshSession(refreshPayload.sid);
+    await revokeRefreshSession({
+      sessionId: refreshPayload.sid,
+      userId: refreshPayload.uid,
+      authToken: refreshPayload.pbt
+    });
   }
 
   return jsonResponse(

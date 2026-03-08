@@ -1304,3 +1304,117 @@ export async function getGroupInvite(input: { userId: string; groupId: string },
       : null
   };
 }
+
+interface AuthSessionRecord {
+  id: string;
+  session_id: string;
+  user_id: string;
+  refresh_token_hash: string;
+  issued_at: string;
+  expires_at: string;
+  revoked_at?: string | null;
+  replaced_by_session_id?: string | null;
+}
+
+export interface M3AuthSessionRecord {
+  recordId: string;
+  sessionId: string;
+  userId: string;
+  refreshTokenHash: string;
+  issuedAt: string;
+  expiresAt: string;
+  revokedAt: string | null;
+  replacedBySessionId: string | null;
+}
+
+function mapAuthSessionRecord(record: AuthSessionRecord): M3AuthSessionRecord {
+  return {
+    recordId: record.id,
+    sessionId: record.session_id,
+    userId: record.user_id,
+    refreshTokenHash: record.refresh_token_hash,
+    issuedAt: record.issued_at,
+    expiresAt: record.expires_at,
+    revokedAt: record.revoked_at ?? null,
+    replacedBySessionId: record.replaced_by_session_id ?? null
+  };
+}
+
+export async function createAuthSessionRecord(
+  input: {
+    sessionId: string;
+    userId: string;
+    refreshTokenHash: string;
+    issuedAt: string;
+    expiresAt: string;
+  },
+  authToken: string
+) {
+  const created = await pbRequest<AuthSessionRecord>(
+    "/api/collections/auth_sessions/records",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        session_id: input.sessionId,
+        user_id: input.userId,
+        refresh_token_hash: input.refreshTokenHash,
+        issued_at: input.issuedAt,
+        expires_at: input.expiresAt
+      })
+    },
+    authToken
+  );
+
+  return mapAuthSessionRecord(created);
+}
+
+export async function getAuthSessionRecord(
+  input: { sessionId: string; userId: string },
+  authToken: string
+) {
+  const filter = encodeURIComponent(`session_id=${q(input.sessionId)} && user_id=${q(input.userId)}`);
+  const result = await pbRequest<PbListResult<AuthSessionRecord>>(
+    `/api/collections/auth_sessions/records?perPage=1&filter=${filter}`,
+    { method: "GET" },
+    authToken
+  );
+
+  const record = result.items[0];
+  return record ? mapAuthSessionRecord(record) : null;
+}
+
+export async function patchAuthSessionRecord(
+  input: {
+    recordId: string;
+    refreshTokenHash?: string;
+    expiresAt?: string;
+    revokedAt?: string | null;
+    replacedBySessionId?: string | null;
+  },
+  authToken: string
+) {
+  const payload: Record<string, unknown> = {};
+  if (input.refreshTokenHash !== undefined) {
+    payload.refresh_token_hash = input.refreshTokenHash;
+  }
+  if (input.expiresAt !== undefined) {
+    payload.expires_at = input.expiresAt;
+  }
+  if (input.revokedAt !== undefined) {
+    payload.revoked_at = input.revokedAt;
+  }
+  if (input.replacedBySessionId !== undefined) {
+    payload.replaced_by_session_id = input.replacedBySessionId;
+  }
+
+  const updated = await pbRequest<AuthSessionRecord>(
+    `/api/collections/auth_sessions/records/${input.recordId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    },
+    authToken
+  );
+
+  return mapAuthSessionRecord(updated);
+}

@@ -798,3 +798,54 @@ export async function getGroupInvite(input, authToken) {
             : null
     };
 }
+function mapAuthSessionRecord(record) {
+    return {
+        recordId: record.id,
+        sessionId: record.session_id,
+        userId: record.user_id,
+        refreshTokenHash: record.refresh_token_hash,
+        issuedAt: record.issued_at,
+        expiresAt: record.expires_at,
+        revokedAt: record.revoked_at ?? null,
+        replacedBySessionId: record.replaced_by_session_id ?? null
+    };
+}
+export async function createAuthSessionRecord(input, authToken) {
+    const created = await pbRequest("/api/collections/auth_sessions/records", {
+        method: "POST",
+        body: JSON.stringify({
+            session_id: input.sessionId,
+            user_id: input.userId,
+            refresh_token_hash: input.refreshTokenHash,
+            issued_at: input.issuedAt,
+            expires_at: input.expiresAt
+        })
+    }, authToken);
+    return mapAuthSessionRecord(created);
+}
+export async function getAuthSessionRecord(input, authToken) {
+    const filter = encodeURIComponent(`session_id=${q(input.sessionId)} && user_id=${q(input.userId)}`);
+    const result = await pbRequest(`/api/collections/auth_sessions/records?perPage=1&filter=${filter}`, { method: "GET" }, authToken);
+    const record = result.items[0];
+    return record ? mapAuthSessionRecord(record) : null;
+}
+export async function patchAuthSessionRecord(input, authToken) {
+    const payload = {};
+    if (input.refreshTokenHash !== undefined) {
+        payload.refresh_token_hash = input.refreshTokenHash;
+    }
+    if (input.expiresAt !== undefined) {
+        payload.expires_at = input.expiresAt;
+    }
+    if (input.revokedAt !== undefined) {
+        payload.revoked_at = input.revokedAt;
+    }
+    if (input.replacedBySessionId !== undefined) {
+        payload.replaced_by_session_id = input.replacedBySessionId;
+    }
+    const updated = await pbRequest(`/api/collections/auth_sessions/records/${input.recordId}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload)
+    }, authToken);
+    return mapAuthSessionRecord(updated);
+}

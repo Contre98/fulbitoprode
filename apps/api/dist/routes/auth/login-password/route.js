@@ -31,11 +31,12 @@ export async function POST(request) {
         const accessToken = createAccessToken({ userId: user.id, pbToken: token, sessionId });
         const refreshToken = createRefreshToken({ userId: user.id, pbToken: token, sessionId });
         const legacySessionToken = createSessionToken({ userId: user.id, pbToken: token });
-        issueRefreshSessionWithId({
+        await issueRefreshSessionWithId({
             sessionId,
             userId: user.id,
             refreshToken,
-            expiresAt: new Date(Date.now() + getRefreshTokenMaxAgeSeconds() * 1000)
+            expiresAt: new Date(Date.now() + getRefreshTokenMaxAgeSeconds() * 1000),
+            authToken: token
         });
         return jsonResponse({
             ok: true,
