@@ -1,6 +1,11 @@
+import { z } from "zod";
 import { jsonResponse } from "#http";
 import { joinGroupByCodeOrToken } from "@fulbito/server-core/m3-repo";
 import { getSessionPocketBaseTokenFromRequest, getSessionUserIdFromRequest } from "@fulbito/server-core/request-auth";
+import { parseJsonBody, RequestBodyValidationError } from "../../../validation";
+const joinGroupPayloadSchema = z.object({
+    codeOrToken: z.string().optional()
+});
 export async function POST(request) {
     const userId = getSessionUserIdFromRequest(request);
     const pbToken = getSessionPocketBaseTokenFromRequest(request);
@@ -8,7 +13,7 @@ export async function POST(request) {
         return jsonResponse({ error: "Unauthorized" }, { status: 401 });
     }
     try {
-        const body = (await request.json());
+        const body = await parseJsonBody(request, joinGroupPayloadSchema);
         const codeOrToken = body.codeOrToken?.trim() || "";
         if (!codeOrToken) {
             return jsonResponse({ error: "codeOrToken is required" }, { status: 400 });
@@ -28,7 +33,10 @@ export async function POST(request) {
             }
         }, { status: 200 });
     }
-    catch {
+    catch (error) {
+        if (error instanceof RequestBodyValidationError) {
+            return jsonResponse({ error: error.message }, { status: error.status });
+        }
         return jsonResponse({ error: "Invalid payload" }, { status: 400 });
     }
 }

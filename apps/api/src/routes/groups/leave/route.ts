@@ -1,6 +1,12 @@
+import { z } from "zod";
 import { jsonResponse } from "#http";
 import { leaveGroup } from "@fulbito/server-core/m3-repo";
 import { getSessionPocketBaseTokenFromRequest, getSessionUserIdFromRequest } from "@fulbito/server-core/request-auth";
+import { parseJsonBody, RequestBodyValidationError } from "../../../validation";
+
+const leaveGroupPayloadSchema = z.object({
+  groupId: z.string().optional()
+});
 
 function extractRouteError(error: unknown) {
   if (!(error instanceof Error)) {
@@ -53,19 +59,13 @@ export async function POST(request: Request) {
     return jsonResponse({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { groupId?: string };
   try {
-    body = (await request.json()) as { groupId?: string };
-  } catch {
-    return jsonResponse({ error: "Invalid payload" }, { status: 400 });
-  }
+    const body = await parseJsonBody(request, leaveGroupPayloadSchema);
+    const groupId = body.groupId?.trim() || "";
+    if (!groupId) {
+      return jsonResponse({ error: "groupId is required" }, { status: 400 });
+    }
 
-  const groupId = body.groupId?.trim() || "";
-  if (!groupId) {
-    return jsonResponse({ error: "groupId is required" }, { status: 400 });
-  }
-
-  try {
     const result = await leaveGroup({ userId, groupId }, pbToken);
     if (!result.ok) {
       return jsonResponse({ error: result.error }, { status: 400 });
@@ -73,6 +73,9 @@ export async function POST(request: Request) {
 
     return jsonResponse({ ok: true, deletedGroup: result.deletedGroup ?? false }, { status: 200 });
   } catch (error) {
+    if (error instanceof RequestBodyValidationError) {
+      return jsonResponse({ error: error.message }, { status: error.status });
+    }
     const parsed = extractRouteError(error);
     return jsonResponse({ error: parsed.message }, { status: parsed.status });
   }

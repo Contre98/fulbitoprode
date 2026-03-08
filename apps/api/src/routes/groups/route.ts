@@ -1,6 +1,17 @@
+import { z } from "zod";
 import { jsonResponse } from "#http";
 import { createGroup, listGroupsForUser } from "@fulbito/server-core/m3-repo";
 import { getSessionPocketBaseTokenFromRequest, getSessionUserIdFromRequest } from "@fulbito/server-core/request-auth";
+import { parseJsonBody, RequestBodyValidationError } from "../../validation";
+
+const createGroupPayloadSchema = z.object({
+  name: z.string().optional(),
+  season: z.string().optional(),
+  leagueId: z.number().optional(),
+  competitionStage: z.enum(["apertura", "clausura", "general"]).optional(),
+  competitionName: z.string().optional(),
+  competitionKey: z.string().optional()
+});
 
 export async function GET(request: Request) {
   const userId = getSessionUserIdFromRequest(request);
@@ -33,14 +44,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = (await request.json()) as {
-      name?: string;
-      season?: string;
-      leagueId?: number;
-      competitionStage?: "apertura" | "clausura" | "general";
-      competitionName?: string;
-      competitionKey?: string;
-    };
+    const body = await parseJsonBody(request, createGroupPayloadSchema);
 
     const name = body.name?.trim() || "";
     if (!name) {
@@ -79,6 +83,9 @@ export async function POST(request: Request) {
       { status: 201 }
     );
   } catch (error) {
+    if (error instanceof RequestBodyValidationError) {
+      return jsonResponse({ error: error.message }, { status: error.status });
+    }
     if (process.env.NODE_ENV !== "production") {
       const message = error instanceof Error ? error.message : "Invalid payload";
       return jsonResponse({ error: message }, { status: 400 });

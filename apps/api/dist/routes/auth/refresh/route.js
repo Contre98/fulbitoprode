@@ -1,27 +1,24 @@
 import { randomUUID } from "node:crypto";
+import { z } from "zod";
 import { jsonResponse } from "#http";
 import { rotateRefreshSession } from "@fulbito/server-core/auth-sessions";
 import { getRefreshTokenFromRequest } from "@fulbito/server-core/request-auth";
 import { createAccessToken, createRefreshToken, createSessionToken, getRefreshTokenMaxAgeSeconds, verifyRefreshToken } from "@fulbito/server-core/session";
 import { authCookieHeaders } from "../../../auth-cookies";
-function readBodyRefreshToken(body) {
-    if (typeof body !== "object" || body === null) {
-        return null;
-    }
-    const raw = body.refreshToken;
-    if (typeof raw !== "string") {
-        return null;
-    }
-    const token = raw.trim();
-    return token || null;
-}
+import { parseJsonBody, RequestBodyValidationError } from "../../../validation";
+const refreshPayloadSchema = z.object({
+    refreshToken: z.string().optional()
+});
 export async function POST(request) {
     let bodyRefreshToken = null;
     try {
-        bodyRefreshToken = readBodyRefreshToken(await request.json());
+        const body = await parseJsonBody(request, refreshPayloadSchema);
+        bodyRefreshToken = body.refreshToken?.trim() || null;
     }
-    catch {
-        bodyRefreshToken = null;
+    catch (error) {
+        if (error instanceof RequestBodyValidationError && error.message !== "Invalid payload") {
+            return jsonResponse({ error: error.message }, { status: error.status });
+        }
     }
     const refreshToken = bodyRefreshToken || getRefreshTokenFromRequest(request);
     const refreshPayload = verifyRefreshToken(refreshToken);

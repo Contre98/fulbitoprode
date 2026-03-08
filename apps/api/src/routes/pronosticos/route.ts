@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { jsonResponse } from "#http";
 import { calculatePredictionPoints } from "@fulbito/domain";
 import {
@@ -11,6 +12,15 @@ import { getSessionPocketBaseTokenFromRequest, getSessionUserIdFromRequest } fro
 import { enforceRateLimit, getRequesterFingerprint } from "@fulbito/server-core/rate-limit";
 import { isActiveGroupMember, listGroupsForUser, listPredictionsForScope, upsertPrediction } from "@fulbito/server-core/m3-repo";
 import type { MatchCardData, PredictionValue, PredictionsByMatch, PronosticosPayload } from "@fulbito/server-core/types";
+import { parseJsonBody, RequestBodyValidationError } from "../../validation";
+
+const savePredictionPayloadSchema = z.object({
+  period: z.string().optional(),
+  matchId: z.string().optional(),
+  groupId: z.string().optional(),
+  home: z.number().nullable().optional(),
+  away: z.number().nullable().optional()
+});
 
 function withPredictions(matches: MatchCardData[], predictions: PredictionsByMatch) {
   return matches.map((match) => {
@@ -140,13 +150,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as {
-      period?: string;
-      matchId?: string;
-      groupId?: string;
-      home?: number | null;
-      away?: number | null;
-    };
+    const body = await parseJsonBody(request, savePredictionPayloadSchema);
 
     const period = body.period?.trim() || "";
     const matchId = typeof body.matchId === "string" ? body.matchId : "";
@@ -221,7 +225,10 @@ export async function POST(request: Request) {
     );
 
     return jsonResponse({ ok: true, prediction: nextValue, updatedAt: new Date().toISOString() }, { status: 200 });
-  } catch {
+  } catch (error) {
+    if (error instanceof RequestBodyValidationError) {
+      return jsonResponse({ error: error.message }, { status: error.status });
+    }
     return jsonResponse({ error: "Invalid payload" }, { status: 400 });
   }
 }

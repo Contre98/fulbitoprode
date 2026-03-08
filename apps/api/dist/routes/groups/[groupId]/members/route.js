@@ -1,6 +1,15 @@
+import { z } from "zod";
 import { jsonResponse } from "#http";
 import { listGroupMembers, listGroupsForUser, removeGroupMember, updateGroupMemberRole } from "@fulbito/server-core/m3-repo";
 import { getSessionPocketBaseTokenFromRequest, getSessionUserIdFromRequest } from "@fulbito/server-core/request-auth";
+import { parseJsonBody, RequestBodyValidationError } from "../../../../validation";
+const updateGroupMemberRoleSchema = z.object({
+    userId: z.string().optional(),
+    role: z.enum(["admin", "member"]).optional()
+});
+const removeGroupMemberSchema = z.object({
+    userId: z.string().optional()
+});
 function unauthorized() {
     return jsonResponse({ error: "Unauthorized" }, { status: 401 });
 }
@@ -36,31 +45,33 @@ export async function PATCH(request, context) {
     if (!groupId?.trim()) {
         return jsonResponse({ error: "groupId is required" }, { status: 400 });
     }
-    let body;
     try {
-        body = (await request.json());
+        const body = await parseJsonBody(request, updateGroupMemberRoleSchema);
+        const targetUserId = body.userId?.trim() || "";
+        const role = body.role;
+        if (!targetUserId || !role) {
+            return jsonResponse({ error: "userId and role are required" }, { status: 400 });
+        }
+        if (role !== "admin" && role !== "member") {
+            return jsonResponse({ error: "Invalid role" }, { status: 400 });
+        }
+        const result = await updateGroupMemberRole({
+            actorUserId: userId,
+            groupId,
+            targetUserId,
+            role
+        }, pbToken);
+        if (!result.ok) {
+            return jsonResponse({ error: result.error }, { status: 403 });
+        }
+        return jsonResponse({ ok: true, changed: result.changed, member: result.member }, { status: 200 });
     }
-    catch {
+    catch (error) {
+        if (error instanceof RequestBodyValidationError) {
+            return jsonResponse({ error: error.message }, { status: error.status });
+        }
         return jsonResponse({ error: "Invalid payload" }, { status: 400 });
     }
-    const targetUserId = body.userId?.trim() || "";
-    const role = body.role;
-    if (!targetUserId || !role) {
-        return jsonResponse({ error: "userId and role are required" }, { status: 400 });
-    }
-    if (role !== "admin" && role !== "member") {
-        return jsonResponse({ error: "Invalid role" }, { status: 400 });
-    }
-    const result = await updateGroupMemberRole({
-        actorUserId: userId,
-        groupId,
-        targetUserId,
-        role
-    }, pbToken);
-    if (!result.ok) {
-        return jsonResponse({ error: result.error }, { status: 403 });
-    }
-    return jsonResponse({ ok: true, changed: result.changed, member: result.member }, { status: 200 });
 }
 export async function DELETE(request, context) {
     const userId = getSessionUserIdFromRequest(request);
@@ -72,24 +83,26 @@ export async function DELETE(request, context) {
     if (!groupId?.trim()) {
         return jsonResponse({ error: "groupId is required" }, { status: 400 });
     }
-    let body;
     try {
-        body = (await request.json());
+        const body = await parseJsonBody(request, removeGroupMemberSchema);
+        const targetUserId = body.userId?.trim() || "";
+        if (!targetUserId) {
+            return jsonResponse({ error: "userId is required" }, { status: 400 });
+        }
+        const result = await removeGroupMember({
+            actorUserId: userId,
+            groupId,
+            targetUserId
+        }, pbToken);
+        if (!result.ok) {
+            return jsonResponse({ error: result.error }, { status: 403 });
+        }
+        return jsonResponse({ ok: true }, { status: 200 });
     }
-    catch {
+    catch (error) {
+        if (error instanceof RequestBodyValidationError) {
+            return jsonResponse({ error: error.message }, { status: error.status });
+        }
         return jsonResponse({ error: "Invalid payload" }, { status: 400 });
     }
-    const targetUserId = body.userId?.trim() || "";
-    if (!targetUserId) {
-        return jsonResponse({ error: "userId is required" }, { status: 400 });
-    }
-    const result = await removeGroupMember({
-        actorUserId: userId,
-        groupId,
-        targetUserId
-    }, pbToken);
-    if (!result.ok) {
-        return jsonResponse({ error: result.error }, { status: 403 });
-    }
-    return jsonResponse({ ok: true }, { status: 200 });
 }

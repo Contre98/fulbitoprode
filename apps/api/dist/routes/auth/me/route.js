@@ -1,9 +1,17 @@
+import { z } from "zod";
 import { jsonResponse } from "#http";
 import { getUserById, listGroupsForUser, updateUserProfile } from "@fulbito/server-core/m3-repo";
 import { fetchProviderLeagues } from "@fulbito/server-core/liga-live-provider";
 import { getSessionPocketBaseTokenFromRequest, getSessionUserIdFromRequest } from "@fulbito/server-core/request-auth";
+import { parseJsonBody, RequestBodyValidationError } from "../../../validation";
 const USERNAME_PATTERN = /^[a-zA-Z0-9._-]+$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const updateProfilePayloadSchema = z.object({
+    name: z.string().nullable().optional(),
+    username: z.string().nullable().optional(),
+    email: z.string().nullable().optional(),
+    favoriteTeam: z.string().nullable().optional()
+});
 export async function GET(request) {
     const userId = getSessionUserIdFromRequest(request);
     const pbToken = getSessionPocketBaseTokenFromRequest(request);
@@ -54,7 +62,7 @@ export async function PATCH(request) {
         return jsonResponse({ error: "Unauthorized" }, { status: 401 });
     }
     try {
-        const body = (await request.json());
+        const body = await parseJsonBody(request, updateProfilePayloadSchema);
         const nextName = typeof body.name === "string" || body.name === null ? body.name : undefined;
         const nextUsername = typeof body.username === "string" || body.username === null ? body.username : undefined;
         const nextEmail = typeof body.email === "string" || body.email === null ? body.email : undefined;
@@ -114,7 +122,10 @@ export async function PATCH(request) {
             }
         }, { status: 200 });
     }
-    catch {
+    catch (error) {
+        if (error instanceof RequestBodyValidationError) {
+            return jsonResponse({ error: error.message }, { status: error.status });
+        }
         return jsonResponse({ error: "Invalid payload" }, { status: 400 });
     }
 }

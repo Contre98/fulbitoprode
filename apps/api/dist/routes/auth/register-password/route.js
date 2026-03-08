@@ -1,10 +1,17 @@
 import { randomUUID } from "node:crypto";
+import { z } from "zod";
 import { jsonResponse } from "#http";
 import { issueRefreshSessionWithId } from "@fulbito/server-core/auth-sessions";
 import { registerWithPassword } from "@fulbito/server-core/m3-repo";
 import { enforceRateLimit, getRequesterFingerprint } from "@fulbito/server-core/rate-limit";
 import { createAccessToken, createRefreshToken, createSessionToken, getRefreshTokenMaxAgeSeconds } from "@fulbito/server-core/session";
 import { authCookieHeaders } from "../../../auth-cookies";
+import { parseJsonBody, RequestBodyValidationError } from "../../../validation";
+const registerPayloadSchema = z.object({
+    email: z.string().optional(),
+    password: z.string().optional(),
+    name: z.string().optional()
+});
 export async function POST(request) {
     const clientKey = getRequesterFingerprint(request, "register:unknown");
     const rateLimit = enforceRateLimit(`auth:register:${clientKey}`, {
@@ -20,7 +27,7 @@ export async function POST(request) {
         });
     }
     try {
-        const body = (await request.json());
+        const body = await parseJsonBody(request, registerPayloadSchema);
         const email = body.email?.trim().toLowerCase() || "";
         const password = body.password || "";
         const name = body.name?.trim() || undefined;
@@ -63,6 +70,9 @@ export async function POST(request) {
         });
     }
     catch (error) {
+        if (error instanceof RequestBodyValidationError) {
+            return jsonResponse({ error: error.message }, { status: error.status });
+        }
         const message = error instanceof Error ? error.message : "Registration failed";
         return jsonResponse({ error: message }, { status: 400 });
     }

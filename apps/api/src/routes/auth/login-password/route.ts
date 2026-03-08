@@ -1,10 +1,17 @@
 import { randomUUID } from "node:crypto";
+import { z } from "zod";
 import { jsonResponse } from "#http";
 import { issueRefreshSessionWithId } from "@fulbito/server-core/auth-sessions";
 import { loginWithPassword } from "@fulbito/server-core/m3-repo";
 import { enforceRateLimit, getRequesterFingerprint } from "@fulbito/server-core/rate-limit";
 import { createAccessToken, createRefreshToken, createSessionToken, getRefreshTokenMaxAgeSeconds } from "@fulbito/server-core/session";
 import { authCookieHeaders } from "../../../auth-cookies";
+import { parseJsonBody, RequestBodyValidationError } from "../../../validation";
+
+const loginPayloadSchema = z.object({
+  email: z.string().optional(),
+  password: z.string().optional()
+});
 
 export async function POST(request: Request) {
   const clientKey = getRequesterFingerprint(request, "login:unknown");
@@ -25,7 +32,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = (await request.json()) as { email?: string; password?: string };
+    const body = await parseJsonBody(request, loginPayloadSchema);
     const email = body.email?.trim().toLowerCase() || "";
     const password = body.password || "";
 
@@ -70,6 +77,9 @@ export async function POST(request: Request) {
       }
     );
   } catch (error) {
+    if (error instanceof RequestBodyValidationError) {
+      return jsonResponse({ error: error.message }, { status: error.status });
+    }
     const message = error instanceof Error ? error.message : "Invalid credentials";
     return jsonResponse({ error: message }, { status: 401 });
   }

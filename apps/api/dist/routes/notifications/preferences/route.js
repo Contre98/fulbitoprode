@@ -1,6 +1,13 @@
+import { z } from "zod";
 import { jsonResponse } from "#http";
 import { getApiSession, unauthorizedJson } from "@fulbito/server-core/api-session";
 import { getNotificationPreferences, setNotificationPreferences } from "@fulbito/server-core/notifications-store";
+import { parseJsonBody, RequestBodyValidationError } from "../../../validation";
+const updatePreferencesPayloadSchema = z.object({
+    reminders: z.boolean().optional(),
+    results: z.boolean().optional(),
+    social: z.boolean().optional()
+});
 export async function GET(request) {
     const session = getApiSession(request);
     if (!session) {
@@ -14,7 +21,7 @@ export async function PATCH(request) {
         return unauthorizedJson();
     }
     try {
-        const body = (await request.json());
+        const body = await parseJsonBody(request, updatePreferencesPayloadSchema);
         const next = setNotificationPreferences(session.userId, {
             ...(typeof body.reminders === "boolean" ? { reminders: body.reminders } : {}),
             ...(typeof body.results === "boolean" ? { results: body.results } : {}),
@@ -22,7 +29,10 @@ export async function PATCH(request) {
         });
         return jsonResponse(next, { status: 200 });
     }
-    catch {
+    catch (error) {
+        if (error instanceof RequestBodyValidationError) {
+            return jsonResponse({ error: error.message }, { status: error.status });
+        }
         return jsonResponse({ error: "Invalid payload" }, { status: 400 });
     }
 }

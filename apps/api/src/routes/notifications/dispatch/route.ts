@@ -1,7 +1,15 @@
+import { z } from "zod";
 import { jsonResponse } from "#http";
 import { getApiSession, unauthorizedJson } from "@fulbito/server-core/api-session";
 import { addNotification } from "@fulbito/server-core/notifications-store";
 import { logServerEvent } from "@fulbito/server-core/observability";
+import { parseJsonBody, RequestBodyValidationError } from "../../../validation";
+
+const dispatchNotificationPayloadSchema = z.object({
+  event: z.enum(["prediction_lock", "results_published", "weekly_winner", "social"]).optional(),
+  title: z.string().optional(),
+  body: z.string().optional()
+});
 
 export async function POST(request: Request) {
   const session = getApiSession(request);
@@ -10,11 +18,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = (await request.json()) as {
-      event?: "prediction_lock" | "results_published" | "weekly_winner" | "social";
-      title?: string;
-      body?: string;
-    };
+    const body = await parseJsonBody(request, dispatchNotificationPayloadSchema);
     if (!body.event) {
       return jsonResponse({ error: "event is required" }, { status: 400 });
     }
@@ -50,7 +54,10 @@ export async function POST(request: Request) {
     });
 
     return jsonResponse({ ok: true }, { status: 200 });
-  } catch {
+  } catch (error) {
+    if (error instanceof RequestBodyValidationError) {
+      return jsonResponse({ error: error.message }, { status: error.status });
+    }
     return jsonResponse({ error: "Invalid payload" }, { status: 400 });
   }
 }

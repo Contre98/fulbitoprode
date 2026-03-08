@@ -1,9 +1,18 @@
+import { z } from "zod";
 import { jsonResponse } from "#http";
 import { calculatePredictionPoints } from "@fulbito/domain";
 import { fetchAvailableFechas, fetchLigaArgentinaFixtures, formatRoundLabel, mapFixturesToPronosticosMatches, resolveDefaultFecha } from "@fulbito/server-core/liga-live-provider";
 import { getSessionPocketBaseTokenFromRequest, getSessionUserIdFromRequest } from "@fulbito/server-core/request-auth";
 import { enforceRateLimit, getRequesterFingerprint } from "@fulbito/server-core/rate-limit";
 import { isActiveGroupMember, listGroupsForUser, listPredictionsForScope, upsertPrediction } from "@fulbito/server-core/m3-repo";
+import { parseJsonBody, RequestBodyValidationError } from "../../validation";
+const savePredictionPayloadSchema = z.object({
+    period: z.string().optional(),
+    matchId: z.string().optional(),
+    groupId: z.string().optional(),
+    home: z.number().nullable().optional(),
+    away: z.number().nullable().optional()
+});
 function withPredictions(matches, predictions) {
     return matches.map((match) => {
         const stored = predictions[match.id];
@@ -112,7 +121,7 @@ export async function GET(request) {
 }
 export async function POST(request) {
     try {
-        const body = (await request.json());
+        const body = await parseJsonBody(request, savePredictionPayloadSchema);
         const period = body.period?.trim() || "";
         const matchId = typeof body.matchId === "string" ? body.matchId : "";
         const groupId = typeof body.groupId === "string" ? body.groupId.trim() : "";
@@ -172,7 +181,10 @@ export async function POST(request) {
         }, pbToken);
         return jsonResponse({ ok: true, prediction: nextValue, updatedAt: new Date().toISOString() }, { status: 200 });
     }
-    catch {
+    catch (error) {
+        if (error instanceof RequestBodyValidationError) {
+            return jsonResponse({ error: error.message }, { status: error.status });
+        }
         return jsonResponse({ error: "Invalid payload" }, { status: 400 });
     }
 }

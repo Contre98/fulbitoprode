@@ -1,14 +1,20 @@
+import { z } from "zod";
 import { jsonResponse } from "#http";
 import { getApiSession, unauthorizedJson } from "@fulbito/server-core/api-session";
 import { registerDeviceToken } from "@fulbito/server-core/notifications-store";
 import { logServerEvent } from "@fulbito/server-core/observability";
+import { parseJsonBody, RequestBodyValidationError } from "../../../validation";
+const registerDeviceTokenSchema = z.object({
+    token: z.string().optional(),
+    platform: z.string().optional()
+});
 export async function POST(request) {
     const session = getApiSession(request);
     if (!session) {
         return unauthorizedJson();
     }
     try {
-        const body = (await request.json());
+        const body = await parseJsonBody(request, registerDeviceTokenSchema);
         const deviceToken = body.token?.trim() || "";
         const platform = body.platform?.trim() || "unknown";
         if (!deviceToken) {
@@ -24,7 +30,10 @@ export async function POST(request) {
         });
         return jsonResponse({ ok: true }, { status: 200 });
     }
-    catch {
+    catch (error) {
+        if (error instanceof RequestBodyValidationError) {
+            return jsonResponse({ error: error.message }, { status: error.status });
+        }
         return jsonResponse({ error: "Invalid payload" }, { status: 400 });
     }
 }
