@@ -206,8 +206,16 @@ export const httpAuthRepository: AuthRepository = {
   },
 
   async logout() {
+    const refreshToken = await getRefreshToken();
     try {
-      await requestJson<{ ok: boolean }>("/api/auth/logout", { method: "POST" }, false);
+      await requestJson<{ ok: boolean }>(
+        "/api/auth/logout",
+        {
+          method: "POST",
+          body: JSON.stringify(refreshToken ? { refreshToken } : {})
+        },
+        false
+      );
     } finally {
       await clearAuthTokens();
     }

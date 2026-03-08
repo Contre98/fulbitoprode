@@ -4,8 +4,7 @@ import { jsonResponse } from "#http";
 import { issueRefreshSessionWithId } from "@fulbito/server-core/auth-sessions";
 import { registerWithPassword } from "@fulbito/server-core/m3-repo";
 import { enforceRateLimit, getRequesterFingerprint } from "@fulbito/server-core/rate-limit";
-import { createAccessToken, createRefreshToken, createSessionToken, getRefreshTokenMaxAgeSeconds } from "@fulbito/server-core/session";
-import { authCookieHeaders } from "../../../auth-cookies";
+import { createAccessToken, createRefreshToken, getRefreshTokenMaxAgeSeconds } from "@fulbito/server-core/session";
 import { parseJsonBody, RequestBodyValidationError } from "../../../validation";
 const registerPayloadSchema = z.object({
     email: z.string().optional(),
@@ -41,7 +40,6 @@ export async function POST(request) {
         const sessionId = randomUUID();
         const accessToken = createAccessToken({ userId: user.id, pbToken: token, sessionId });
         const refreshToken = createRefreshToken({ userId: user.id, pbToken: token, sessionId });
-        const legacySessionToken = createSessionToken({ userId: user.id, pbToken: token });
         await issueRefreshSessionWithId({
             sessionId,
             userId: user.id,
@@ -60,14 +58,7 @@ export async function POST(request) {
             },
             accessToken,
             refreshToken
-        }, {
-            status: 201,
-            cookies: authCookieHeaders({
-                accessToken,
-                refreshToken,
-                legacySessionToken
-            })
-        });
+        }, { status: 201 });
     }
     catch (error) {
         if (error instanceof RequestBodyValidationError) {

@@ -2,25 +2,23 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { jsonResponse } from "#http";
 import { rotateRefreshSession } from "@fulbito/server-core/auth-sessions";
-import { getRefreshTokenFromRequest } from "@fulbito/server-core/request-auth";
-import { createAccessToken, createRefreshToken, createSessionToken, getRefreshTokenMaxAgeSeconds, verifyRefreshToken } from "@fulbito/server-core/session";
-import { authCookieHeaders } from "../../../auth-cookies";
+import { createAccessToken, createRefreshToken, getRefreshTokenMaxAgeSeconds, verifyRefreshToken } from "@fulbito/server-core/session";
 import { parseJsonBody, RequestBodyValidationError } from "../../../validation";
 const refreshPayloadSchema = z.object({
     refreshToken: z.string().optional()
 });
 export async function POST(request) {
-    let bodyRefreshToken = null;
+    let refreshToken = null;
     try {
         const body = await parseJsonBody(request, refreshPayloadSchema);
-        bodyRefreshToken = body.refreshToken?.trim() || null;
+        refreshToken = body.refreshToken?.trim() || null;
     }
     catch (error) {
-        if (error instanceof RequestBodyValidationError && error.message !== "Invalid payload") {
+        if (error instanceof RequestBodyValidationError) {
             return jsonResponse({ error: error.message }, { status: error.status });
         }
+        return jsonResponse({ error: "Invalid payload" }, { status: 400 });
     }
-    const refreshToken = bodyRefreshToken || getRefreshTokenFromRequest(request);
     const refreshPayload = verifyRefreshToken(refreshToken);
     if (!refreshToken || !refreshPayload) {
         return jsonResponse({ error: "Unauthorized" }, { status: 401 });
@@ -48,20 +46,9 @@ export async function POST(request) {
         pbToken: refreshPayload.pbt,
         sessionId: nextSessionId
     });
-    const legacySessionToken = createSessionToken({
-        userId: refreshPayload.uid,
-        pbToken: refreshPayload.pbt
-    });
     return jsonResponse({
         ok: true,
         accessToken,
         refreshToken: nextRefreshToken
-    }, {
-        status: 200,
-        cookies: authCookieHeaders({
-            accessToken,
-            refreshToken: nextRefreshToken,
-            legacySessionToken
-        })
-    });
+    }, { status: 200 });
 }

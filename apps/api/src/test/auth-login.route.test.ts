@@ -89,10 +89,6 @@ describe("POST /api/auth/login-password", () => {
       })
     );
 
-    const setCookies = (response.headers as { getSetCookie?: () => string[] }).getSetCookie?.() ?? [];
-    const cookieBlob = setCookies.join(";");
-    expect(cookieBlob).toContain("fulbito_access=");
-    expect(cookieBlob).toContain("fulbito_refresh=");
-    expect(cookieBlob).toContain("fulbito_session=");
+    expect(response.headers.get("set-cookie")).toBeNull();
   });
 });

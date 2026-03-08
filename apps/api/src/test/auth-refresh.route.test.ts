@@ -102,9 +102,7 @@ describe("POST /api/auth/logout", () => {
 
     const request = new Request("http://localhost/api/auth/logout", {
       method: "POST",
-      headers: {
-        cookie: `fulbito_refresh=${encodeURIComponent(refreshToken)}`
-      }
+      body: JSON.stringify({ refreshToken })
     });
 
     const response = await logoutPost(request);

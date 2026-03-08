@@ -1,9 +1,5 @@
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import { getSessionSecret } from "./env";
-const SESSION_COOKIE_NAME = "fulbito_session";
-const ACCESS_COOKIE_NAME = "fulbito_access";
-const REFRESH_COOKIE_NAME = "fulbito_refresh";
-const LEGACY_SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 7;
 const ACCESS_TOKEN_MAX_AGE_SECONDS = 60 * 15;
 const REFRESH_TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 function base64UrlEncode(value) {
@@ -51,21 +47,6 @@ function verifySignedToken(token) {
         return null;
     }
 }
-export function createSessionToken(input, maxAgeSeconds = LEGACY_SESSION_MAX_AGE_SECONDS) {
-    const payload = {
-        uid: input.userId,
-        pbt: input.pbToken,
-        exp: Date.now() + maxAgeSeconds * 1000
-    };
-    return createSignedToken(payload);
-}
-export function verifySessionToken(token) {
-    const payload = verifySignedToken(token);
-    if (!payload || !payload.uid || !payload.pbt) {
-        return null;
-    }
-    return payload;
-}
 export function createAccessToken(input, maxAgeSeconds = ACCESS_TOKEN_MAX_AGE_SECONDS) {
     const payload = {
         typ: "access",
@@ -100,18 +81,6 @@ export function verifyRefreshToken(token) {
         return null;
     }
     return payload;
-}
-export function getSessionCookieName() {
-    return SESSION_COOKIE_NAME;
-}
-export function getAccessCookieName() {
-    return ACCESS_COOKIE_NAME;
-}
-export function getRefreshCookieName() {
-    return REFRESH_COOKIE_NAME;
-}
-export function getSessionMaxAgeSeconds() {
-    return LEGACY_SESSION_MAX_AGE_SECONDS;
 }
 export function getAccessTokenMaxAgeSeconds() {
     return ACCESS_TOKEN_MAX_AGE_SECONDS;
