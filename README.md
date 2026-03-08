@@ -1,78 +1,44 @@
-# Fulbito Prode 2.0
+# Fulbito Prode Monorepo
 
-Next.js + PocketBase + API-Football app for group-based football score predictions.
+Monorepo layout:
 
-## Requirements
+- `apps/api`: standalone Hono API service (mobile backend)
+- `apps/mobile`: React Native/Expo app
+- `packages/domain`: shared domain models and business logic
+- `packages/api-contracts`: backend-agnostic repository contracts
+- `packages/design-tokens`: shared design token primitives
+- `packages/server-core`: shared backend modules (PocketBase/provider/auth/session/rate limit)
 
-- Node.js 20+
-- npm 10+
-- PocketBase instance with `pocketbase-m3-schema.json` applied
-- API-Football key
+## Tooling
 
-## Environment
+- Package manager: `pnpm`
+- Task runner/cache: `turbo`
 
-Copy `.env.example` to `.env.local` and set at minimum:
-
-- `POCKETBASE_URL`
-- `SESSION_SECRET`
-- `API_FOOTBALL_BASE_URL`
-- `API_FOOTBALL_KEY`
-
-Optional:
-
-- `HEALTHCHECK_TOKEN` for `/api/health/provider`
-- `NEXT_PUBLIC_APP_URL` for invite deep links
-
-## Local Run
+## Common Commands
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm run dev:api
+pnpm run lint:api
+pnpm run typecheck:api
+pnpm run test:run
+pnpm run build:api
+pnpm run smoke:api:deployed
 ```
 
-App routes:
+Deployed smoke env vars:
+- `FULBITO_API_BASE_URL`
+- `SMOKE_EMAIL`
+- `SMOKE_PASSWORD`
+- optional: `FULBITO_HEALTHCHECK_TOKEN`, `SMOKE_GROUP_ID`, `SMOKE_PERIOD`
 
-- `/auth`
-- `/` (Inicio)
-- `/pronosticos`
-- `/posiciones`
-- `/fixture`
-- `/configuracion`
+## Mobile Runtime Notes
 
-## Validation Commands
-
-```bash
-npm run lint
-npm run typecheck
-npm run test:run
-npm run build
-```
-
-Release gate shortcuts:
-
-```bash
-npm run validate:release:full
-npm run validate:release
-```
-
-Private two-user smoke:
-
-```bash
-npm run smoke:private -- --base-url=http://localhost:3000
-```
-
-## PocketBase Migration / Rollback
-
-Follow `CT113-PocketBase-Migration-Checklist.md` for backup, schema migration, smoke test, and rollback.
-
-## Launch Procedure
-
-Use `docs/LAUNCH_RUNBOOK.md` for the phase-by-phase private launch procedure, public launch gate, rollout monitoring, and rollback triggers.
-
-## Deployment Notes
-
-1. Apply PocketBase schema/rules from `pocketbase-m3-schema.json`.
-2. Set production env vars, especially `SESSION_SECRET`.
-3. Run CI checks (lint, typecheck, tests, build) before deploy.
-4. After deploy, run auth/group/invite/prediction smoke tests with two users.
-5. Configure external rate limiting at edge/proxy; the app also enforces in-memory limits for auth/prediction writes.
+- Use Node `20.x` or `22.x` for `apps/mobile` commands.
+- If Homebrew has multiple Node versions installed, prepend the expected runtime:
+  - `export PATH="/opt/homebrew/opt/node@22/bin:$PATH"`
+- Mobile smoke commands:
+  - `pnpm --filter @fulbito/mobile ios:smoke`
+  - `pnpm --filter @fulbito/mobile android:smoke`
+- Targeted mobile test command:
+  - `pnpm --filter @fulbito/mobile test -- ConfiguracionScreen.actions.test.tsx`

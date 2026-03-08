@@ -1,0 +1,48 @@
+name: API Deployed Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      api_base_url:
+        description: "Deployed API base URL (e.g. https://api.example.com)"
+        required: true
+        type: string
+      smoke_group_id:
+        description: "Optional group ID for group-scoped checks"
+        required: false
+        type: string
+      smoke_period:
+        description: "Optional period for fixture/leaderboard/pronosticos checks"
+        required: false
+        type: string
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Run deployed smoke
+        env:
+          FULBITO_API_BASE_URL: ${{ inputs.api_base_url }}
+          SMOKE_EMAIL: ${{ secrets.SMOKE_EMAIL }}
+          SMOKE_PASSWORD: ${{ secrets.SMOKE_PASSWORD }}
+          FULBITO_HEALTHCHECK_TOKEN: ${{ secrets.FULBITO_HEALTHCHECK_TOKEN }}
+          SMOKE_GROUP_ID: ${{ inputs.smoke_group_id }}
+          SMOKE_PERIOD: ${{ inputs.smoke_period }}
+        run: pnpm run smoke:api:deployed

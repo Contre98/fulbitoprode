@@ -1,0 +1,92 @@
+{
+  "id": "auth_sessions",
+  "name": "auth_sessions",
+  "type": "base",
+  "system": false,
+  "schema": [
+    {
+      "name": "session_id",
+      "type": "text",
+      "required": true,
+      "unique": true,
+      "options": {
+        "min": 1,
+        "max": 200,
+        "pattern": ""
+      }
+    },
+    {
+      "name": "user_id",
+      "type": "text",
+      "required": true,
+      "unique": false,
+      "options": {
+        "min": 1,
+        "max": 100,
+        "pattern": ""
+      }
+    },
+    {
+      "name": "refresh_token_hash",
+      "type": "text",
+      "required": true,
+      "unique": false,
+      "options": {
+        "min": 1,
+        "max": 255,
+        "pattern": ""
+      }
+    },
+    {
+      "name": "issued_at",
+      "type": "date",
+      "required": true,
+      "unique": false,
+      "options": {
+        "min": "",
+        "max": ""
+      }
+    },
+    {
+      "name": "expires_at",
+      "type": "date",
+      "required": true,
+      "unique": false,
+      "options": {
+        "min": "",
+        "max": ""
+      }
+    },
+    {
+      "name": "revoked_at",
+      "type": "date",
+      "required": false,
+      "unique": false,
+      "options": {
+        "min": "",
+        "max": ""
+      }
+    },
+    {
+      "name": "replaced_by_session_id",
+      "type": "text",
+      "required": false,
+      "unique": false,
+      "options": {
+        "min": 0,
+        "max": 200,
+        "pattern": ""
+      }
+    }
+  ],
+  "indexes": [
+    "CREATE UNIQUE INDEX idx_auth_sessions_session_id ON auth_sessions (session_id)",
+    "CREATE INDEX idx_auth_sessions_user_id ON auth_sessions (user_id)",
+    "CREATE INDEX idx_auth_sessions_expires_at ON auth_sessions (expires_at)"
+  ],
+  "listRule": "user_id = @request.auth.id",
+  "viewRule": "user_id = @request.auth.id",
+  "createRule": "user_id = @request.auth.id",
+  "updateRule": "user_id = @request.auth.id",
+  "deleteRule": "user_id = @request.auth.id"
+}

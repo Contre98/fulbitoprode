@@ -1,0 +1,98 @@
+import { randomUUID } from "node:crypto";
+import { z } from "zod";
+import { jsonResponse } from "#http";
+import { issueRefreshSessionWithId } from "@fulbito/server-core/auth-sessions";
+import { registerWithPassword } from "@fulbito/server-core/m3-repo";
+import { enforceRateLimit, getRequesterFingerprint } from "@fulbito/server-core/rate-limit";
+import { createAccessToken, createRefreshToken, getRefreshTokenMaxAgeSeconds } from "@fulbito/server-core/session";
+import type { ApiRateLimitContext } from "../../../request-context";
+import { parseJsonBody, RequestBodyValidationError } from "../../../validation";
+
+const registerPayloadSchema = z.object({
+  email: z.string().optional(),
+  password: z.string().optional(),
+  name: z.string().optional()
+});
+
+interface RouteContext {
+  setRateLimitContext?: (rateLimit: ApiRateLimitContext) => void;
+}
+
+export async function POST(request: Request, context?: RouteContext) {
+  const clientKey = getRequesterFingerprint(request, "register:unknown");
+  const rateLimitKey = `auth:register:${clientKey}`;
+  const rateLimitConfig = {
+    limit: 10,
+    windowMs: 15 * 60 * 1000
+  };
+  const rateLimit = enforceRateLimit(rateLimitKey, rateLimitConfig);
+  context?.setRateLimitContext?.({
+    key: rateLimitKey,
+    limit: rateLimitConfig.limit,
+    windowMs: rateLimitConfig.windowMs,
+    allowed: rateLimit.allowed,
+    remaining: rateLimit.remaining,
+    retryAfterSeconds: rateLimit.retryAfterSeconds
+  });
+  if (!rateLimit.allowed) {
+    return jsonResponse(
+      { error: "Too many registration attempts. Try again later." },
+      {
+        status: 429,
+        headers: {
+          "Retry-After": String(rateLimit.retryAfterSeconds)
+        }
+      }
+    );
+  }
+
+  try {
+    const body = await parseJsonBody(request, registerPayloadSchema);
+    const email = body.email?.trim().toLowerCase() || "";
+    const password = body.password || "";
+    const name = body.name?.trim() || undefined;
+
+    if (!email || !password) {
+      return jsonResponse({ error: "Email and password are required" }, { status: 400 });
+    }
+
+    if (password.length < 8) {
+      return jsonResponse({ error: "Password must be at least 8 characters" }, { status: 400 });
+    }
+
+    const { user, token } = await registerWithPassword({ email, password, name });
+    const sessionId = randomUUID();
+    const accessToken = createAccessToken({ userId: user.id, pbToken: token, sessionId });
+    const refreshToken = createRefreshToken({ userId: user.id, pbToken: token, sessionId });
+
+    await issueRefreshSessionWithId({
+      sessionId,
+      userId: user.id,
+      refreshToken,
+      expiresAt: new Date(Date.now() + getRefreshTokenMaxAgeSeconds() * 1000),
+      authToken: token
+    });
+
+    return jsonResponse(
+      {
+        ok: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          username: user.username ?? null,
+          favoriteTeam: user.favoriteTeam ?? null
+        },
+        accessToken,
+        refreshToken
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    if (error instanceof RequestBodyValidationError) {
+      return jsonResponse({ error: error.message }, { status: error.status });
+    }
+    const message = error instanceof Error ? error.message : "Registration failed";
+    return jsonResponse({ error: message }, { status: 400 });
+  }
+}

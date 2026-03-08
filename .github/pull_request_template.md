@@ -5,6 +5,18 @@
 - [ ] `feat(pb-rules)` scope reviewed
 - [ ] `test(api-and-security)` scope reviewed
 - [ ] `chore(ci-readme)` scope reviewed
+- [ ] `mobile-rewrite` scope reviewed (if touched: `apps/mobile`, `packages/*`, or mobile-related `apps/web` imports)
+- [ ] Updated `docs/mobile-migration-plan.md` for this change set
+- [ ] Linked the latest relevant entry in `## Decisions Log` from `docs/mobile-migration-plan.md`
+
+## Mobile Phase 4 Tracking (if `mobile-rewrite` scope touched)
+
+- [ ] Linked the exact `### Phase 4` checklist items completed in this PR
+- [ ] Added/updated targeted mobile guard tests and listed exact commands run
+- [ ] Added a `## Validation Log` entry in `docs/mobile-migration-plan.md` with pass/fail notes for:
+- [ ] `pnpm run typecheck:web`
+- [ ] `pnpm --filter @fulbito/mobile typecheck`
+- [ ] `pnpm run build:web`
 
 ## Release Gates
 

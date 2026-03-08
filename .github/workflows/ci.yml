@@ -19,19 +19,54 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
+          cache: pnpm
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile=false
 
       - name: Lint
-        run: npm run lint
+        run: pnpm run lint:api
 
       - name: Typecheck
-        run: npm run typecheck
+        run: pnpm run typecheck:api
 
       - name: Test
-        run: npm run test:run
+        run: pnpm run test:run
+
+      - name: Server Core Typecheck
+        run: pnpm --filter @fulbito/server-core typecheck
+
+      - name: Mobile Node Guard
+        run: pnpm --filter @fulbito/mobile exec node ./scripts/check-node-version.mjs
+
+      - name: Mobile Targeted Test Guard
+        run: pnpm --filter @fulbito/mobile test -- ConfiguracionScreen.actions.test.tsx
+
+      - name: Mobile Smoke Guard (Auth Entry)
+        run: pnpm --filter @fulbito/mobile test -- MobileE2ESmoke.auth-entry.test.tsx
+
+      - name: Mobile Smoke Guard (Tab Flow)
+        run: pnpm --filter @fulbito/mobile test -- MobileE2ESmoke.tab-flow.test.tsx
+
+      - name: Mobile Adapter Contract Guard (Fixture + Leaderboard)
+        run: pnpm --filter @fulbito/mobile test -- RepositoryAdapters.contract.test.ts
+
+      - name: Mobile Adapter Contract Guard (Groups + Predictions)
+        run: pnpm --filter @fulbito/mobile test -- RepositoryAdapters.groupsPredictions.contract.test.ts
+
+      - name: Mobile Fallback Transition Guard
+        run: pnpm --filter @fulbito/mobile test -- RepositoryFallbackTransitions.test.ts
+
+      - name: Mobile Fallback History Guard
+        run: pnpm --filter @fulbito/mobile test -- FallbackDiagnostics.history.test.ts
+
+      - name: Mobile AuthContext Fallback History Guard
+        run: pnpm --filter @fulbito/mobile test -- AuthContext.fallbackHistory.integration.test.tsx
 
       - name: Build
-        run: npm run build
+        run: pnpm run build:api
