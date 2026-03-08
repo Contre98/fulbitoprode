@@ -112,6 +112,7 @@ describe("POST /api/auth/logout", () => {
       expect.objectContaining({
         sessionId: "sid-3",
         userId: "user-3",
+        refreshToken,
         authToken: "pb-token-3"
       })
     );
