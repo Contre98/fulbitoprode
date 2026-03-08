@@ -10,12 +10,23 @@ const loginPayloadSchema = z.object({
     email: z.string().optional(),
     password: z.string().optional()
 });
-export async function POST(request) {
+export async function POST(request, context) {
     const clientKey = getRequesterFingerprint(request, "login:unknown");
-    const rateLimit = enforceRateLimit(`auth:login:${clientKey}`, {
+    const rateLimitKey = `auth:login:${clientKey}`;
+    const rateLimitConfig = {
         limit: 20,
         windowMs: 15 * 60 * 1000
-    });
+    };
+    const rateLimit = enforceRateLimit(rateLimitKey, rateLimitConfig);
+    const rateLimitContext = {
+        key: rateLimitKey,
+        limit: rateLimitConfig.limit,
+        windowMs: rateLimitConfig.windowMs,
+        allowed: rateLimit.allowed,
+        remaining: rateLimit.remaining,
+        retryAfterSeconds: rateLimit.retryAfterSeconds
+    };
+    context?.setRateLimitContext?.(rateLimitContext);
     if (!rateLimit.allowed) {
         return jsonResponse({ error: "Too many login attempts. Try again later." }, {
             status: 429,

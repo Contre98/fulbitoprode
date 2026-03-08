@@ -119,7 +119,7 @@ export async function GET(request) {
     };
     return jsonResponse(payload, { status: 200 });
 }
-export async function POST(request) {
+export async function POST(request, context) {
     try {
         const body = await parseJsonBody(request, savePredictionPayloadSchema);
         const period = body.period?.trim() || "";
@@ -131,9 +131,19 @@ export async function POST(request) {
             return jsonResponse({ error: "Unauthorized" }, { status: 401 });
         }
         const requester = getRequesterFingerprint(request, `user:${userId}`);
-        const rateLimit = enforceRateLimit(`predictions:write:${userId}:${requester}`, {
+        const rateLimitKey = `predictions:write:${userId}:${requester}`;
+        const rateLimitConfig = {
             limit: 120,
             windowMs: 10 * 60 * 1000
+        };
+        const rateLimit = enforceRateLimit(rateLimitKey, rateLimitConfig);
+        context?.setRateLimitContext?.({
+            key: rateLimitKey,
+            limit: rateLimitConfig.limit,
+            windowMs: rateLimitConfig.windowMs,
+            allowed: rateLimit.allowed,
+            remaining: rateLimit.remaining,
+            retryAfterSeconds: rateLimit.retryAfterSeconds
         });
         if (!rateLimit.allowed) {
             return jsonResponse({ error: "Too many prediction updates. Try again later." }, {

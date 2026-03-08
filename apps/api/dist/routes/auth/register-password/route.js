@@ -11,11 +11,21 @@ const registerPayloadSchema = z.object({
     password: z.string().optional(),
     name: z.string().optional()
 });
-export async function POST(request) {
+export async function POST(request, context) {
     const clientKey = getRequesterFingerprint(request, "register:unknown");
-    const rateLimit = enforceRateLimit(`auth:register:${clientKey}`, {
+    const rateLimitKey = `auth:register:${clientKey}`;
+    const rateLimitConfig = {
         limit: 10,
         windowMs: 15 * 60 * 1000
+    };
+    const rateLimit = enforceRateLimit(rateLimitKey, rateLimitConfig);
+    context?.setRateLimitContext?.({
+        key: rateLimitKey,
+        limit: rateLimitConfig.limit,
+        windowMs: rateLimitConfig.windowMs,
+        allowed: rateLimit.allowed,
+        remaining: rateLimit.remaining,
+        retryAfterSeconds: rateLimit.retryAfterSeconds
     });
     if (!rateLimit.allowed) {
         return jsonResponse({ error: "Too many registration attempts. Try again later." }, {

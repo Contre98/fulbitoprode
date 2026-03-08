@@ -5,6 +5,7 @@ import { issueRefreshSessionWithId } from "@fulbito/server-core/auth-sessions";
 import { loginWithPassword } from "@fulbito/server-core/m3-repo";
 import { enforceRateLimit, getRequesterFingerprint } from "@fulbito/server-core/rate-limit";
 import { createAccessToken, createRefreshToken, getRefreshTokenMaxAgeSeconds } from "@fulbito/server-core/session";
+import type { ApiRateLimitContext } from "../../../request-context";
 import { parseJsonBody, RequestBodyValidationError } from "../../../validation";
 
 const loginPayloadSchema = z.object({
@@ -12,12 +13,27 @@ const loginPayloadSchema = z.object({
   password: z.string().optional()
 });
 
-export async function POST(request: Request) {
+interface RouteContext {
+  setRateLimitContext?: (rateLimit: ApiRateLimitContext) => void;
+}
+
+export async function POST(request: Request, context?: RouteContext) {
   const clientKey = getRequesterFingerprint(request, "login:unknown");
-  const rateLimit = enforceRateLimit(`auth:login:${clientKey}`, {
+  const rateLimitKey = `auth:login:${clientKey}`;
+  const rateLimitConfig = {
     limit: 20,
     windowMs: 15 * 60 * 1000
-  });
+  };
+  const rateLimit = enforceRateLimit(rateLimitKey, rateLimitConfig);
+  const rateLimitContext: ApiRateLimitContext = {
+    key: rateLimitKey,
+    limit: rateLimitConfig.limit,
+    windowMs: rateLimitConfig.windowMs,
+    allowed: rateLimit.allowed,
+    remaining: rateLimit.remaining,
+    retryAfterSeconds: rateLimit.retryAfterSeconds
+  };
+  context?.setRateLimitContext?.(rateLimitContext);
   if (!rateLimit.allowed) {
     return jsonResponse(
       { error: "Too many login attempts. Try again later." },

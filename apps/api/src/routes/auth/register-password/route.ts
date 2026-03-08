@@ -5,6 +5,7 @@ import { issueRefreshSessionWithId } from "@fulbito/server-core/auth-sessions";
 import { registerWithPassword } from "@fulbito/server-core/m3-repo";
 import { enforceRateLimit, getRequesterFingerprint } from "@fulbito/server-core/rate-limit";
 import { createAccessToken, createRefreshToken, getRefreshTokenMaxAgeSeconds } from "@fulbito/server-core/session";
+import type { ApiRateLimitContext } from "../../../request-context";
 import { parseJsonBody, RequestBodyValidationError } from "../../../validation";
 
 const registerPayloadSchema = z.object({
@@ -13,11 +14,25 @@ const registerPayloadSchema = z.object({
   name: z.string().optional()
 });
 
-export async function POST(request: Request) {
+interface RouteContext {
+  setRateLimitContext?: (rateLimit: ApiRateLimitContext) => void;
+}
+
+export async function POST(request: Request, context?: RouteContext) {
   const clientKey = getRequesterFingerprint(request, "register:unknown");
-  const rateLimit = enforceRateLimit(`auth:register:${clientKey}`, {
+  const rateLimitKey = `auth:register:${clientKey}`;
+  const rateLimitConfig = {
     limit: 10,
     windowMs: 15 * 60 * 1000
+  };
+  const rateLimit = enforceRateLimit(rateLimitKey, rateLimitConfig);
+  context?.setRateLimitContext?.({
+    key: rateLimitKey,
+    limit: rateLimitConfig.limit,
+    windowMs: rateLimitConfig.windowMs,
+    allowed: rateLimit.allowed,
+    remaining: rateLimit.remaining,
+    retryAfterSeconds: rateLimit.retryAfterSeconds
   });
   if (!rateLimit.allowed) {
     return jsonResponse(

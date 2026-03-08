@@ -2,6 +2,7 @@ import { z } from "zod";
 import { jsonResponse } from "#http";
 import { requestPasswordReset } from "@fulbito/server-core/m3-repo";
 import { enforceRateLimit, getRequesterFingerprint } from "@fulbito/server-core/rate-limit";
+import type { ApiRateLimitContext } from "../../../request-context";
 import { parseJsonBody, RequestBodyValidationError } from "../../../validation";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -10,11 +11,25 @@ const forgotPasswordPayloadSchema = z.object({
   email: z.string().optional()
 });
 
-export async function POST(request: Request) {
+interface RouteContext {
+  setRateLimitContext?: (rateLimit: ApiRateLimitContext) => void;
+}
+
+export async function POST(request: Request, context?: RouteContext) {
   const clientKey = getRequesterFingerprint(request, "forgot-password:unknown");
-  const rateLimit = enforceRateLimit(`auth:forgot-password:${clientKey}`, {
+  const rateLimitKey = `auth:forgot-password:${clientKey}`;
+  const rateLimitConfig = {
     limit: 8,
     windowMs: 15 * 60 * 1000
+  };
+  const rateLimit = enforceRateLimit(rateLimitKey, rateLimitConfig);
+  context?.setRateLimitContext?.({
+    key: rateLimitKey,
+    limit: rateLimitConfig.limit,
+    windowMs: rateLimitConfig.windowMs,
+    allowed: rateLimit.allowed,
+    remaining: rateLimit.remaining,
+    retryAfterSeconds: rateLimit.retryAfterSeconds
   });
   if (!rateLimit.allowed) {
     return jsonResponse(

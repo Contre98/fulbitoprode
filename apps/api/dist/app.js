@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { randomUUID } from "node:crypto";
+import { jsonResponse } from "#http";
 import * as authForgotPasswordRoute from "./routes/auth/forgot-password/route";
 import * as authLoginPasswordRoute from "./routes/auth/login-password/route";
 import * as authLogoutRoute from "./routes/auth/logout/route";
@@ -26,25 +26,56 @@ import * as notificationsInboxRoute from "./routes/notifications/inbox/route";
 import * as notificationsPreferencesRoute from "./routes/notifications/preferences/route";
 import * as profileRoute from "./routes/profile/route";
 import * as pronosticosRoute from "./routes/pronosticos/route";
+import { mapApiError } from "./error-mapper";
+import { getRequestContext, initializeRequestContext, logRequestCompletion, setRateLimitContext } from "./request-context";
 const app = new Hono();
 app.use("*", async (c, next) => {
-    const startedAt = Date.now();
-    const requestId = randomUUID();
-    c.header("x-request-id", requestId);
+    const requestContext = initializeRequestContext(c);
+    c.header("x-request-id", requestContext.requestId);
+    c.header("x-trace-id", requestContext.traceId);
     c.header("x-powered-by", "fulbito-api");
-    await next();
-    const durationMs = Date.now() - startedAt;
-    c.header("x-response-time", `${durationMs}ms`);
+    let caughtError;
+    try {
+        await next();
+    }
+    catch (error) {
+        caughtError = error;
+    }
+    finally {
+        const durationMs = Date.now() - requestContext.startedAtMs;
+        c.header("x-response-time", `${durationMs}ms`);
+        const statusFromError = typeof caughtError === "object" &&
+            caughtError !== null &&
+            "status" in caughtError &&
+            Number.isFinite(Number(caughtError.status))
+            ? Number(caughtError.status)
+            : 500;
+        logRequestCompletion({
+            context: requestContext,
+            status: caughtError ? statusFromError : c.res.status,
+            durationMs,
+            error: caughtError
+        });
+    }
+    if (caughtError) {
+        throw caughtError;
+    }
 });
 function registerRoute(path, routeModule) {
     const invoke = (handler) => async (c) => {
         const params = c.req.param();
-        const response = await handler(c.req.raw, { params: Promise.resolve(params) });
+        const response = await handler(c.req.raw, {
+            params: Promise.resolve(params),
+            requestContext: getRequestContext(c),
+            setRateLimitContext: (rateLimit) => {
+                setRateLimitContext(c, rateLimit);
+            }
+        });
         if (!response) {
-            return new Response(JSON.stringify({ error: "Handler returned no response" }), {
-                status: 500,
-                headers: { "content-type": "application/json; charset=utf-8" }
-            });
+            return jsonResponse({
+                error: "Handler returned no response",
+                requestId: getRequestContext(c).requestId
+            }, { status: 500 });
         }
         return response;
     };
@@ -59,6 +90,25 @@ function registerRoute(path, routeModule) {
     if (routeModule.DELETE)
         app.delete(path, invoke(routeModule.DELETE));
 }
+app.onError((error, c) => {
+    return mapApiError(error, c);
+});
+app.notFound((c) => {
+    const requestContext = getRequestContext(c);
+    const durationMs = Date.now() - requestContext.startedAtMs;
+    return jsonResponse({
+        error: "Not Found",
+        requestId: requestContext.requestId
+    }, {
+        status: 404,
+        headers: {
+            "x-request-id": requestContext.requestId,
+            "x-trace-id": requestContext.traceId,
+            "x-powered-by": "fulbito-api",
+            "x-response-time": `${durationMs}ms`
+        }
+    });
+});
 registerRoute("/api/auth/forgot-password", authForgotPasswordRoute);
 registerRoute("/api/auth/login-password", authLoginPasswordRoute);
 registerRoute("/api/auth/logout", authLogoutRoute);

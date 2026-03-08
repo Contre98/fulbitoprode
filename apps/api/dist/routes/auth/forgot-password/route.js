@@ -8,11 +8,21 @@ const GENERIC_SUCCESS_MESSAGE = "If an account exists for this email, we sent pa
 const forgotPasswordPayloadSchema = z.object({
     email: z.string().optional()
 });
-export async function POST(request) {
+export async function POST(request, context) {
     const clientKey = getRequesterFingerprint(request, "forgot-password:unknown");
-    const rateLimit = enforceRateLimit(`auth:forgot-password:${clientKey}`, {
+    const rateLimitKey = `auth:forgot-password:${clientKey}`;
+    const rateLimitConfig = {
         limit: 8,
         windowMs: 15 * 60 * 1000
+    };
+    const rateLimit = enforceRateLimit(rateLimitKey, rateLimitConfig);
+    context?.setRateLimitContext?.({
+        key: rateLimitKey,
+        limit: rateLimitConfig.limit,
+        windowMs: rateLimitConfig.windowMs,
+        allowed: rateLimit.allowed,
+        remaining: rateLimit.remaining,
+        retryAfterSeconds: rateLimit.retryAfterSeconds
     });
     if (!rateLimit.allowed) {
         return jsonResponse({ error: "Too many password reset attempts. Try again later." }, {

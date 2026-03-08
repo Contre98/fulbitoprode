@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { randomUUID } from "node:crypto";
+import { jsonResponse } from "#http";
 
 import * as authForgotPasswordRoute from "./routes/auth/forgot-password/route";
 import * as authLoginPasswordRoute from "./routes/auth/login-password/route";
@@ -27,6 +27,9 @@ import * as notificationsInboxRoute from "./routes/notifications/inbox/route";
 import * as notificationsPreferencesRoute from "./routes/notifications/preferences/route";
 import * as profileRoute from "./routes/profile/route";
 import * as pronosticosRoute from "./routes/pronosticos/route";
+import { mapApiError } from "./error-mapper";
+import type { ApiRateLimitContext } from "./request-context";
+import { getRequestContext, initializeRequestContext, logRequestCompletion, setRateLimitContext } from "./request-context";
 
 type GenericRouteModule = {
   GET?: (...args: any[]) => Promise<Response | undefined> | Response | undefined;
@@ -39,27 +42,57 @@ type GenericRouteModule = {
 const app = new Hono();
 
 app.use("*", async (c, next) => {
-  const startedAt = Date.now();
-  const requestId = randomUUID();
-  c.header("x-request-id", requestId);
+  const requestContext = initializeRequestContext(c);
+  c.header("x-request-id", requestContext.requestId);
+  c.header("x-trace-id", requestContext.traceId);
   c.header("x-powered-by", "fulbito-api");
 
-  await next();
-
-  const durationMs = Date.now() - startedAt;
-  c.header("x-response-time", `${durationMs}ms`);
+  let caughtError: unknown;
+  try {
+    await next();
+  } catch (error) {
+    caughtError = error;
+  } finally {
+    const durationMs = Date.now() - requestContext.startedAtMs;
+    c.header("x-response-time", `${durationMs}ms`);
+    const statusFromError =
+      typeof caughtError === "object" &&
+      caughtError !== null &&
+      "status" in caughtError &&
+      Number.isFinite(Number((caughtError as { status?: unknown }).status))
+        ? Number((caughtError as { status?: unknown }).status)
+        : 500;
+    logRequestCompletion({
+      context: requestContext,
+      status: caughtError ? statusFromError : c.res.status,
+      durationMs,
+      error: caughtError
+    });
+  }
+  if (caughtError) {
+    throw caughtError;
+  }
 });
 
 function registerRoute(path: string, routeModule: GenericRouteModule) {
   const invoke =
     (handler: (...args: any[]) => Promise<Response | undefined> | Response | undefined) => async (c: any) => {
       const params = c.req.param();
-      const response = await handler(c.req.raw, { params: Promise.resolve(params) });
+      const response = await handler(c.req.raw, {
+        params: Promise.resolve(params),
+        requestContext: getRequestContext(c),
+        setRateLimitContext: (rateLimit: ApiRateLimitContext) => {
+          setRateLimitContext(c, rateLimit);
+        }
+      });
       if (!response) {
-        return new Response(JSON.stringify({ error: "Handler returned no response" }), {
-          status: 500,
-          headers: { "content-type": "application/json; charset=utf-8" }
-        });
+        return jsonResponse(
+          {
+            error: "Handler returned no response",
+            requestId: getRequestContext(c).requestId
+          },
+          { status: 500 }
+        );
       }
       return response;
     };
@@ -70,6 +103,30 @@ function registerRoute(path: string, routeModule: GenericRouteModule) {
   if (routeModule.PUT) app.put(path, invoke(routeModule.PUT));
   if (routeModule.DELETE) app.delete(path, invoke(routeModule.DELETE));
 }
+
+app.onError((error, c) => {
+  return mapApiError(error, c);
+});
+
+app.notFound((c) => {
+  const requestContext = getRequestContext(c);
+  const durationMs = Date.now() - requestContext.startedAtMs;
+  return jsonResponse(
+    {
+      error: "Not Found",
+      requestId: requestContext.requestId
+    },
+    {
+      status: 404,
+      headers: {
+        "x-request-id": requestContext.requestId,
+        "x-trace-id": requestContext.traceId,
+        "x-powered-by": "fulbito-api",
+        "x-response-time": `${durationMs}ms`
+      }
+    }
+  );
+});
 
 registerRoute("/api/auth/forgot-password", authForgotPasswordRoute);
 registerRoute("/api/auth/login-password", authLoginPasswordRoute);

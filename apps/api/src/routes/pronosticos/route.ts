@@ -11,6 +11,7 @@ import {
 import { getSessionPocketBaseTokenFromRequest, getSessionUserIdFromRequest } from "@fulbito/server-core/request-auth";
 import { enforceRateLimit, getRequesterFingerprint } from "@fulbito/server-core/rate-limit";
 import { isActiveGroupMember, listGroupsForUser, listPredictionsForScope, upsertPrediction } from "@fulbito/server-core/m3-repo";
+import type { ApiRateLimitContext } from "../../request-context";
 import type { MatchCardData, PredictionValue, PredictionsByMatch, PronosticosPayload } from "@fulbito/server-core/types";
 import { parseJsonBody, RequestBodyValidationError } from "../../validation";
 
@@ -21,6 +22,10 @@ const savePredictionPayloadSchema = z.object({
   home: z.number().nullable().optional(),
   away: z.number().nullable().optional()
 });
+
+interface RouteContext {
+  setRateLimitContext?: (rateLimit: ApiRateLimitContext) => void;
+}
 
 function withPredictions(matches: MatchCardData[], predictions: PredictionsByMatch) {
   return matches.map((match) => {
@@ -148,7 +153,7 @@ export async function GET(request: Request) {
   return jsonResponse(payload, { status: 200 });
 }
 
-export async function POST(request: Request) {
+export async function POST(request: Request, context?: RouteContext) {
   try {
     const body = await parseJsonBody(request, savePredictionPayloadSchema);
 
@@ -163,9 +168,19 @@ export async function POST(request: Request) {
     }
 
     const requester = getRequesterFingerprint(request, `user:${userId}`);
-    const rateLimit = enforceRateLimit(`predictions:write:${userId}:${requester}`, {
+    const rateLimitKey = `predictions:write:${userId}:${requester}`;
+    const rateLimitConfig = {
       limit: 120,
       windowMs: 10 * 60 * 1000
+    };
+    const rateLimit = enforceRateLimit(rateLimitKey, rateLimitConfig);
+    context?.setRateLimitContext?.({
+      key: rateLimitKey,
+      limit: rateLimitConfig.limit,
+      windowMs: rateLimitConfig.windowMs,
+      allowed: rateLimit.allowed,
+      remaining: rateLimit.remaining,
+      retryAfterSeconds: rateLimit.retryAfterSeconds
     });
     if (!rateLimit.allowed) {
       return jsonResponse(
