@@ -121,6 +121,14 @@ export async function verifyRefreshSession(input: {
   refreshToken: string;
   authToken?: string;
 }) {
+  const memoryRecord = sessionStore.get(input.sessionId) || null;
+  if (memoryRecord && memoryRecord.userId === input.userId) {
+    const incomingHash = hashToken(input.refreshToken);
+    if (memoryRecord.refreshTokenHash === incomingHash && memoryRecord.revokedAt) {
+      return { ok: false as const, reason: "revoked" as const };
+    }
+  }
+
   let record: RefreshSessionRecord | null = null;
 
   if (shouldUsePocketBase(input.authToken)) {
@@ -259,9 +267,39 @@ export async function rotateRefreshSession(input: {
 export async function revokeRefreshSession(input: {
   sessionId: string;
   userId: string;
+  refreshToken?: string;
   authToken?: string;
 }) {
   const nowIso = new Date().toISOString();
+  const markMemoryRevoked = () => {
+    const existing = sessionStore.get(input.sessionId);
+    if (existing && existing.userId === input.userId) {
+      if (!existing.revokedAt) {
+        existing.revokedAt = nowIso;
+        sessionStore.set(existing.sessionId, existing);
+      }
+      return true;
+    }
+
+    if (!input.refreshToken) {
+      return false;
+    }
+
+    const placeholder: RefreshSessionRecord = {
+      recordId: `memory:${input.sessionId}`,
+      sessionId: input.sessionId,
+      userId: input.userId,
+      refreshTokenHash: hashToken(input.refreshToken),
+      issuedAt: nowIso,
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365).toISOString(),
+      revokedAt: nowIso,
+      replacedBySessionId: null,
+      storage: "memory"
+    };
+    sessionStore.set(placeholder.sessionId, placeholder);
+    return true;
+  };
+
   if (shouldUsePocketBase(input.authToken)) {
     try {
       const persisted = await getAuthSessionRecord(
@@ -280,23 +318,13 @@ export async function revokeRefreshSession(input: {
           },
           input.authToken as string
         );
+        markMemoryRevoked();
         return true;
       }
     } catch (error) {
       warnPocketBaseFallback("revoke", error);
-      return false;
     }
   }
 
-  const memory = sessionStore.get(input.sessionId);
-  if (!memory || memory.userId !== input.userId) {
-    return false;
-  }
-
-  if (!memory.revokedAt) {
-    memory.revokedAt = nowIso;
-    sessionStore.set(memory.sessionId, memory);
-  }
-
-  return true;
+  return markMemoryRevoked();
 }
