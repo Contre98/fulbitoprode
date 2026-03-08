@@ -22,6 +22,14 @@ describe("Repository adapters contract parity", () => {
     });
   }
 
+  function expectNoCookieCredentials(
+    fetchMock: jest.Mock<Promise<MockResponse>, [string, RequestInit | undefined]>,
+    callIndex: number
+  ) {
+    const init = fetchMock.mock.calls[callIndex]?.[1];
+    expect(init ?? {}).toEqual(expect.not.objectContaining({ credentials: "include" }));
+  }
+
   beforeEach(() => {
     jest.resetAllMocks();
     jest.resetModules();
@@ -112,10 +120,9 @@ describe("Repository adapters contract parity", () => {
     );
     expect(fetchMock).toHaveBeenCalledWith(
       "http://localhost:3000/api/fixture?period=3&groupId=g-1",
-      expect.objectContaining({
-        credentials: "include"
-      })
+      expect.any(Object)
     );
+    expectNoCookieCredentials(fetchMock, 0);
 
     [httpRows[0], httpRows[1], mockRows[0]].forEach((row) => {
       expect(row).toEqual(
@@ -324,8 +331,9 @@ describe("Repository adapters contract parity", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       "http://localhost:3000/api/leaderboard?mode=stats&period=global&groupId=g-1",
-      expect.objectContaining({ credentials: "include" })
+      expect.any(Object)
     );
+    expectNoCookieCredentials(fetchMock, 0);
   });
 
   it("rejects incomplete /api/fixture payloads without falling back to /api/pronosticos", async () => {
@@ -354,8 +362,9 @@ describe("Repository adapters contract parity", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       "http://localhost:3000/api/fixture?period=3&groupId=g-1",
-      expect.objectContaining({ credentials: "include" })
+      expect.any(Object)
     );
+    expectNoCookieCredentials(fetchMock, 0);
   });
 
   it("supports cards-only /api/fixture payloads for backward compatibility", async () => {
@@ -509,13 +518,15 @@ describe("Repository adapters contract parity", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       "http://localhost:3000/api/fixture?period=2026-01&groupId=g-1",
-      expect.objectContaining({ credentials: "include" })
+      expect.any(Object)
     );
+    expectNoCookieCredentials(fetchMock, 0);
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       "http://localhost:3000/api/fixture?groupId=g-1",
-      expect.objectContaining({ credentials: "include" })
+      expect.any(Object)
     );
+    expectNoCookieCredentials(fetchMock, 1);
   });
 
   it("rejects malformed fixture payloads that do not satisfy contract shape", async () => {

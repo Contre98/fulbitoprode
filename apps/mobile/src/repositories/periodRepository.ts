@@ -25,7 +25,6 @@ async function tryRefresh(baseUrl: string) {
 
   const response = await fetch(`${baseUrl}/api/auth/refresh`, {
     method: "POST",
-    credentials: "include",
     headers: {
       "content-type": "application/json"
     },
@@ -80,7 +79,6 @@ async function fetchFechas(input: { leagueId: number; season: string; competitio
 
     return fetch(`${baseUrl}/api/fechas?${query.toString()}`, {
       method: "GET",
-      credentials: "include",
       headers
     });
   };

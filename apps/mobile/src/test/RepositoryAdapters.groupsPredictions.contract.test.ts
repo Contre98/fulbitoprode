@@ -23,6 +23,14 @@ describe("Repository adapters contract parity (groups + predictions)", () => {
     });
   }
 
+  function expectNoCookieCredentials(
+    fetchMock: jest.Mock<Promise<MockResponse>, [string, RequestInit | undefined]>,
+    callIndex: number
+  ) {
+    const init = fetchMock.mock.calls[callIndex]?.[1];
+    expect(init ?? {}).toEqual(expect.not.objectContaining({ credentials: "include" }));
+  }
+
   beforeEach(() => {
     jest.resetAllMocks();
     jest.resetModules();
@@ -102,18 +110,18 @@ describe("Repository adapters contract parity (groups + predictions)", () => {
       1,
       "http://localhost:3000/api/groups",
       expect.objectContaining({
-        method: "POST",
-        credentials: "include"
+        method: "POST"
       })
     );
+    expectNoCookieCredentials(fetchMock, 0);
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       "http://localhost:3000/api/groups/join",
       expect.objectContaining({
-        method: "POST",
-        credentials: "include"
+        method: "POST"
       })
     );
+    expectNoCookieCredentials(fetchMock, 1);
   });
 
   it("keeps predictions contract shape aligned across HTTP and mock adapters", async () => {
@@ -189,7 +197,6 @@ describe("Repository adapters contract parity (groups + predictions)", () => {
       "http://localhost:3000/api/pronosticos",
       expect.objectContaining({
         method: "POST",
-        credentials: "include",
         body: JSON.stringify({
           period: "1",
           groupId: testGroupId,
@@ -199,6 +206,7 @@ describe("Repository adapters contract parity (groups + predictions)", () => {
         })
       })
     );
+    expectNoCookieCredentials(fetchMock, 1);
   });
 
   it("maps profile payload to the shared mobile contract in HTTP and mock adapters", async () => {
@@ -243,10 +251,9 @@ describe("Repository adapters contract parity (groups + predictions)", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       "http://localhost:3000/api/profile",
-      expect.objectContaining({
-        credentials: "include"
-      })
+      expect.any(Object)
     );
+    expectNoCookieCredentials(fetchMock, 0);
   });
 
   it("sends profile updates to /api/auth/me and returns a shared user shape", async () => {
@@ -295,7 +302,6 @@ describe("Repository adapters contract parity (groups + predictions)", () => {
       "http://localhost:3000/api/auth/me",
       expect.objectContaining({
         method: "PATCH",
-        credentials: "include",
         body: JSON.stringify({
           name: "QA HTTP",
           username: "qa-http",
@@ -304,6 +310,7 @@ describe("Repository adapters contract parity (groups + predictions)", () => {
         })
       })
     );
+    expectNoCookieCredentials(fetchMock, 0);
   });
 
   it("supports members/invite/leave/delete group admin contracts across HTTP and mock adapters", async () => {
@@ -421,55 +428,57 @@ describe("Repository adapters contract parity (groups + predictions)", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       `http://localhost:3000/api/groups/${groupId}/members`,
-      expect.objectContaining({ credentials: "include" })
+      expect.any(Object)
     );
+    expectNoCookieCredentials(fetchMock, 0);
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       `http://localhost:3000/api/groups/${groupId}/members`,
       expect.objectContaining({
         method: "PATCH",
-        credentials: "include",
         body: JSON.stringify({ userId: "u-2", role: "admin" })
       })
     );
+    expectNoCookieCredentials(fetchMock, 1);
     expect(fetchMock).toHaveBeenNthCalledWith(
       3,
       `http://localhost:3000/api/groups/${groupId}/members`,
       expect.objectContaining({
         method: "DELETE",
-        credentials: "include",
         body: JSON.stringify({ userId: "u-2" })
       })
     );
+    expectNoCookieCredentials(fetchMock, 2);
     expect(fetchMock).toHaveBeenNthCalledWith(
       4,
       "http://localhost:3000/api/groups/leave",
       expect.objectContaining({
         method: "POST",
-        credentials: "include",
         body: JSON.stringify({ groupId })
       })
     );
+    expectNoCookieCredentials(fetchMock, 3);
     expect(fetchMock).toHaveBeenNthCalledWith(
       5,
       `http://localhost:3000/api/groups/${groupId}`,
       expect.objectContaining({
-        method: "DELETE",
-        credentials: "include"
+        method: "DELETE"
       })
     );
+    expectNoCookieCredentials(fetchMock, 4);
     expect(fetchMock).toHaveBeenNthCalledWith(
       6,
       `http://localhost:3000/api/groups/${groupId}/invite`,
-      expect.objectContaining({ credentials: "include" })
+      expect.any(Object)
     );
+    expectNoCookieCredentials(fetchMock, 5);
     expect(fetchMock).toHaveBeenNthCalledWith(
       7,
       `http://localhost:3000/api/groups/${groupId}/invite/refresh`,
       expect.objectContaining({
-        method: "POST",
-        credentials: "include"
+        method: "POST"
       })
     );
+    expectNoCookieCredentials(fetchMock, 6);
   });
 });

@@ -79,7 +79,6 @@ async function performFetch(path: string, init?: RequestInit) {
 
   return fetch(`${baseUrl}${path}`, {
     ...init,
-    credentials: "include",
     headers
   });
 }
@@ -93,7 +92,6 @@ async function tryRefreshTokens() {
 
   const response = await fetch(`${baseUrl}/api/auth/refresh`, {
     method: "POST",
-    credentials: "include",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ refreshToken })
   });
