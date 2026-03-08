@@ -2,11 +2,12 @@
 
 Monorepo layout:
 
-- `apps/web`: existing Next.js web app
-- `apps/mobile`: React Native/Expo app (bootstrap happens on mobile branch)
+- `apps/api`: standalone Hono API service (mobile backend)
+- `apps/mobile`: React Native/Expo app
 - `packages/domain`: shared domain models and business logic
 - `packages/api-contracts`: backend-agnostic repository contracts
 - `packages/design-tokens`: shared design token primitives
+- `packages/server-core`: shared backend modules (PocketBase/provider/auth/session/rate limit)
 
 ## Tooling
 
@@ -17,11 +18,11 @@ Monorepo layout:
 
 ```bash
 pnpm install
-pnpm run dev:web
-pnpm run lint:web
-pnpm run typecheck:web
+pnpm run dev:api
+pnpm run lint:api
+pnpm run typecheck:api
 pnpm run test:run
-pnpm run build:web
+pnpm run build:api
 ```
 
 ## Mobile Runtime Notes

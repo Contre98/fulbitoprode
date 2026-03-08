@@ -30,6 +30,7 @@ import type {
 } from "@fulbito/domain";
 import { translateBackendErrorMessage } from "@fulbito/domain";
 import { getRequiredApiBaseUrl } from "@/lib/apiBaseUrl";
+import { clearAuthTokens, getAccessToken, getRefreshToken, setAuthTokens } from "@/repositories/httpAuthTokens";
 
 function getApiBaseUrl() {
   return getRequiredApiBaseUrl();
@@ -55,19 +56,85 @@ async function parseErrorMessage(response: Response, path: string) {
   return translateBackendErrorMessage(`HTTP ${response.status} for ${path}`);
 }
 
-async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
+class ApiHttpError extends Error {
+  status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
+async function performFetch(path: string, init?: RequestInit) {
   const baseUrl = getApiBaseUrl();
-  const response = await fetch(`${baseUrl}${path}`, {
+  const accessToken = await getAccessToken();
+
+  const headers = new Headers(init?.headers || {});
+  if (!headers.has("content-type") && init?.body) {
+    headers.set("content-type", "application/json");
+  }
+  if (accessToken) {
+    headers.set("authorization", `Bearer ${accessToken}`);
+  }
+
+  return fetch(`${baseUrl}${path}`, {
     ...init,
     credentials: "include",
-    headers: {
-      "content-type": "application/json",
-      ...(init?.headers ?? {})
-    }
+    headers
+  });
+}
+
+async function tryRefreshTokens() {
+  const baseUrl = getApiBaseUrl();
+  const refreshToken = await getRefreshToken();
+  if (!refreshToken) {
+    return false;
+  }
+
+  const response = await fetch(`${baseUrl}/api/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ refreshToken })
   });
 
   if (!response.ok) {
-    throw new Error(await parseErrorMessage(response, path));
+    await clearAuthTokens();
+    return false;
+  }
+
+  const payload = (await response.json()) as unknown;
+  if (
+    isRecord(payload) &&
+    typeof payload.accessToken === "string" &&
+    payload.accessToken.trim().length > 0
+  ) {
+    await setAuthTokens({
+      accessToken: payload.accessToken,
+      refreshToken:
+        typeof payload.refreshToken === "string" && payload.refreshToken.trim().length > 0
+          ? payload.refreshToken
+          : refreshToken
+    });
+    return true;
+  }
+
+  await clearAuthTokens();
+  return false;
+}
+
+async function requestJson<T>(path: string, init?: RequestInit, allowRefresh = true): Promise<T> {
+  const response = await performFetch(path, init);
+
+  if (response.status === 401 && allowRefresh && path !== "/api/auth/refresh") {
+    const refreshed = await tryRefreshTokens();
+    if (refreshed) {
+      return requestJson<T>(path, init, false);
+    }
+  }
+
+  if (!response.ok) {
+    throw new ApiHttpError(response.status, await parseErrorMessage(response, path));
   }
 
   return (await response.json()) as T;

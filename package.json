@@ -4,19 +4,16 @@
   "packageManager": "pnpm@10.30.3",
   "scripts": {
     "dev": "turbo run dev --parallel",
-    "dev:web": "pnpm --filter @fulbito/web dev",
+    "dev:api": "pnpm --filter @fulbito/api dev",
+    "dev:mobile": "pnpm --filter @fulbito/mobile dev",
     "build": "turbo run build",
-    "build:web": "pnpm --filter @fulbito/web build",
+    "build:api": "pnpm --filter @fulbito/api build",
     "lint": "turbo run lint",
-    "lint:web": "pnpm --filter @fulbito/web lint",
+    "lint:api": "pnpm --filter @fulbito/api lint",
     "typecheck": "turbo run typecheck",
-    "typecheck:web": "pnpm --filter @fulbito/web typecheck",
+    "typecheck:api": "pnpm --filter @fulbito/api typecheck",
     "test": "turbo run test",
-    "test:run": "pnpm --filter @fulbito/web test:run",
-    "validate:release": "pnpm --filter @fulbito/web validate:release",
-    "validate:release:full": "pnpm --filter @fulbito/web validate:release:full",
-    "smoke:private": "pnpm --filter @fulbito/web smoke:private",
-    "benchmark:private": "pnpm --filter @fulbito/web benchmark:private"
+    "test:run": "pnpm --filter @fulbito/api test"
   },
   "devDependencies": {
     "turbo": "^2.4.4"

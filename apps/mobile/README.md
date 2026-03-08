@@ -4,8 +4,8 @@ React Native (Expo) client for Fulbito Prode.
 
 ## Backend wiring
 
-- Mobile calls the web API (`/api/...`), not PocketBase directly.
-- Web API calls PocketBase (`POCKETBASE_URL`).
+- Mobile calls the standalone API service (`/api/...`), not PocketBase directly.
+- API service calls PocketBase (`POCKETBASE_URL`).
 
 Current infrastructure check:
 
@@ -38,12 +38,12 @@ cp apps/mobile/.env.example apps/mobile/.env.local
 From repo root:
 
 ```bash
-pnpm --filter @fulbito/web dev
+pnpm --filter @fulbito/api dev
 pnpm --filter @fulbito/mobile dev
 ```
 
 If mobile cannot reach backend, check:
 
-1. Web API is reachable at `<EXPO_PUBLIC_API_BASE_URL>/api/auth/me` (expect `401` when logged out).
-2. `apps/web/.env.local` contains `POCKETBASE_URL` and `SESSION_SECRET`.
+1. API is reachable at `<EXPO_PUBLIC_API_BASE_URL>/api/auth/me` (expect `401` when logged out).
+2. API env contains `POCKETBASE_URL` and `SESSION_SECRET`.
 3. PocketBase health endpoint is `200`.
