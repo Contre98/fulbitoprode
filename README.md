@@ -23,7 +23,14 @@ pnpm run lint:api
 pnpm run typecheck:api
 pnpm run test:run
 pnpm run build:api
+pnpm run smoke:api:deployed
 ```
+
+Deployed smoke env vars:
+- `FULBITO_API_BASE_URL`
+- `SMOKE_EMAIL`
+- `SMOKE_PASSWORD`
+- optional: `FULBITO_HEALTHCHECK_TOKEN`, `SMOKE_GROUP_ID`, `SMOKE_PERIOD`
 
 ## Mobile Runtime Notes
 

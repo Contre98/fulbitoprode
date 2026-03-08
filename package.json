@@ -13,7 +13,8 @@
     "typecheck": "turbo run typecheck",
     "typecheck:api": "pnpm --filter @fulbito/api typecheck",
     "test": "turbo run test",
-    "test:run": "pnpm --filter @fulbito/api test"
+    "test:run": "pnpm --filter @fulbito/api test",
+    "smoke:api:deployed": "node ./apps/api/scripts/deployed-smoke.mjs"
   },
   "devDependencies": {
     "turbo": "^2.4.4"
