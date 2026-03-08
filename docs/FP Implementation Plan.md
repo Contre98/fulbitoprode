@@ -1,5 +1,7 @@
 Fulbito Prode — Implementation Plan
 
+Status note (2026-03-08): Architecture migration is complete. Runtime now uses `apps/api` + `apps/mobile`; `apps/web` has been decommissioned.
+
 0. Goal and principles
 
 This plan focuses on four outcomes:
