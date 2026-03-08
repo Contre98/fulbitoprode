@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, CalendarDays, Check, ChevronDown, ChevronLeft, ChevronRight, Moon, Settings, Sun, Trophy, X } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import { GlobalGroupSelector } from "@/components/layout/GlobalGroupSelector";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { useAuthSession } from "@/lib/use-auth-session";
 import { usePageBenchmark } from "@/lib/use-page-benchmark";
@@ -48,23 +49,7 @@ function teamBadgeText(name: string) {
   return words[0].charAt(0).toUpperCase();
 }
 
-function selectionLabel(option: SelectionOption | null) {
-  if (!option) {
-    return "Sin grupo activo";
-  }
-  return `${option.competitionName || option.leagueName} · ${option.groupName}`;
-}
-
-function parseScore(scoreLabel: string) {
-  const match = scoreLabel.match(/(\d+)\s*-\s*(\d+)/);
-  if (!match) return null;
-  return `${match[1]} - ${match[2]}`;
-}
-
 function parseTime(row: FixtureMatchRow) {
-  const byLabel = row.scoreLabel.match(/\b(\d{1,2}:\d{2})\b/);
-  if (byLabel) return byLabel[1];
-
   if (!row.kickoffAt) return "--:--";
   const kickoff = new Date(row.kickoffAt);
   if (!Number.isFinite(kickoff.getTime())) return "--:--";
@@ -218,7 +203,7 @@ function TeamLogo({
 }
 
 function FixtureScoreContent({ row }: { row: FixtureMatchRow }) {
-  const score = parseScore(row.scoreLabel);
+  const score = row.score ? `${row.score.home} - ${row.score.away}` : null;
 
   if (row.tone === "live") {
     return (
@@ -233,7 +218,7 @@ function FixtureScoreContent({ row }: { row: FixtureMatchRow }) {
     return (
       <div className="flex flex-col items-center">
         <span className="mb-0.5 block text-[10px] font-bold uppercase text-[var(--text-muted)]">FINAL</span>
-        <span className="text-sm font-black tracking-tighter text-[var(--text-primary)]">{score || "0 - 0"}</span>
+        <span className="text-xl leading-none font-black tracking-tight text-[var(--text-primary)]">{score || "0 - 0"}</span>
       </div>
     );
   }
@@ -258,7 +243,6 @@ export default function FixturePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
-  const [selectorOpen, setSelectorOpen] = useState(false);
   const fixtureCacheRef = useRef<Map<string, FixturePayload>>(new Map());
   const { loading: authLoading, authenticated, user, memberships, activeGroupId, setActiveGroupId } = useAuthSession();
   usePageBenchmark("fixture", loading);
@@ -437,14 +421,14 @@ export default function FixturePage() {
                 {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
               </button>
 
-              <button
-                type="button"
+              <Link
+                href="/notificaciones"
                 className="relative rounded-full bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-card-muted)]"
                 aria-label="Notificaciones"
               >
                 <Bell size={18} />
                 <span className="absolute right-2 top-2 h-2 w-2 rounded-full border border-[var(--surface-card)] bg-[var(--danger)]" />
-              </button>
+              </Link>
 
               <Link
                 href="/configuracion/ajustes"
@@ -469,88 +453,61 @@ export default function FixturePage() {
               <CalendarDays size={18} />
             </div>
             <h2 className="text-lg font-bold text-[var(--text-primary)]">Fixture</h2>
-            <span className="ml-auto text-sm font-medium text-[var(--text-muted)]">Partidos por fecha</span>
+            <div className="ml-auto flex items-center gap-2">
+              <span className="text-sm font-medium text-[var(--text-muted)]">Partidos por fecha</span>
+              <GlobalGroupSelector memberships={memberships} activeGroupId={activeGroupId} onSelectGroup={setActiveGroupId} />
+            </div>
           </div>
         </header>
 
         <main className="mt-6 no-scrollbar">
           <section className="space-y-4 px-4 pb-6 no-scrollbar">
-            {memberships.length > 0 ? (
-              <>
-                <div className="relative rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-2 shadow-sm">
-                  <p className="mb-1 ml-2 text-[10px] font-bold uppercase tracking-wide text-[var(--text-muted)]">SELECCION ACTUAL</p>
-                  <button
-                    type="button"
-                    onClick={() => setSelectorOpen(true)}
-                    className="w-full rounded-lg bg-[var(--surface-card-muted)] p-3 text-left transition-colors hover:bg-[var(--surface-card-muted)]"
-                    aria-label="Cambiar selección"
-                  >
-                    <span className="flex items-center justify-between">
-                      <span className="flex min-w-0 items-center gap-2 pr-2 text-sm font-bold text-[var(--text-primary)]">
-                        <Trophy size={16} className="flex-shrink-0 text-[var(--accent-primary)]" />
-                        <span className="truncate">{selectionLabel(currentSelection)}</span>
-                      </span>
-                      <ChevronDown size={16} className="flex-shrink-0 text-[var(--text-muted)]" />
-                    </span>
-                  </button>
-                </div>
+            <div className="flex items-center justify-between rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-2 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setPeriodIndex((value) => (value - 1 + Math.max(1, periods.length)) % Math.max(1, periods.length))}
+                aria-label="Fecha anterior"
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--surface-card-muted)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                disabled={periods.length === 0}
+              >
+                <ChevronLeft size={18} />
+              </button>
 
-                <div className="flex items-center justify-between rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-2 shadow-sm">
-                  <button
-                    type="button"
-                    onClick={() => setPeriodIndex((value) => (value - 1 + Math.max(1, periods.length)) % Math.max(1, periods.length))}
-                    aria-label="Fecha anterior"
-                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--surface-card-muted)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                    disabled={periods.length === 0}
-                  >
-                    <ChevronLeft size={18} />
-                  </button>
-
-                  <div className="text-center">
-                    <h3 className="text-base font-black text-[var(--accent-primary)]">{periodLabel}</h3>
-                    <p className="text-[10px] font-medium text-[var(--text-muted)]">{updatedLabel}</p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setPeriodIndex((value) => (value + 1) % Math.max(1, periods.length))}
-                    aria-label="Fecha siguiente"
-                    className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--surface-card-muted)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                    disabled={periods.length === 0}
-                  >
-                    <ChevronRight size={18} />
-                  </button>
-                </div>
-
-                <div className="w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-0.5 shadow-sm">
-                  <div className="grid grid-cols-4 gap-1">
-                    {(Object.keys(filterLabels) as FixtureFilter[]).map((key) => {
-                      const selected = filter === key;
-                      return (
-                        <button
-                          key={key}
-                          type="button"
-                          onClick={() => setFilter(key)}
-                          className={`h-7 w-full whitespace-nowrap rounded-lg px-2 text-[11px] font-bold ${
-                            selected ? "bg-[var(--accent-primary)] text-[var(--text-on-accent)]" : "text-[var(--text-secondary)] hover:bg-[var(--surface-card-muted)]"
-                          }`}
-                        >
-                          {filterLabels[key]}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 shadow-sm">
-                <p className="text-sm font-semibold text-[var(--text-primary)]">No tenés grupos activos.</p>
-                <p className="mt-1 text-xs text-[var(--text-secondary)]">Creá o uníte a un grupo para ver el fixture.</p>
-                <Link href="/configuracion" className="mt-3 inline-flex rounded-xl bg-[var(--accent-primary)] px-4 py-2 text-xs font-bold text-[var(--text-on-accent)]">
-                  Ir a grupos
-                </Link>
+              <div className="text-center">
+                <h3 className="text-base font-black text-[var(--accent-primary)]">{periodLabel}</h3>
+                <p className="text-[10px] font-medium text-[var(--text-muted)]">{updatedLabel}</p>
               </div>
-            )}
+
+              <button
+                type="button"
+                onClick={() => setPeriodIndex((value) => (value + 1) % Math.max(1, periods.length))}
+                aria-label="Fecha siguiente"
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--surface-card-muted)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                disabled={periods.length === 0}
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+
+            <div className="w-full rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-0.5 shadow-sm">
+              <div className="grid grid-cols-4 gap-1">
+                {(Object.keys(filterLabels) as FixtureFilter[]).map((key) => {
+                  const selected = filter === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setFilter(key)}
+                      className={`h-7 w-full whitespace-nowrap rounded-lg px-2 text-[11px] font-bold ${
+                        selected ? "bg-[var(--accent-primary)] text-[var(--text-on-accent)]" : "text-[var(--text-secondary)] hover:bg-[var(--surface-card-muted)]"
+                      }`}
+                    >
+                      {filterLabels[key]}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
             <div className={`space-y-4 transition-opacity ${loading ? "opacity-70" : "opacity-100"}`}>
               {loading
@@ -592,13 +549,6 @@ export default function FixturePage() {
           </section>
         </main>
 
-        <GroupSelectorModal
-          open={selectorOpen}
-          options={selectionOptions}
-          activeGroupId={currentSelection?.groupId || null}
-          onSelect={setActiveGroupId}
-          onClose={() => setSelectorOpen(false)}
-        />
       </div>
     </AppShell>
   );

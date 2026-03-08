@@ -3,7 +3,7 @@ import { canUseHttpSession, setUseHttpSession } from "@/repositories/authBridgeS
 import { httpAuthRepository } from "@/repositories/httpAuthRepository";
 import { httpFixtureRepository, httpLeaderboardRepository, httpPredictionsRepository } from "@/repositories/httpDataRepositories";
 import { mockAuthRepository } from "@/repositories/mockAuthRepository";
-import { mockFixtureRepository, mockLeaderboardRepository, mockPredictionsRepository } from "@/repositories/mockDataRepositories";
+import { mockLeaderboardRepository, mockPredictionsRepository } from "@/repositories/mockDataRepositories";
 import { clearFallbackFailure, reportFallbackFailure } from "@/repositories/fallbackDiagnostics";
 
 jest.mock("@/repositories/httpAuthRepository", () => ({
@@ -11,6 +11,7 @@ jest.mock("@/repositories/httpAuthRepository", () => ({
     getSession: jest.fn(),
     loginWithPassword: jest.fn(),
     registerWithPassword: jest.fn(),
+    requestPasswordReset: jest.fn(),
     logout: jest.fn()
   }
 }));
@@ -24,7 +25,8 @@ jest.mock("@/repositories/httpDataRepositories", () => ({
     listFixture: jest.fn()
   },
   httpLeaderboardRepository: {
-    getLeaderboard: jest.fn()
+    getLeaderboard: jest.fn(),
+    getLeaderboardPayload: jest.fn()
   },
   httpGroupsRepository: {
     listGroups: jest.fn(),
@@ -39,6 +41,7 @@ jest.mock("@/repositories/mockAuthRepository", () => ({
     getSession: jest.fn(),
     loginWithPassword: jest.fn(),
     registerWithPassword: jest.fn(),
+    requestPasswordReset: jest.fn(),
     logout: jest.fn()
   }
 }));
@@ -48,11 +51,9 @@ jest.mock("@/repositories/mockDataRepositories", () => ({
     listPredictions: jest.fn(),
     savePrediction: jest.fn()
   },
-  mockFixtureRepository: {
-    listFixture: jest.fn()
-  },
   mockLeaderboardRepository: {
-    getLeaderboard: jest.fn()
+    getLeaderboard: jest.fn(),
+    getLeaderboardPayload: jest.fn()
   },
   mockGroupsRepository: {
     listGroups: jest.fn(),
@@ -85,25 +86,35 @@ const mockedHttpFixture = httpFixtureRepository as unknown as {
 };
 const mockedHttpLeaderboard = httpLeaderboardRepository as unknown as {
   getLeaderboard: jest.Mock;
+  getLeaderboardPayload: jest.Mock;
 };
 
 const mockedMockPredictions = mockPredictionsRepository as unknown as {
   listPredictions: jest.Mock;
 };
-const mockedMockFixture = mockFixtureRepository as unknown as {
-  listFixture: jest.Mock;
-};
 const mockedMockLeaderboard = mockLeaderboardRepository as unknown as {
   getLeaderboard: jest.Mock;
+  getLeaderboardPayload: jest.Mock;
 };
 
 const mockedClearFallback = clearFallbackFailure as unknown as jest.Mock;
 const mockedReportFallback = reportFallbackFailure as unknown as jest.Mock;
 
 describe("Repository fallback transitions", () => {
+  const originalMockFallbackFlag = process.env.EXPO_PUBLIC_ENABLE_MOCK_FALLBACK;
+
   beforeEach(() => {
     jest.clearAllMocks();
     setUseHttpSession(false);
+    process.env.EXPO_PUBLIC_ENABLE_MOCK_FALLBACK = "true";
+  });
+
+  afterAll(() => {
+    if (originalMockFallbackFlag === undefined) {
+      delete process.env.EXPO_PUBLIC_ENABLE_MOCK_FALLBACK;
+      return;
+    }
+    process.env.EXPO_PUBLIC_ENABLE_MOCK_FALLBACK = originalMockFallbackFlag;
   });
 
   it("keeps HTTP mode on successful auth session fetch", async () => {
@@ -180,25 +191,14 @@ describe("Repository fallback transitions", () => {
     expect(mockedMockAuth.logout).toHaveBeenCalledTimes(1);
   });
 
-  it("falls back to mock fixture rows when HTTP fixture payload handling throws", async () => {
+  it("surfaces fixture HTTP payload errors without mock fallback", async () => {
     const fallbackError = new Error("malformed fixture payload");
-    const fallbackRows = [
-      {
-        id: "fx-mock-1",
-        homeTeam: "Mock Home",
-        awayTeam: "Mock Away",
-        kickoffAt: "2026-03-07T00:00:00.000Z",
-        status: "upcoming"
-      }
-    ];
     setUseHttpSession(true);
     mockedHttpFixture.listFixture.mockRejectedValueOnce(fallbackError);
-    mockedMockFixture.listFixture.mockResolvedValueOnce(fallbackRows);
 
-    const result = await fixtureRepository.listFixture({ groupId: "g-1", fecha: "3" });
-
-    expect(result).toEqual(fallbackRows);
+    await expect(fixtureRepository.listFixture({ groupId: "g-1", fecha: "3" })).rejects.toThrow("malformed fixture payload");
     expect(mockedReportFallback).toHaveBeenCalledWith("fixture.listFixture", fallbackError);
+    expect(mockedClearFallback).not.toHaveBeenCalled();
   });
 
   it("falls back to mock leaderboard rows when HTTP leaderboard payload handling throws", async () => {
@@ -212,5 +212,49 @@ describe("Repository fallback transitions", () => {
 
     expect(result).toEqual(fallbackRows);
     expect(mockedReportFallback).toHaveBeenCalledWith("leaderboard.getLeaderboard", fallbackError);
+  });
+
+  it("falls back to mock leaderboard stats payload when HTTP payload request fails", async () => {
+    const fallbackError = new Error("leaderboard stats unavailable");
+    const fallbackPayload = {
+      groupLabel: "Grupo Mock",
+      mode: "stats",
+      period: "global",
+      periodLabel: "Global acumulado",
+      updatedAt: "2026-03-08T00:00:00.000Z",
+      rows: [],
+      groupStats: null,
+      stats: {
+        summary: {
+          memberCount: 1,
+          scoredPredictions: 0,
+          correctPredictions: 0,
+          exactPredictions: 0,
+          resultPredictions: 0,
+          missPredictions: 0,
+          accuracyPct: 0,
+          totalPoints: 0,
+          averageMemberPoints: 0,
+          bestRound: null,
+          worstRound: null,
+          worldBenchmark: null
+        },
+        awards: [],
+        historicalSeries: []
+      }
+    };
+
+    setUseHttpSession(true);
+    mockedHttpLeaderboard.getLeaderboardPayload.mockRejectedValueOnce(fallbackError);
+    mockedMockLeaderboard.getLeaderboardPayload.mockResolvedValueOnce(fallbackPayload);
+
+    const result = await leaderboardRepository.getLeaderboardPayload({
+      groupId: "g-1",
+      fecha: "global",
+      mode: "stats"
+    });
+
+    expect(result).toEqual(fallbackPayload);
+    expect(mockedReportFallback).toHaveBeenCalledWith("leaderboard.getLeaderboardPayload", fallbackError);
   });
 });

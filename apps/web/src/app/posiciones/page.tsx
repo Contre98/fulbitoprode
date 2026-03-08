@@ -27,7 +27,9 @@ import {
   Zap,
   type LucideIcon,
 } from "lucide-react";
+import type { Membership } from "@fulbito/domain";
 import { AppShell } from "@/components/layout/AppShell";
+import { GlobalGroupSelector } from "@/components/layout/GlobalGroupSelector";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { useAuthSession } from "@/lib/use-auth-session";
 import { usePageBenchmark } from "@/lib/use-page-benchmark";
@@ -39,8 +41,6 @@ interface PeriodOption {
   id: string;
   label: string;
 }
-
-const MODE_STORAGE_KEY = "fulbito.leaderboard.mode";
 
 interface PeriodSnapshot {
   period: string;
@@ -227,11 +227,17 @@ function GroupSelectorModal({
 function PosicionesHeader({
   userName,
   theme,
-  onToggleTheme
+  onToggleTheme,
+  memberships,
+  activeGroupId,
+  onSelectGroup
 }: {
   userName: string;
   theme: "dark" | "light";
   onToggleTheme: () => void;
+  memberships: Membership[];
+  activeGroupId: string | null;
+  onSelectGroup: (groupId: string) => void;
 }) {
   return (
     <header className="px-5 pt-12 pb-6 bg-[var(--surface-card)] shadow-sm rounded-b-3xl z-10 sticky top-0">
@@ -255,10 +261,10 @@ function PosicionesHeader({
           >
             {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           </button>
-          <button type="button" className="p-2 rounded-full bg-[var(--surface-card-muted)] hover:bg-[var(--surface-card-muted)] text-[var(--text-secondary)] transition-colors relative" aria-label="Notificaciones">
+          <Link href="/notificaciones" className="p-2 rounded-full bg-[var(--surface-card-muted)] hover:bg-[var(--surface-card-muted)] text-[var(--text-secondary)] transition-colors relative" aria-label="Notificaciones">
             <Bell size={18} />
             <span className="absolute top-2 right-2 w-2 h-2 bg-[var(--danger)] rounded-full border border-[var(--surface-card)]"></span>
-          </button>
+          </Link>
           <Link href="/configuracion/ajustes" className="p-2 rounded-full bg-[var(--surface-card-muted)] hover:bg-[var(--surface-card-muted)] text-[var(--text-secondary)] transition-colors" aria-label="Configuración">
             <Settings size={18} />
           </Link>
@@ -273,7 +279,10 @@ function PosicionesHeader({
           <List size={18} />
         </div>
         <h2 className="text-lg font-bold text-[var(--text-primary)]">Posiciones</h2>
-        <span className="text-sm text-[var(--text-muted)] font-medium ml-auto">Rendimiento del grupo</span>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-sm font-medium text-[var(--text-muted)]">Rendimiento del grupo</span>
+          <GlobalGroupSelector memberships={memberships} activeGroupId={activeGroupId} onSelectGroup={onSelectGroup} />
+        </div>
       </div>
     </header>
   );
@@ -290,7 +299,6 @@ export default function PosicionesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [payload, setPayload] = useState<LeaderboardPayload | null>(null);
-  const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const [statsPeriodSnapshots, setStatsPeriodSnapshots] = useState<PeriodSnapshot[]>([]);
   const [statsInsightsLoading, setStatsInsightsLoading] = useState(false);
   const [expandedAwardId, setExpandedAwardId] = useState<string | null>("nostradamus");
@@ -300,19 +308,6 @@ export default function PosicionesPage() {
 
   const { loading: authLoading, authenticated, user, memberships, activeGroupId, setActiveGroupId } = useAuthSession();
   usePageBenchmark("posiciones", loading);
-
-  useEffect(() => {
-    const stored = typeof window !== "undefined" ? window.localStorage.getItem(MODE_STORAGE_KEY) : null;
-    if (stored === "stats" || stored === "posiciones") {
-      setMode(stored);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(MODE_STORAGE_KEY, mode);
-    }
-  }, [mode]);
 
   useEffect(() => {
     if (mode === "stats" && periodIndex !== 0) {
@@ -571,7 +566,6 @@ export default function PosicionesPage() {
   const totalPoints = payload?.groupStats?.totalPoints ?? 1240;
   const totalPointsLabel = String(totalPoints);
   const cycleModeLabel = payload?.periodLabel ?? periodOptions[periodIndex]?.label ?? "Global acumulado";
-  const activeSelectionLogo = selectionLogoDataUrl(activeSelection);
 
   const statsAwards = useMemo<AwardCardViewModel[]>(() => {
     const metricsByUser = new Map<string, UserStatsSnapshot>();
@@ -843,42 +837,18 @@ export default function PosicionesPage() {
   return (
     <AppShell activeTab="posiciones" showTopGlow={false}>
       <div className="min-h-full bg-[var(--surface-card-muted)]">
-        <PosicionesHeader userName={user?.name || "Facundo Contreras"} theme={theme} onToggleTheme={toggleTheme} />
+        <PosicionesHeader
+          userName={user?.name || "Facundo Contreras"}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          memberships={memberships}
+          activeGroupId={activeGroupId}
+          onSelectGroup={setActiveGroupId}
+        />
 
         <section className="mt-6 space-y-4 px-4 pb-6 no-scrollbar">
-          {memberships.length === 0 ? (
-            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 shadow-sm">
-              <p className="text-sm font-semibold text-[var(--text-primary)]">No tenés grupos activos.</p>
-              <p className="mt-1 text-xs text-[var(--text-secondary)]">Creá o uníte a un grupo para ver las posiciones.</p>
-              <Link href="/configuracion" className="mt-3 inline-flex rounded-xl bg-[var(--accent-primary)] px-4 py-2 text-xs font-bold text-[var(--text-on-accent)]">
-                Ir a grupos
-              </Link>
-            </div>
-          ) : null}
-
           {memberships.length > 0 ? (
             <>
-              <div className="bg-[var(--surface-card)] p-2 rounded-xl border border-[var(--border-subtle)] shadow-sm relative">
-                <p className="text-[10px] font-bold text-[var(--text-muted)] uppercase tracking-wide ml-2 mb-1">SELECCION ACTUAL</p>
-                <button
-                  type="button"
-                  onClick={() => setIsSelectorOpen(true)}
-                  className="w-full bg-[var(--surface-card-muted)] rounded-lg p-3 flex items-center justify-between hover:bg-[var(--surface-card-muted)] transition-colors text-left"
-                >
-                  <div className="flex items-center gap-2 text-[var(--text-primary)] font-bold text-sm truncate pr-2">
-                    {activeSelectionLogo ? (
-                      <img src={activeSelectionLogo} alt={`${activeSelection?.groupName || "Grupo"} logo`} className="h-4 w-4 object-contain flex-shrink-0" />
-                    ) : (
-                      <Trophy size={16} className="text-[var(--accent-primary)] flex-shrink-0" />
-                    )}
-                    <span className="truncate">
-                      {competitionLabel(activeSelection)} · {activeSelection?.groupName || "Sin grupo"}
-                    </span>
-                  </div>
-                  <ChevronDown size={16} className="text-[var(--text-muted)] flex-shrink-0" />
-                </button>
-              </div>
-
               <div className="bg-[var(--surface-card-muted)] p-1 rounded-xl flex font-bold text-sm">
                 <button
                   type="button"
@@ -1061,15 +1031,6 @@ export default function PosicionesPage() {
           ) : null}
         </section>
       </div>
-
-      {isSelectorOpen ? (
-        <GroupSelectorModal
-          activeGroupId={activeSelection?.groupId || null}
-          options={selectionOptions}
-          onSelect={setActiveGroupId}
-          onClose={() => setIsSelectorOpen(false)}
-        />
-      ) : null}
     </AppShell>
   );
 }

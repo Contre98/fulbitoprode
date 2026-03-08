@@ -7,8 +7,9 @@ import {
   mapFixturesToPronosticosMatches,
   resolveDefaultFecha
 } from "@/lib/liga-live-provider";
+import { getApiSession, unauthorizedJson } from "@/lib/api-session";
 import { listGroupMembersForGroups, listGroupPredictionsForGroups, listGroupsForUser } from "@/lib/m3-repo";
-import { getSessionPocketBaseTokenFromRequest, getSessionUserIdFromRequest } from "@/lib/request-auth";
+import { logServerEvent } from "@/lib/observability";
 import type { GroupCard, HomePayload } from "@/lib/types";
 
 const HOME_SCOREMAP_TTL_MS = 120_000;
@@ -87,6 +88,67 @@ function toRankedRows(params: {
     }));
 }
 
+function toWeeklyWinnerSummary(params: {
+  period: string;
+  periodLabel: string;
+  members: Array<{ userId: string; name: string }>;
+  predictions: Array<{
+    userId: string;
+    fixtureId: string;
+    home: number | null;
+    away: number | null;
+  }>;
+  fixtureIds: Set<string>;
+  scoreMap: Map<string, { home: number; away: number }>;
+}) {
+  const pointsByUser = new Map<string, { name: string; points: number }>();
+  params.members.forEach((member) => {
+    pointsByUser.set(member.userId, {
+      name: member.name,
+      points: 0
+    });
+  });
+
+  params.predictions.forEach((prediction) => {
+    if (!params.fixtureIds.has(prediction.fixtureId)) {
+      return;
+    }
+    if (prediction.home === null || prediction.away === null) {
+      return;
+    }
+    const score = params.scoreMap.get(prediction.fixtureId);
+    if (!score) {
+      return;
+    }
+    const row = pointsByUser.get(prediction.userId);
+    if (!row) {
+      return;
+    }
+    row.points += calculatePredictionPoints(
+      {
+        home: prediction.home,
+        away: prediction.away
+      },
+      score
+    );
+  });
+
+  const ordered = [...pointsByUser.values()].sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
+  if (ordered.length === 0 || ordered[0].points <= 0) {
+    return null;
+  }
+
+  const topPoints = ordered[0].points;
+  const winners = ordered.filter((row) => row.points === topPoints);
+  return {
+    period: params.period,
+    periodLabel: params.periodLabel,
+    winnerName: winners[0].name,
+    points: topPoints,
+    tied: winners.length > 1 ? true : undefined
+  };
+}
+
 async function buildScoreMap(input: {
   periods: string[];
   leagueId: number;
@@ -130,11 +192,12 @@ async function buildScoreMap(input: {
 }
 
 export async function GET(request: Request) {
-  const userId = getSessionUserIdFromRequest(request);
-  const pbToken = getSessionPocketBaseTokenFromRequest(request);
-  if (!userId || !pbToken) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const session = getApiSession(request);
+  if (!session) {
+    return unauthorizedJson();
   }
+  const userId = session.userId;
+  const pbToken = session.pbToken;
 
   const { searchParams } = new URL(request.url);
   const selectedGroupId = searchParams.get("groupId")?.trim() || null;
@@ -290,6 +353,17 @@ export async function GET(request: Request) {
   const selectedCard = groupCards.find((card) => card.id === selected.group.id);
   const parsedRank = selectedCard?.rank ? Number(selectedCard.rank.replace(/[^0-9]/g, "")) : null;
   const parsedPoints = selectedCard?.points ? Number(selectedCard.points) : null;
+  const selectedMembers = membersByGroup[selected.group.id] || [];
+  const selectedCompetitionKey = `${selected.group.leagueId}:${selected.group.season}:${selected.group.competitionStage || "general"}`;
+  const selectedScoreMap = scoreMapByCompetition.get(selectedCompetitionKey) || new Map<string, { home: number; away: number }>();
+  const weeklyWinner = toWeeklyWinnerSummary({
+    period: livePeriod,
+    periodLabel: livePeriod ? (livePeriod.toLowerCase().includes("fecha") ? livePeriod : `Fecha ${livePeriod}`) : "Última fecha",
+    members: selectedMembers.map((member) => ({ userId: member.userId, name: member.name })),
+    predictions: selectedPredictions,
+    fixtureIds: new Set(selectedPeriodMatches.map((match) => match.id)),
+    scoreMap: selectedScoreMap
+  });
 
   const payload: HomePayload = {
     groupCards,
@@ -299,9 +373,16 @@ export async function GET(request: Request) {
       pendingPredictions,
       liveMatches: selectedPeriodMatches.filter((match) => match.status === "live").length,
       myRank: parsedRank && Number.isFinite(parsedRank) ? parsedRank : undefined,
-      myPoints: parsedPoints && Number.isFinite(parsedPoints) ? parsedPoints : 0
+      myPoints: parsedPoints && Number.isFinite(parsedPoints) ? parsedPoints : 0,
+      weeklyWinner
     }
   };
+
+  logServerEvent("home.payload.served", {
+    userId,
+    groupId: selected.group.id,
+    liveMatches: payload.summary?.liveMatches ?? 0
+  });
 
   return NextResponse.json(payload, { status: 200 });
 }

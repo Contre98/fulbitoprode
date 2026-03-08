@@ -46,6 +46,6 @@ describe("Home screen smoke", () => {
     expect(screen.getByText("Posiciones")).toBeInTheDocument();
     expect(screen.getByText("Pronósticos")).toBeInTheDocument();
     expect(screen.getByText("Fixture")).toBeInTheDocument();
-    expect(screen.getByText("Grupos")).toBeInTheDocument();
+    expect(screen.queryByText("Grupos")).not.toBeInTheDocument();
   });
 });

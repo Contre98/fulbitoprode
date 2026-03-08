@@ -14,7 +14,7 @@ interface ThemeContextValue {
 const STORAGE_KEY = "fulbito.theme";
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 const fallbackThemeContext: ThemeContextValue = {
-  theme: "dark",
+  theme: "light",
   toggleTheme: () => {
     // No-op fallback for isolated renders (e.g. tests without app providers).
   },
@@ -25,7 +25,7 @@ const fallbackThemeContext: ThemeContextValue = {
 
 function resolveInitialTheme(): Theme {
   if (typeof window === "undefined") {
-    return "dark";
+    return "light";
   }
 
   const stored = window.localStorage.getItem(STORAGE_KEY);
@@ -33,11 +33,11 @@ function resolveInitialTheme(): Theme {
     return stored;
   }
 
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return "light";
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("dark");
+  const [theme, setThemeState] = useState<Theme>("light");
 
   useEffect(() => {
     setThemeState(resolveInitialTheme());

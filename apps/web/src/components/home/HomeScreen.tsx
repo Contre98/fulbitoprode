@@ -2,24 +2,32 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, Bell, Clock, Home, Moon, Settings, Shield, Sun, TrendingUp, Trophy } from "lucide-react";
+import { Activity, Clock, Home, Moon, Settings, Sun, TrendingUp, Trophy } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import { GlobalGroupSelector } from "@/components/layout/GlobalGroupSelector";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { useAuthSession } from "@/lib/use-auth-session";
+import { trackClientEvent } from "@/lib/observability";
 import { usePageBenchmark } from "@/lib/use-page-benchmark";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useTheme } from "@/lib/use-theme";
-import type { FixtureDateCard as FixtureDateCardType, FixtureScoreTone, GroupCard } from "@/lib/types";
+import type { FixtureDateCard as FixtureDateCardType, FixtureScoreTone } from "@/lib/types";
 
 interface HomeSummary {
   pendingPredictions?: number;
   liveMatches?: number;
   myRank?: number;
   myPoints?: number;
+  weeklyWinner?: {
+    period: string;
+    periodLabel: string;
+    winnerName: string;
+    points: number;
+    tied?: boolean;
+  } | null;
 }
 
 interface HomePayload {
-  groupCards: GroupCard[];
   liveCards: FixtureDateCardType[];
   updatedAt: string;
   summary?: HomeSummary;
@@ -47,23 +55,6 @@ const HOME_FILTERS: Array<{ id: HomeFilter; label: string }> = [
   { id: "en vivo", label: "En vivo" },
   { id: "próximos", label: "Próximos" }
 ];
-
-function groupSeasonLabel(subtitle: string) {
-  const match = subtitle.match(/TEMP\s*\d{4}/i);
-  return match ? match[0].toUpperCase() : "TEMP 2026";
-}
-
-function parseScore(scoreLabel: string) {
-  const match = scoreLabel.match(/(\d+)\s*-\s*(\d+)/);
-  if (!match) {
-    return null;
-  }
-
-  return {
-    home: Number(match[1]),
-    away: Number(match[2])
-  };
-}
 
 function kickoffDayLabel(kickoffAt?: string) {
   if (!kickoffAt) {
@@ -119,8 +110,8 @@ function statusFromTone(tone: FixtureScoreTone): HomeMatchStatus {
 }
 
 function statusOrder(status: HomeMatchStatus) {
-  if (status === "upcoming") return 0;
-  if (status === "live") return 1;
+  if (status === "live") return 0;
+  if (status === "upcoming") return 1;
   return 2;
 }
 
@@ -129,8 +120,7 @@ function toHomeMatches(cards: FixtureDateCardType[]) {
     .flatMap((card) =>
       card.rows.map((row, index) => {
         const status = statusFromTone(row.tone);
-        const parsedScore = parseScore(row.scoreLabel);
-        const info = status === "upcoming" ? kickoffDayLabel(row.kickoffAt) : parsedScore ? `${parsedScore.home} - ${parsedScore.away}` : "0 - 0";
+        const info = status === "upcoming" ? kickoffDayLabel(row.kickoffAt) : row.score ? `${row.score.home} - ${row.score.away}` : "0 - 0";
         const subInfo = status === "upcoming" ? kickoffTimeLabel(row.kickoffAt) : status === "live" ? row.statusDetail || "EN VIVO" : "Final";
 
         return {
@@ -199,11 +189,17 @@ function teamBadgeText(name: string) {
 function HomeTopHeader({
   userName,
   theme,
-  onToggleTheme
+  onToggleTheme,
+  memberships,
+  activeGroupId,
+  onSelectGroup
 }: {
   userName: string;
   theme: "dark" | "light";
   onToggleTheme: () => void;
+  memberships: ReturnType<typeof useAuthSession>["memberships"];
+  activeGroupId: string | null;
+  onSelectGroup: (groupId: string) => void;
 }) {
   return (
     <header className="sticky top-0 z-10 rounded-b-3xl bg-[var(--surface-card)] px-5 pt-12 pb-6 shadow-sm">
@@ -227,14 +223,6 @@ function HomeTopHeader({
           >
             {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           </button>
-          <button
-            type="button"
-            className="relative rounded-full bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-card-muted)]"
-            aria-label="Notificaciones"
-          >
-            <Bell size={18} />
-            <span className="absolute right-2 top-2 h-2 w-2 rounded-full border border-[var(--surface-card)] bg-[var(--danger)]" />
-          </button>
           <Link
             href="/configuracion/ajustes"
             className="rounded-full bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-card-muted)]"
@@ -257,7 +245,10 @@ function HomeTopHeader({
           <Home size={18} />
         </div>
         <h2 className="text-lg font-bold text-[var(--text-primary)]">Inicio</h2>
-        <span className="ml-auto text-sm font-medium text-[var(--text-muted)]">Tablero general</span>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-sm font-medium text-[var(--text-muted)]">Tablero general</span>
+          <GlobalGroupSelector memberships={memberships} activeGroupId={activeGroupId} onSelectGroup={onSelectGroup} />
+        </div>
       </div>
     </header>
   );
@@ -294,7 +285,6 @@ export function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<HomeFilter>("todos");
-  const [groupCards, setGroupCards] = useState<GroupCard[]>([]);
   const [liveCards, setLiveCards] = useState<FixtureDateCardType[]>([]);
   const [summary, setSummary] = useState<HomeSummary | null>(null);
   const homeCacheRef = useRef<Map<string, HomePayload>>(new Map());
@@ -305,7 +295,6 @@ export function HomeScreen() {
 
   useEffect(() => {
     if (memberships.length === 0) {
-      setGroupCards([]);
       setLiveCards([]);
       setSummary(null);
       setLoading(false);
@@ -317,7 +306,6 @@ export function HomeScreen() {
     if (cached) {
       setError(null);
       setLoading(false);
-      setGroupCards(cached.groupCards);
       setLiveCards(cached.liveCards);
       setSummary(cached.summary ?? null);
       return;
@@ -345,14 +333,12 @@ export function HomeScreen() {
         }
 
         homeCacheRef.current.set(targetGroupId, payload);
-        setGroupCards(payload.groupCards);
         setLiveCards(payload.liveCards);
         setSummary(payload.summary ?? null);
       } catch (fetchError) {
         if (!cancelled) {
           const message = fetchError instanceof Error ? fetchError.message : "No se pudieron cargar los datos de inicio.";
           setError(message);
-          setGroupCards([]);
           setLiveCards([]);
           setSummary(null);
           showToast({ title: "Error al cargar Inicio", description: message, tone: "error" });
@@ -373,51 +359,43 @@ export function HomeScreen() {
 
   const matches = useMemo(() => toHomeMatches(liveCards), [liveCards]);
   const visibleMatches = useMemo(() => filteredMatches(matches, filter), [matches, filter]);
+  const weeklyWinner = summary?.weeklyWinner ?? null;
+
+  async function shareWeeklyWinner() {
+    if (!weeklyWinner) {
+      return;
+    }
+    const text = `Ganador ${weeklyWinner.periodLabel}: ${weeklyWinner.winnerName} con ${weeklyWinner.points} pts en Fulbito Prode.`;
+    try {
+      if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+        await navigator.share({
+          title: "Fulbito Prode",
+          text
+        });
+        trackClientEvent("home.weekly-winner.shared", { mode: "native" });
+      } else if (typeof navigator !== "undefined" && navigator.clipboard) {
+        await navigator.clipboard.writeText(text);
+        showToast({ title: "Resultado copiado", description: "Ya podés compartirlo.", tone: "success" });
+        trackClientEvent("home.weekly-winner.shared", { mode: "clipboard" });
+      }
+    } catch {
+      // Ignore user-cancelled share flow.
+    }
+  }
 
   return (
     <AppShell activeTab="inicio" showTopGlow={false}>
       <div className="min-h-full bg-[var(--surface-card-muted)]">
-        <HomeTopHeader userName={user?.name || "Facundo Contreras"} theme={theme} onToggleTheme={toggleTheme} />
+        <HomeTopHeader
+          userName={user?.name || "Facundo Contreras"}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          memberships={memberships}
+          activeGroupId={activeGroupId}
+          onSelectGroup={setActiveGroupId}
+        />
 
         <main className="mt-6 space-y-4 no-scrollbar">
-          {memberships.length > 0 ? (
-            <div className="flex gap-4 overflow-x-auto px-4 no-scrollbar">
-              {groupCards.map((group) => (
-                <button
-                  key={group.id}
-                  type="button"
-                  onClick={() => setActiveGroupId(group.id)}
-                  className="relative flex min-w-[280px] flex-col justify-between overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 text-left shadow-sm"
-                >
-                  <div className="pointer-events-none absolute -right-4 -top-4 h-20 w-20 rounded-full bg-[var(--accent-soft)] opacity-50 blur-xl" />
-                  <div className="mb-3 flex items-start justify-between">
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-muted)]">{groupSeasonLabel(group.subtitle)}</span>
-                      <h3 className="text-lg font-bold text-[var(--text-primary)]">{group.title}</h3>
-                    </div>
-                    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-card-muted)] p-1.5">
-                      <Shield size={16} className="text-[var(--text-muted)]" />
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3">
-                    <div className="flex-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card-muted)] p-2.5">
-                      <p className="mb-0.5 text-[10px] font-semibold text-[var(--text-muted)]">RANKING</p>
-                      <p className="text-2xl font-black tracking-tighter text-[var(--text-primary)]">{group.rank || "--"}</p>
-                    </div>
-                    <div className="flex-1 rounded-xl border border-[var(--accent-primary)] bg-[var(--accent-soft)] p-2.5">
-                      <p className="mb-0.5 text-[10px] font-semibold text-[var(--accent-primary)]">PUNTOS</p>
-                      <div className="flex items-baseline gap-1">
-                        <p className="text-2xl font-black tracking-tighter text-[var(--accent-primary)]">{group.points || "0"}</p>
-                        <Trophy size={12} className="mb-1 text-[var(--accent-primary)]" />
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          ) : null}
-
           {memberships.length > 0 ? (
             <div className="flex gap-2 px-4 no-scrollbar">
               <div className="flex h-20 flex-1 flex-col items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-2.5 text-center shadow-sm">
@@ -442,6 +420,27 @@ export function HomeScreen() {
                   <span className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-muted)]">EN VIVO</span>
                 </div>
                 <p className={`text-xl leading-none font-black tracking-tighter ${summary?.liveMatches ? "animate-pulse text-[var(--danger)]" : "text-[var(--text-primary)]"}`}>{summary?.liveMatches ?? 0}</p>
+              </div>
+            </div>
+          ) : null}
+
+          {weeklyWinner ? (
+            <div className="px-4">
+              <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-bold tracking-wider text-[var(--text-muted)] uppercase">Ganador semanal</p>
+                    <p className="mt-1 text-base font-black text-[var(--text-primary)]">{weeklyWinner.periodLabel}: {weeklyWinner.winnerName}</p>
+                    <p className="mt-1 text-xs font-medium text-[var(--text-secondary)]">{weeklyWinner.points} pts {weeklyWinner.tied ? "· empate" : ""}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => void shareWeeklyWinner()}
+                    className="rounded-lg bg-[var(--accent-soft)] px-3 py-2 text-[11px] font-bold text-[var(--accent-primary)]"
+                  >
+                    Compartir
+                  </button>
+                </div>
               </div>
             </div>
           ) : null}
@@ -475,7 +474,12 @@ export function HomeScreen() {
               {loading
                 ? Array.from({ length: 3 }).map((_, index) => <SkeletonBlock key={`home-skeleton-${index}`} className="h-[160px] w-full rounded-2xl" />)
                 : visibleMatches.map((match) => (
-                    <div key={match.id} className="overflow-hidden rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] shadow-sm">
+                    <div
+                      key={match.id}
+                      className={`overflow-hidden rounded-2xl border bg-[var(--surface-card)] shadow-sm ${
+                        match.isLive ? "animate-pulse border-[var(--danger)] shadow-[0_0_0_1px_var(--danger)]" : "border-[var(--border-subtle)]"
+                      }`}
+                    >
                       <div className="p-5">
                         <div className="mb-4 flex items-center justify-between">
                           <div className="flex w-1/3 flex-col items-center">
@@ -527,18 +531,6 @@ export function HomeScreen() {
               <p className="rounded-xl border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 py-2 text-xs font-medium text-[var(--danger)]">{error}</p>
             ) : null}
           </div>
-
-          {memberships.length === 0 ? (
-            <div className="px-4 pb-4">
-              <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 shadow-sm">
-                <p className="text-sm font-semibold text-[var(--text-primary)]">No tenés grupos activos.</p>
-                <p className="mt-1 text-xs text-[var(--text-secondary)]">Creá o uníte a un grupo para empezar.</p>
-                <Link href="/configuracion" className="mt-3 inline-flex rounded-xl bg-[var(--accent-primary)] px-4 py-2 text-xs font-bold text-[var(--text-on-accent)]">
-                  Ir a grupos
-                </Link>
-              </div>
-            </div>
-          ) : null}
         </main>
       </div>
     </AppShell>

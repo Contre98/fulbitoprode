@@ -5,6 +5,7 @@ const mockUserId: string | null = "u1";
 const mockPbToken: string | null = "pb-token";
 const listGroupsForUserMock = vi.fn();
 const listGroupPredictionsForGroupsMock = vi.fn();
+const listGroupMembersForGroupsMock = vi.fn();
 const fetchLigaArgentinaFixturesMock = vi.fn();
 
 vi.mock("@/lib/request-auth", () => ({
@@ -14,7 +15,8 @@ vi.mock("@/lib/request-auth", () => ({
 
 vi.mock("@/lib/m3-repo", () => ({
   listGroupsForUser: (...args: unknown[]) => listGroupsForUserMock(...args),
-  listGroupPredictionsForGroups: (...args: unknown[]) => listGroupPredictionsForGroupsMock(...args)
+  listGroupPredictionsForGroups: (...args: unknown[]) => listGroupPredictionsForGroupsMock(...args),
+  listGroupMembersForGroups: (...args: unknown[]) => listGroupMembersForGroupsMock(...args)
 }));
 
 vi.mock("@/lib/liga-live-provider", () => ({
@@ -84,6 +86,13 @@ describe("GET /api/profile", () => {
         }
       ]
     });
+    listGroupMembersForGroupsMock.mockResolvedValueOnce({
+      g1: [{ userId: "u1", name: "Ana" }],
+      g2: [
+        { userId: "u1", name: "Ana" },
+        { userId: "u2", name: "Beto" }
+      ]
+    });
 
     fetchLigaArgentinaFixturesMock.mockResolvedValueOnce([
       {
@@ -108,6 +117,9 @@ describe("GET /api/profile", () => {
     const payload = (await response.json()) as {
       stats: { totalPoints: number; accuracyPct: number; groups: number };
       recentActivity: Array<{ label: string; type: string }>;
+      performance?: { exactHitRatePct: number };
+      achievements?: Array<{ id: string }>;
+      rankHistory?: Array<{ period: string; rank: number }>;
     };
 
     expect(payload.stats.totalPoints).toBe(3);
@@ -115,5 +127,8 @@ describe("GET /api/profile", () => {
     expect(payload.stats.groups).toBe(2);
     expect(payload.recentActivity.some((item) => item.label.includes("Pronóstico: Boca vs River"))).toBe(true);
     expect(payload.recentActivity.some((item) => item.label.includes("Te uniste a Los Galácticos"))).toBe(true);
+    expect(payload.performance?.exactHitRatePct).toBeDefined();
+    expect(Array.isArray(payload.achievements)).toBe(true);
+    expect(Array.isArray(payload.rankHistory)).toBe(true);
   });
 });

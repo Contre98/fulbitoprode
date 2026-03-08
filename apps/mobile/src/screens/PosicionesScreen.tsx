@@ -6,6 +6,7 @@ import { leaderboardRepository } from "@/repositories";
 import { useGroupSelection } from "@/state/GroupContext";
 import { usePeriod } from "@/state/PeriodContext";
 import { ScreenFrame } from "@/components/ScreenFrame";
+import { HeaderGroupSelector } from "@/components/HeaderGroupSelector";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
@@ -13,13 +14,15 @@ import { BrandBadgeIcon } from "@/components/BrandBadgeIcon";
 
 type PosicionesMode = "positions" | "stats";
 
-const rewardRows = [
-  { key: "nostradamus", title: "NOSTRADAMUS", subtitle: "Mayor cantidad de plenos (3)", icon: "✣", tone: "#B7D70A" },
-  { key: "bilardista", title: "BILARDISTA", subtitle: "Estrategia total", icon: "◻", tone: "#94A3B8" },
-  { key: "racha", title: "LA RACHA", subtitle: "Mayor racha ganadora", icon: "◔", tone: "#F59E0B" },
-  { key: "batacazo", title: "BATACAZO", subtitle: "Sorpresa de la fecha", icon: "⚡", tone: "#F59E0B" },
-  { key: "robin", title: "ROBIN HOOD", subtitle: "Más repartidor de puntos", icon: "◎", tone: "#22C55E" }
-];
+const awardVisualById: Record<string, { icon: string; tone: string }> = {
+  nostradamus: { icon: "✣", tone: "#B7D70A" },
+  bilardista: { icon: "◻", tone: "#94A3B8" },
+  "la-racha": { icon: "◔", tone: "#F59E0B" },
+  batacazo: { icon: "⚡", tone: "#F59E0B" },
+  "robin-hood": { icon: "◎", tone: "#22C55E" },
+  "el-casi": { icon: "⌖", tone: "#60A5FA" },
+  "el-mufa": { icon: "☂", tone: "#9CA3AF" }
+};
 
 function stageLabel(value: string | undefined) {
   if (!value) return "";
@@ -50,25 +53,14 @@ export function PosicionesScreen() {
   const currentPeriod = safeOptions[periodIndex] ?? safeOptions[0];
 
   const leaderboardQuery = useQuery({
-    queryKey: ["leaderboard", groupId, fecha],
+    queryKey: ["leaderboard-payload", groupId, fecha, mode],
     queryFn: () =>
-      leaderboardRepository.getLeaderboard({
+      leaderboardRepository.getLeaderboardPayload({
         groupId,
-        fecha
+        fecha,
+        mode: mode === "stats" ? "stats" : "posiciones"
       })
   });
-
-  function cycleGroup() {
-    if (memberships.length <= 1) {
-      return;
-    }
-    const currentIndex = memberships.findIndex((membership) => membership.groupId === groupId);
-    const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % memberships.length : 0;
-    const nextGroupId = memberships[nextIndex]?.groupId;
-    if (nextGroupId) {
-      void setSelectedGroupId(nextGroupId);
-    }
-  }
 
   function goPrevFecha() {
     const next = safeOptions[(periodIndex - 1 + safeOptions.length) % safeOptions.length];
@@ -84,10 +76,47 @@ export function PosicionesScreen() {
     }
   }
 
-  const groupSummary = selectedMembership ? `${competitionLabelForPosiciones(selectedMembership)} · ${selectedMembership.groupName}` : "Sin grupo activo";
-  const entries = leaderboardQuery.data ?? [];
-  const topEntry = entries[0] ?? null;
+  const entries = leaderboardQuery.data?.rows ?? [];
+  const summary = leaderboardQuery.data?.stats?.summary ?? null;
+  const awards = leaderboardQuery.data?.stats?.awards ?? [];
+  const historicalSeries = leaderboardQuery.data?.stats?.historicalSeries ?? [];
   const selectedModeLabel = mode === "positions" ? "GLOBAL ACUMULADO" : "PREMIOS Y CASTIGOS";
+  const performanceMetrics = [
+    { key: "exact", label: "Aciertos exactos", value: summary?.exactPredictions ?? 0 },
+    { key: "result", label: "Resultado", value: summary?.resultPredictions ?? 0 },
+    { key: "miss", label: "Sin acierto", value: summary?.missPredictions ?? 0 },
+    { key: "accuracy", label: "Precisión", value: `${summary?.accuracyPct ?? 0}%` },
+    {
+      key: "average",
+      label: "Promedio x miembro",
+      value:
+        summary && Number.isInteger(summary.averageMemberPoints)
+          ? String(summary.averageMemberPoints)
+          : (summary?.averageMemberPoints ?? 0).toFixed(1)
+    }
+  ];
+
+  const trendRows = useMemo(
+    () =>
+      historicalSeries
+        .map((series) => {
+          const points = series.points ?? [];
+          const last = points[points.length - 1];
+          const bestRank = points.length > 0 ? Math.min(...points.map((point) => point.rank)) : 0;
+          const totalPoints = points.reduce((acc, point) => acc + point.points, 0);
+          return {
+            userId: series.userId,
+            userName: series.userName,
+            latestPeriodLabel: last?.periodLabel ?? "-",
+            latestRank: last?.rank ?? 0,
+            latestPoints: last?.points ?? 0,
+            bestRank,
+            totalPoints
+          };
+        })
+        .sort((a, b) => a.bestRank - b.bestRank || b.totalPoints - a.totalPoints || a.userName.localeCompare(b.userName, "es")),
+    [historicalSeries]
+  );
 
   return (
     <ScreenFrame
@@ -106,20 +135,8 @@ export function PosicionesScreen() {
               <Text style={styles.brandTitleDark}>FULBITO</Text>
               <Text style={styles.brandTitleAccent}>PRODE</Text>
             </Text>
-            <View style={styles.headerActions}>
-              <Pressable style={styles.headerActionButton}>
-                <Text allowFontScaling={false} style={styles.headerActionGlyph}>◔</Text>
-              </Pressable>
-              <Pressable style={styles.headerActionButton}>
-                <Text allowFontScaling={false} style={styles.headerActionGlyph}>⌂</Text>
-                <View style={styles.headerAlertDot} />
-              </Pressable>
-              <Pressable style={styles.headerActionButton}>
-                <Text allowFontScaling={false} style={styles.headerActionGlyph}>⚙</Text>
-              </Pressable>
-              <View style={styles.profileDot}>
-                <Text allowFontScaling={false} style={styles.profileDotText}>FC</Text>
-              </View>
+            <View style={styles.profileDot}>
+              <Text allowFontScaling={false} style={styles.profileDotText}>FC</Text>
             </View>
           </View>
           <View style={styles.titleRow}>
@@ -127,21 +144,11 @@ export function PosicionesScreen() {
               <Text allowFontScaling={false} style={styles.sectionIconText}>≡</Text>
             </View>
             <Text allowFontScaling={false} style={styles.sectionTitle}>Posiciones</Text>
-            <Text allowFontScaling={false} style={styles.sectionSubtitle}>Rendimiento del grupo</Text>
+            <HeaderGroupSelector memberships={memberships} selectedGroupId={selectedGroupId} onSelectGroup={(nextGroupId) => void setSelectedGroupId(nextGroupId)} />
           </View>
         </View>
       }
     >
-      <View style={styles.block}>
-        <Text allowFontScaling={false} style={styles.blockLabel}>SELECCION ACTUAL</Text>
-        <Pressable style={styles.selectionButton} onPress={cycleGroup}>
-          <Text allowFontScaling={false} numberOfLines={1} style={styles.selectionText}>
-            {groupSummary}
-          </Text>
-          <Text allowFontScaling={false} style={styles.selectionChevron}>⌄</Text>
-        </Pressable>
-      </View>
-
       <View style={styles.modeTabs}>
         <Pressable onPress={() => setMode("positions")} style={[styles.modeTab, mode === "positions" ? styles.modeTabActive : null]}>
           <Text allowFontScaling={false} style={[styles.modeTabLabel, mode === "positions" ? styles.modeTabLabelActive : null]}>
@@ -173,7 +180,7 @@ export function PosicionesScreen() {
           onRetry={() => void leaderboardQuery.refetch()}
         />
       ) : null}
-      {!leaderboardQuery.isLoading && !leaderboardQuery.isError && entries.length === 0 ? (
+      {!leaderboardQuery.isLoading && !leaderboardQuery.isError && entries.length === 0 && mode === "positions" ? (
         <EmptyState title="Sin posiciones disponibles" description="Cuando haya puntajes del grupo vas a verlos acá." />
       ) : null}
 
@@ -188,53 +195,113 @@ export function PosicionesScreen() {
             </View>
           </View>
           {entries.map((entry, index) => (
-            <View key={entry.userId} style={[styles.row, index === 0 ? styles.rowLeader : null]}>
+            <View key={entry.userId ?? `row-${entry.rank}-${entry.name}`} style={[styles.row, index === 0 ? styles.rowLeader : null]}>
               <View style={styles.rowRankWrap}>
                 <Text allowFontScaling={false} style={styles.rowRank}>{entry.rank}</Text>
               </View>
               <Text allowFontScaling={false} numberOfLines={1} style={styles.rowName}>
-                {entry.displayName}
+                {entry.name}
                 {index === 0 ? " ⭐" : ""}
               </Text>
-              <Text allowFontScaling={false} style={styles.rowMetric}>{Math.max(1, entry.points + 9)}</Text>
-              <Text allowFontScaling={false} style={styles.rowMetricSmall}>{`${Math.max(0, entry.points - 9)}/3/15`}</Text>
+              <Text allowFontScaling={false} style={styles.rowMetric}>{entry.predictions}</Text>
+              <Text allowFontScaling={false} style={styles.rowMetricSmall}>{entry.record}</Text>
               <Text allowFontScaling={false} style={styles.rowPoints}>{entry.points}</Text>
             </View>
           ))}
         </View>
       ) : null}
 
-      {!leaderboardQuery.isLoading && !leaderboardQuery.isError && topEntry && mode === "stats" ? (
+      {!leaderboardQuery.isLoading && !leaderboardQuery.isError && mode === "stats" ? (
         <>
           <View style={styles.statsSummaryRow}>
             <View style={styles.statsSummaryCard}>
               <View style={styles.statsIconCircle}>
-                <Text allowFontScaling={false} style={styles.statsIconText}>🏆</Text>
+                <Text allowFontScaling={false} style={styles.statsIconText}>👥</Text>
               </View>
-              <Text allowFontScaling={false} style={styles.statsLabel}>RANKING MUNDIAL</Text>
-              <Text allowFontScaling={false} style={styles.statsValue}>#{800 + topEntry.rank * 42}</Text>
+              <Text allowFontScaling={false} style={styles.statsLabel}>MIEMBROS</Text>
+              <Text allowFontScaling={false} style={styles.statsValue}>{summary?.memberCount ?? 0}</Text>
             </View>
             <View style={styles.statsSummaryCard}>
               <View style={styles.statsIconCircle}>
                 <Text allowFontScaling={false} style={styles.statsIconText}>⭐</Text>
               </View>
               <Text allowFontScaling={false} style={styles.statsLabel}>PUNTOS TOTALES</Text>
-              <Text allowFontScaling={false} style={[styles.statsValue, styles.statsValueAccent]}>{topEntry.points}</Text>
+              <Text allowFontScaling={false} style={[styles.statsValue, styles.statsValueAccent]}>{summary?.totalPoints ?? 0}</Text>
+            </View>
+            <View style={styles.statsSummaryCard}>
+              <View style={styles.statsIconCircle}>
+                <Text allowFontScaling={false} style={styles.statsIconText}>◎</Text>
+              </View>
+              <Text allowFontScaling={false} style={styles.statsLabel}>PRECISIÓN</Text>
+              <Text allowFontScaling={false} style={styles.statsValue}>{summary?.accuracyPct ?? 0}%</Text>
             </View>
           </View>
 
           <Text allowFontScaling={false} style={styles.rewardsTitle}>PREMIOS Y CASTIGOS</Text>
-          {rewardRows.map((reward, index) => (
-            <View key={reward.key} style={styles.rewardRow}>
-              <View style={[styles.rewardIcon, { backgroundColor: `${reward.tone}22` }]}>
-                <Text allowFontScaling={false} style={[styles.rewardIconText, { color: reward.tone }]}>{reward.icon}</Text>
+          {awards.length === 0 ? (
+            <EmptyState title="Sin stats disponibles" description="Todavía no hay datos suficientes para premios y castigos." />
+          ) : null}
+          {awards.map((award) => {
+            const visual = awardVisualById[award.id] || { icon: "◎", tone: "#94A3B8" };
+            return (
+              <View key={award.id} style={styles.rewardRow}>
+                <View style={[styles.rewardIcon, { backgroundColor: `${visual.tone}22` }]}>
+                  <Text allowFontScaling={false} style={[styles.rewardIconText, { color: visual.tone }]}>{visual.icon}</Text>
+                </View>
+                <View style={styles.rewardTextCol}>
+                  <Text allowFontScaling={false} style={styles.rewardLabel}>{award.title}</Text>
+                  <Text allowFontScaling={false} style={styles.rewardWinner}>{award.winnerName}</Text>
+                  <Text allowFontScaling={false} style={styles.rewardHint}>{award.subtitle}</Text>
+                </View>
+                <Text allowFontScaling={false} style={styles.rewardChevron}>⌄</Text>
               </View>
-              <View style={styles.rewardTextCol}>
-                <Text allowFontScaling={false} style={styles.rewardLabel}>{reward.title}</Text>
-                <Text allowFontScaling={false} style={styles.rewardWinner}>{topEntry.displayName}</Text>
-                {index === 0 ? <Text allowFontScaling={false} style={styles.rewardHint}>{reward.subtitle}</Text> : null}
+            );
+          })}
+
+          <Text allowFontScaling={false} style={styles.rewardsTitle}>RENDIMIENTO GENERAL</Text>
+          <View style={styles.performanceCard}>
+            {performanceMetrics.map((metric, index) => (
+              <View key={metric.key} style={[styles.performanceRow, index > 0 ? styles.performanceRowBorder : null]}>
+                <Text allowFontScaling={false} style={styles.performanceLabel}>{metric.label}</Text>
+                <Text allowFontScaling={false} style={styles.performanceValue}>{metric.value}</Text>
               </View>
-              <Text allowFontScaling={false} style={styles.rewardChevron}>⌄</Text>
+            ))}
+          </View>
+
+          <Text allowFontScaling={false} style={styles.rewardsTitle}>MEJOR Y PEOR FECHA</Text>
+          <View style={styles.roundSummaryRow}>
+            <View style={styles.roundSummaryCard}>
+              <Text allowFontScaling={false} style={styles.roundSummaryTag}>MEJOR</Text>
+              <Text allowFontScaling={false} style={styles.roundSummaryName}>{summary?.bestRound?.userName ?? "Sin datos"}</Text>
+              <Text allowFontScaling={false} style={styles.roundSummaryMeta}>
+                {(summary?.bestRound?.periodLabel ?? "-")} · {summary?.bestRound?.points ?? 0} pts
+              </Text>
+            </View>
+            <View style={styles.roundSummaryCard}>
+              <Text allowFontScaling={false} style={styles.roundSummaryTag}>PEOR</Text>
+              <Text allowFontScaling={false} style={styles.roundSummaryName}>{summary?.worstRound?.userName ?? "Sin datos"}</Text>
+              <Text allowFontScaling={false} style={styles.roundSummaryMeta}>
+                {(summary?.worstRound?.periodLabel ?? "-")} · {summary?.worstRound?.points ?? 0} pts
+              </Text>
+            </View>
+          </View>
+
+          <Text allowFontScaling={false} style={styles.rewardsTitle}>EVOLUCIÓN POR MIEMBRO</Text>
+          {trendRows.length === 0 ? (
+            <EmptyState title="Sin historial disponible" description="Todavía no hay serie histórica para comparar evolución." />
+          ) : null}
+          {trendRows.map((row) => (
+            <View key={row.userId} style={styles.trendRow}>
+              <View style={styles.trendMain}>
+                <Text allowFontScaling={false} style={styles.trendName}>{row.userName}</Text>
+                <Text allowFontScaling={false} style={styles.trendMeta}>
+                  Mejor rank #{row.bestRank || "-"} · Última {row.latestPeriodLabel}
+                </Text>
+              </View>
+              <View style={styles.trendStats}>
+                <Text allowFontScaling={false} style={styles.trendStatPrimary}>#{row.latestRank || "-"}</Text>
+                <Text allowFontScaling={false} style={styles.trendStatSecondary}>{row.latestPoints} pts</Text>
+              </View>
             </View>
           ))}
         </>
@@ -289,32 +356,6 @@ const styles = StyleSheet.create({
   },
   brandTitleAccent: {
     color: "#A3C90A"
-  },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6
-  },
-  headerActionButton: {
-    height: 32,
-    width: 32,
-    borderRadius: 999,
-    backgroundColor: "#ECEFF3",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  headerActionGlyph: {
-    color: "#6B7280",
-    fontSize: 14
-  },
-  headerAlertDot: {
-    position: "absolute",
-    top: 8,
-    right: 9,
-    height: 4,
-    width: 4,
-    borderRadius: 999,
-    backgroundColor: "#D94651"
   },
   profileDot: {
     height: 32,
@@ -616,5 +657,103 @@ const styles = StyleSheet.create({
   rewardChevron: {
     color: "#98A2B3",
     fontSize: 16
+  },
+  performanceCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#D7DCE3",
+    backgroundColor: "#F8FAFC",
+    overflow: "hidden"
+  },
+  performanceRow: {
+    minHeight: 40,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between"
+  },
+  performanceRowBorder: {
+    borderTopWidth: 1,
+    borderTopColor: "#E1E6ED"
+  },
+  performanceLabel: {
+    color: "#667085",
+    fontSize: 11,
+    fontWeight: "700"
+  },
+  performanceValue: {
+    color: "#111827",
+    fontSize: 13,
+    fontWeight: "900"
+  },
+  roundSummaryRow: {
+    flexDirection: "row",
+    gap: 10
+  },
+  roundSummaryCard: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#D7DCE3",
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+    gap: 2
+  },
+  roundSummaryTag: {
+    color: "#8A94A4",
+    fontSize: 9,
+    fontWeight: "900",
+    letterSpacing: 0.7
+  },
+  roundSummaryName: {
+    color: "#111827",
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  roundSummaryMeta: {
+    color: "#667085",
+    fontSize: 10,
+    fontWeight: "700"
+  },
+  trendRow: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#D7DCE3",
+    backgroundColor: "#F8FAFC",
+    minHeight: 54,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  trendMain: {
+    flex: 1
+  },
+  trendName: {
+    color: "#111827",
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  trendMeta: {
+    marginTop: 2,
+    color: "#667085",
+    fontSize: 10,
+    fontWeight: "700"
+  },
+  trendStats: {
+    alignItems: "flex-end"
+  },
+  trendStatPrimary: {
+    color: "#111827",
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  trendStatSecondary: {
+    marginTop: 2,
+    color: "#667085",
+    fontSize: 10,
+    fontWeight: "700"
   }
 });

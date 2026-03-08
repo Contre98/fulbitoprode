@@ -1,7 +1,7 @@
 {
   "name": "fulbito-prode-monorepo",
   "private": true,
-  "packageManager": "pnpm@10.6.0",
+  "packageManager": "pnpm@10.30.3",
   "scripts": {
     "dev": "turbo run dev --parallel",
     "dev:web": "pnpm --filter @fulbito/web dev",

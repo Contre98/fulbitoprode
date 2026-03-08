@@ -92,6 +92,9 @@ export default function ProfilePageClient() {
     groups: 0
   });
   const [recentActivity, setRecentActivity] = useState<ProfileActivityItem[]>([]);
+  const [performance, setPerformance] = useState<ProfilePayload["performance"]>(null);
+  const [achievements, setAchievements] = useState<NonNullable<ProfilePayload["achievements"]>>([]);
+  const [rankHistory, setRankHistory] = useState<NonNullable<ProfilePayload["rankHistory"]>>([]);
 
   useEffect(() => {
     if (!loading && !authenticated) {
@@ -158,6 +161,9 @@ export default function ProfilePageClient() {
           groups: payload.stats.groups
         });
         setRecentActivity(payload.recentActivity);
+        setPerformance(payload.performance ?? null);
+        setAchievements(payload.achievements ?? []);
+        setRankHistory(payload.rankHistory ?? []);
       } catch {
         if (!cancelled) {
           setStats({
@@ -176,6 +182,9 @@ export default function ProfilePageClient() {
               .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())
               .slice(0, 3)
           );
+          setPerformance(null);
+          setAchievements([]);
+          setRankHistory([]);
         }
       } finally {
         if (!cancelled) {
@@ -253,10 +262,10 @@ export default function ProfilePageClient() {
               >
                 {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
               </button>
-              <button type="button" className="p-2 rounded-full bg-[var(--surface-card-muted)] hover:bg-[var(--surface-card-muted)] text-[var(--text-secondary)] transition-colors relative" aria-label="Notificaciones">
+              <Link href="/notificaciones" className="p-2 rounded-full bg-[var(--surface-card-muted)] hover:bg-[var(--surface-card-muted)] text-[var(--text-secondary)] transition-colors relative" aria-label="Notificaciones">
                 <Bell size={18} />
                 <span className="absolute top-2 right-2 w-2 h-2 bg-[var(--danger)] rounded-full border border-[var(--surface-card)]"></span>
-              </button>
+              </Link>
               <Link href="/configuracion/ajustes" className="p-2 rounded-full bg-[var(--surface-card-muted)] hover:bg-[var(--surface-card-muted)] text-[var(--text-secondary)] transition-colors" aria-label="Configuración">
                 <Settings size={18} />
               </Link>
@@ -394,6 +403,61 @@ export default function ProfilePageClient() {
                 ) : null}
               </div>
             </div>
+
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <section className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 shadow-sm">
+                <h3 className="text-sm font-bold text-[var(--text-primary)]">Rendimiento</h3>
+                {loadingData ? (
+                  <SkeletonBlock className="mt-3 h-20 w-full rounded-lg" />
+                ) : performance ? (
+                  <div className="mt-3 space-y-2 text-xs font-medium text-[var(--text-secondary)]">
+                    <p>Plenos: <span className="font-black text-[var(--text-primary)]">{performance.exactHitRatePct}%</span></p>
+                    <p>Tendencia: <span className="font-black text-[var(--text-primary)]">{performance.outcomeHitRatePct}%</span></p>
+                    <p>Fallos: <span className="font-black text-[var(--text-primary)]">{performance.misses}</span></p>
+                    <p>Promedio: <span className="font-black text-[var(--text-primary)]">{performance.averagePointsPerRound}</span> pts/fecha</p>
+                    <p>Racha: <span className="font-black text-[var(--text-primary)]">{performance.streak}</span></p>
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs text-[var(--text-muted)]">Sin datos suficientes todavía.</p>
+                )}
+              </section>
+
+              <section className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 shadow-sm">
+                <h3 className="text-sm font-bold text-[var(--text-primary)]">Logros</h3>
+                {loadingData ? (
+                  <SkeletonBlock className="mt-3 h-20 w-full rounded-lg" />
+                ) : achievements.length === 0 ? (
+                  <p className="mt-3 text-xs text-[var(--text-muted)]">Aún no desbloqueaste logros.</p>
+                ) : (
+                  <div className="mt-3 space-y-2">
+                    {achievements.slice(0, 4).map((achievement) => (
+                      <div key={achievement.id} className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-card-muted)] px-3 py-2">
+                        <p className="text-xs font-black text-[var(--text-primary)]">{achievement.title}</p>
+                        <p className="text-[11px] text-[var(--text-secondary)]">{achievement.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </div>
+
+            <section className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 shadow-sm">
+              <h3 className="text-sm font-bold text-[var(--text-primary)]">Evolución de ranking</h3>
+              {loadingData ? (
+                <SkeletonBlock className="mt-3 h-20 w-full rounded-lg" />
+              ) : rankHistory.length === 0 ? (
+                <p className="mt-3 text-xs text-[var(--text-muted)]">Todavía no hay evolución para mostrar.</p>
+              ) : (
+                <div className="mt-3 space-y-2">
+                  {rankHistory.slice(-8).map((point) => (
+                    <div key={`${point.period}-${point.rank}`} className="flex items-center justify-between rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-card-muted)] px-3 py-2">
+                      <span className="text-xs font-bold text-[var(--text-primary)]">{point.periodLabel}</span>
+                      <span className="text-xs font-black text-[var(--text-secondary)]">#{point.rank} · {point.points} pts</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
           </div>
         </main>
       </div>
@@ -423,19 +487,9 @@ export default function ProfilePageClient() {
             </div>
 
             <div className="mb-7 flex flex-col items-center">
-              <div className="relative">
-                <div className="h-24 w-24 rounded-full border-[4px] border-[var(--surface-card)] bg-[var(--accent-soft)] text-[var(--accent-primary)] text-4xl font-black flex items-center justify-center shadow-md overflow-hidden">
-                  {profileLogo ? <img src={profileLogo} alt="Avatar de perfil" className="h-[76%] w-[76%] object-contain" /> : profileLabel}
-                </div>
-                <button
-                  type="button"
-                  className="absolute bottom-0 right-0 h-10 w-10 rounded-full border-2 border-[var(--surface-card)] bg-[var(--bg-surface-2)] text-[var(--text-primary)] flex items-center justify-center shadow-sm"
-                  aria-label="Cambiar foto"
-                >
-                  <Edit3 size={16} />
-                </button>
+              <div className="h-24 w-24 rounded-full border-[4px] border-[var(--surface-card)] bg-[var(--accent-soft)] text-[var(--accent-primary)] text-4xl font-black flex items-center justify-center shadow-md overflow-hidden">
+                {profileLogo ? <img src={profileLogo} alt="Avatar de perfil" className="h-[76%] w-[76%] object-contain" /> : profileLabel}
               </div>
-              <p className="mt-3 text-sm leading-none text-[var(--text-muted)] font-bold">Cambiar foto</p>
             </div>
 
             <div className="space-y-5">

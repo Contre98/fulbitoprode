@@ -1007,7 +1007,11 @@ export async function resolveDefaultFecha(input: {
     `provider:default-fecha:${league}:${season}:${stage}:${fechas.join("|")}`,
     PROVIDER_CACHE_TTL_MS.defaultFecha,
     async () => {
-      let firstUpcoming = "";
+      const now = Date.now();
+      let closestPendingFecha = "";
+      let closestPendingDistanceMs = Number.POSITIVE_INFINITY;
+      let firstOpenUpcoming = "";
+      let latestPendingWithoutKickoff = "";
       let lastWithFixtures = "";
 
       for (const fecha of fechas) {
@@ -1023,28 +1027,58 @@ export async function resolveDefaultFecha(input: {
         }
 
         let hasLive = false;
-        let hasUpcoming = false;
+        let hasOpenUpcoming = false;
+        let hasPendingWithoutKickoff = false;
+        let nearestPendingDistanceInFecha = Number.POSITIVE_INFINITY;
 
         fixtures.forEach((fixture) => {
           const status = classifyFixtureStatus(fixture.statusShort);
           if (status === "live") {
             hasLive = true;
           }
-          if (status === "upcoming") {
-            hasUpcoming = true;
+          if (status !== "upcoming") {
+            return;
+          }
+
+          const kickoffMs = new Date(fixture.kickoffAt).getTime();
+          if (!Number.isFinite(kickoffMs)) {
+            hasPendingWithoutKickoff = true;
+            return;
+          }
+
+          if (kickoffMs > now) {
+            hasOpenUpcoming = true;
+          }
+
+          const distance = Math.abs(kickoffMs - now);
+          if (distance < nearestPendingDistanceInFecha) {
+            nearestPendingDistanceInFecha = distance;
           }
         });
 
         if (hasLive) {
           return fecha;
         }
-        if (!firstUpcoming && hasUpcoming) {
-          firstUpcoming = fecha;
+        if (!firstOpenUpcoming && hasOpenUpcoming) {
+          firstOpenUpcoming = fecha;
+        }
+        if (nearestPendingDistanceInFecha <= closestPendingDistanceMs) {
+          closestPendingDistanceMs = nearestPendingDistanceInFecha;
+          closestPendingFecha = fecha;
+        }
+        if (hasPendingWithoutKickoff) {
+          latestPendingWithoutKickoff = fecha;
         }
       }
 
-      if (firstUpcoming) {
-        return firstUpcoming;
+      if (closestPendingFecha) {
+        return closestPendingFecha;
+      }
+      if (latestPendingWithoutKickoff) {
+        return latestPendingWithoutKickoff;
+      }
+      if (firstOpenUpcoming) {
+        return firstOpenUpcoming;
       }
 
       return lastWithFixtures || fechas[0] || "";
@@ -1241,8 +1275,8 @@ export function mapFixturesToPronosticosMatches(fixtures: LiveFixture[]): MatchC
     const card: MatchCardData = {
       id: fixture.id,
       status,
-      homeTeam: { code: formatTeamCode(fixture.homeName), logoUrl: fixture.homeLogoUrl },
-      awayTeam: { code: formatTeamCode(fixture.awayName), logoUrl: fixture.awayLogoUrl },
+      homeTeam: { code: formatTeamCode(fixture.homeName), name: fixture.homeName, logoUrl: fixture.homeLogoUrl },
+      awayTeam: { code: formatTeamCode(fixture.awayName), name: fixture.awayName, logoUrl: fixture.awayLogoUrl },
       kickoffAt: fixture.kickoffAt,
       deadlineAt: status === "upcoming" ? fixture.kickoffAt : undefined,
       isLocked,
@@ -1323,12 +1357,14 @@ export function mapFixturesToFixtureCards(fixtures: LiveFixture[]): FixtureDateC
         : status === "final"
           ? `FINAL · ${fixture.homeGoals ?? 0} - ${fixture.awayGoals ?? 0}`
           : formatFixtureUpcomingLabel(fixture.kickoffAt, timezone);
+    const score = status === "upcoming" ? undefined : { home: fixture.homeGoals ?? 0, away: fixture.awayGoals ?? 0 };
 
     entry.rows.push({
       home: fixture.homeName,
       away: fixture.awayName,
       homeLogoUrl: fixture.homeLogoUrl,
       awayLogoUrl: fixture.awayLogoUrl,
+      score,
       scoreLabel,
       tone,
       kickoffAt: fixture.kickoffAt,
@@ -1352,8 +1388,8 @@ export function mapFixturesToHomeLiveMatches(fixtures: LiveFixture[]): MatchCard
 
 export function mapFixturesToHomeUpcomingMatches(fixtures: LiveFixture[]): FixtureDateCard[] {
   const statusOrder: Record<MatchStatus, number> = {
-    upcoming: 0,
-    live: 1,
+    live: 0,
+    upcoming: 1,
     final: 2
   };
 

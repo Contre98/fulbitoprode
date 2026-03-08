@@ -71,7 +71,7 @@ describe("PeriodContext persistence", () => {
     fireEvent.press(screen.getByTestId("set-fecha-2"));
 
     await waitFor(() => {
-      expect(mockedAsyncStorage.setItem).toHaveBeenCalledWith("fulbito.mobile.selectedFecha", "2026-02");
+      expect(mockedAsyncStorage.setItem).toHaveBeenCalledWith("fulbito.mobile.selectedFecha:g-1", "2026-02");
     });
   });
 });

@@ -82,11 +82,44 @@ describe("GET /api/leaderboard", () => {
 
     const response = await GET(new Request("http://localhost/api/leaderboard?groupId=g1&mode=stats&period=global"));
     expect(response.status).toBe(200);
-    const payload = (await response.json()) as { groupStats?: { memberCount: number; bestFecha: { period: string; userName: string; points: number } } };
+    const payload = (await response.json()) as {
+      groupStats?: {
+        memberCount: number;
+        bestFecha?: { period: string; userName: string; points: number };
+        worstFecha?: { period: string; userName: string; points: number };
+      };
+      stats?: {
+        summary?: {
+          memberCount: number;
+          bestRound?: { period: string; userName: string; points: number } | null;
+          worstRound?: { period: string; userName: string; points: number } | null;
+        };
+        awards?: Array<{ id: string; winnerName: string }>;
+        historicalSeries?: Array<{ userId: string; points: Array<{ period: string; rank: number; points: number }> }>;
+      } | null;
+    };
     expect(payload.groupStats?.memberCount).toBe(1);
-    expect(payload.groupStats?.bestFecha.period).toBe("Fecha 1");
-    expect(payload.groupStats?.bestFecha.userName).toBe("Ana");
-    expect(payload.groupStats?.bestFecha.points).toBe(3);
+    expect(payload.groupStats?.bestFecha?.period).toBe("Fecha 1");
+    expect(payload.groupStats?.bestFecha?.userName).toBe("Ana");
+    expect(payload.groupStats?.bestFecha?.points).toBe(3);
+    expect(payload.groupStats?.worstFecha?.period).toBe("Fecha 2");
+    expect(payload.groupStats?.worstFecha?.points).toBe(1);
+
+    expect(payload.stats?.summary?.memberCount).toBe(1);
+    expect(payload.stats?.summary?.bestRound?.period).toBe("Fecha 1");
+    expect(payload.stats?.summary?.worstRound?.period).toBe("Fecha 2");
+    expect(payload.stats?.awards?.length).toBeGreaterThan(0);
+    expect(payload.stats?.historicalSeries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          userId: "u1",
+          points: expect.arrayContaining([
+            expect.objectContaining({ period: "Fecha 1", rank: 1, points: 3 }),
+            expect.objectContaining({ period: "Fecha 2", rank: 1, points: 1 })
+          ])
+        })
+      ])
+    );
   });
 
   it("maps PocketBase 403 to permission guidance response", async () => {

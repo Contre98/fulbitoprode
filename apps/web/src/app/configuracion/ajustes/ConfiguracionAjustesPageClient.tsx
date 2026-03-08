@@ -5,14 +5,9 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
-  ChevronRight,
-  FileText,
-  HelpCircle,
-  Lock,
   LogOut,
   Moon,
   Settings,
-  Smartphone,
   Sun,
   Trophy,
   User
@@ -67,8 +62,6 @@ export default function ConfiguracionAjustesPageClient() {
   const { showToast } = useToast();
   const { theme, toggleTheme } = useTheme();
   const { loading, authenticated, user, memberships, activeGroupId, refresh } = useAuthSession();
-  const [pushNotificationsEnabled, setPushNotificationsEnabled] = useState(true);
-  const [vibrationEnabled, setVibrationEnabled] = useState(true);
   const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
@@ -96,14 +89,6 @@ export default function ConfiguracionAjustesPageClient() {
     }
   }
 
-  function showUnavailableMessage(label: string) {
-    showToast({
-      title: "Próximamente",
-      description: `${label} estará disponible en una próxima versión.`,
-      tone: "info"
-    });
-  }
-
   return (
     <AppShell activeTab={null} showTopGlow={false}>
       <div className="min-h-full bg-[var(--surface-card-muted)]">
@@ -128,14 +113,14 @@ export default function ConfiguracionAjustesPageClient() {
               >
                 {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
               </button>
-              <button
-                type="button"
+              <Link
+                href="/notificaciones"
                 className="relative rounded-full bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-card-muted)]"
                 aria-label="Notificaciones"
               >
                 <Bell size={18} />
                 <span className="absolute right-2 top-2 h-2 w-2 rounded-full border border-[var(--surface-card)] bg-[var(--danger)]" />
-              </button>
+              </Link>
               <button type="button" className="rounded-full bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)]" aria-label="Configuración">
                 <Settings size={18} />
               </button>
@@ -166,53 +151,6 @@ export default function ConfiguracionAjustesPageClient() {
         <main className="mt-6 no-scrollbar">
           <div className="space-y-6 px-4 pb-6 no-scrollbar">
             <section className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 shadow-sm">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)]">
-                      <Bell size={18} />
-                    </div>
-                    <span className="text-sm font-bold text-[var(--text-primary)]">Push Notifications</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setPushNotificationsEnabled((value) => !value)}
-                    className={`relative h-6 w-10 rounded-full transition-colors ${pushNotificationsEnabled ? "bg-[var(--accent-primary)]" : "bg-[var(--surface-card-muted)]"}`}
-                    aria-label="Push Notifications"
-                    aria-pressed={pushNotificationsEnabled}
-                  >
-                    <span
-                      className={`absolute top-1 h-4 w-4 rounded-full bg-[var(--surface-card)] shadow-sm transition-all ${
-                        pushNotificationsEnabled ? "right-1" : "left-1"
-                      }`}
-                    />
-                  </button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)]">
-                      <Smartphone size={18} />
-                    </div>
-                    <span className="text-sm font-bold text-[var(--text-primary)]">Vibración</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setVibrationEnabled((value) => !value)}
-                    className={`relative h-6 w-10 rounded-full transition-colors ${vibrationEnabled ? "bg-[var(--accent-primary)]" : "bg-[var(--surface-card-muted)]"}`}
-                    aria-label="Vibración"
-                    aria-pressed={vibrationEnabled}
-                  >
-                    <span
-                      className={`absolute top-1 h-4 w-4 rounded-full bg-[var(--surface-card)] shadow-sm transition-all ${
-                        vibrationEnabled ? "right-1" : "left-1"
-                      }`}
-                    />
-                  </button>
-                </div>
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 shadow-sm">
               <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">Cuenta</h3>
               <div className="space-y-4">
                 <Link href="/perfil" className="group flex w-full items-center justify-between">
@@ -222,45 +160,8 @@ export default function ConfiguracionAjustesPageClient() {
                     </div>
                     <span className="text-sm font-bold text-[var(--text-primary)]">Mi Perfil</span>
                   </div>
-                  <ChevronRight size={16} className="text-[var(--text-muted)]" />
+                  <span className="text-xs font-bold text-[var(--text-muted)]">Editar</span>
                 </Link>
-                <button type="button" onClick={() => showUnavailableMessage("Cambiar Contraseña")} className="group flex w-full items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)] transition-colors group-hover:bg-[var(--surface-card-muted)]">
-                      <Lock size={18} />
-                    </div>
-                    <span className="text-sm font-bold text-[var(--text-primary)]">Cambiar Contraseña</span>
-                  </div>
-                  <ChevronRight size={16} className="text-[var(--text-muted)]" />
-                </button>
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4 shadow-sm">
-              <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">Soporte</h3>
-              <div className="space-y-4">
-                <button type="button" onClick={() => showUnavailableMessage("Ayuda y FAQ")} className="group flex w-full items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)] transition-colors group-hover:bg-[var(--surface-card-muted)]">
-                      <HelpCircle size={18} />
-                    </div>
-                    <span className="text-sm font-bold text-[var(--text-primary)]">Ayuda y FAQ</span>
-                  </div>
-                  <ChevronRight size={16} className="text-[var(--text-muted)]" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => showUnavailableMessage("Términos y Condiciones")}
-                  className="group flex w-full items-center justify-between"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)] transition-colors group-hover:bg-[var(--surface-card-muted)]">
-                      <FileText size={18} />
-                    </div>
-                    <span className="text-sm font-bold text-[var(--text-primary)]">Términos y Condiciones</span>
-                  </div>
-                  <ChevronRight size={16} className="text-[var(--text-muted)]" />
-                </button>
               </div>
             </section>
 

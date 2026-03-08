@@ -41,6 +41,8 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [forgotMessage, setForgotMessage] = useState<string | null>(null);
+  const [forgotLoading, setForgotLoading] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
 
   async function submit() {
@@ -84,6 +86,39 @@ export default function AuthPage() {
     setMode(nextMode);
     setErrors({});
     setMessage(null);
+    setForgotMessage(null);
+  }
+
+  async function submitForgotPassword() {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      setErrors((prev) => ({ ...prev, email: "Ingresá tu email." }));
+      return;
+    }
+    if (!/^\S+@\S+\.\S+$/.test(normalizedEmail)) {
+      setErrors((prev) => ({ ...prev, email: "Email inválido." }));
+      return;
+    }
+
+    setForgotLoading(true);
+    setForgotMessage(null);
+    setMessage(null);
+    try {
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: normalizedEmail })
+      });
+      const payload = (await response.json().catch(() => null)) as { error?: string; message?: string } | null;
+      if (!response.ok) {
+        throw new Error(payload?.error || "No se pudo iniciar la recuperación.");
+      }
+      setForgotMessage(payload?.message || "Si existe una cuenta para ese email, enviamos las instrucciones.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "No se pudo iniciar la recuperación.");
+    } finally {
+      setForgotLoading(false);
+    }
   }
 
   function inputClass(error?: string) {
@@ -180,8 +215,13 @@ export default function AuthPage() {
 
               {mode === "login" ? (
                 <div className="flex justify-end">
-                  <button type="button" className="text-xs font-bold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]">
-                    ¿Olvidaste tu contraseña?
+                  <button
+                    type="button"
+                    onClick={() => void submitForgotPassword()}
+                    disabled={forgotLoading || isLoading}
+                    className="text-xs font-bold text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {forgotLoading ? "Enviando..." : "¿Olvidaste tu contraseña?"}
                   </button>
                 </div>
               ) : null}
@@ -189,6 +229,11 @@ export default function AuthPage() {
               {message ? (
                 <p className="rounded-xl border border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] px-3 py-2 text-xs font-semibold text-[var(--danger)]">
                   {message}
+                </p>
+              ) : null}
+              {forgotMessage ? (
+                <p className="rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
+                  {forgotMessage}
                 </p>
               ) : null}
 

@@ -24,6 +24,7 @@ describe("DataModeBadge", () => {
       refresh: jest.fn(),
       login: jest.fn(),
       register: jest.fn(),
+      requestPasswordReset: jest.fn(),
       logout: jest.fn(),
       retryHttpMode: jest.fn(),
       clearFallbackDiagnosticsHistory: jest.fn()
@@ -53,6 +54,7 @@ describe("DataModeBadge", () => {
       refresh: jest.fn(),
       login: jest.fn(),
       register: jest.fn(),
+      requestPasswordReset: jest.fn(),
       logout: jest.fn(),
       retryHttpMode,
       clearFallbackDiagnosticsHistory

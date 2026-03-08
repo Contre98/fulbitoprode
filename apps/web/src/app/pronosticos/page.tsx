@@ -6,22 +6,19 @@ import { useRouter } from "next/navigation";
 import {
   Activity,
   Bell,
-  Check,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  ChevronUp,
-  CircleAlert,
   Lock,
+  Minus,
   Moon,
+  Plus,
   RefreshCw,
-  Save,
   Settings,
   Sun,
   Trophy,
-  X
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
+import { GlobalGroupSelector } from "@/components/layout/GlobalGroupSelector";
 import { SkeletonBlock } from "@/components/ui/SkeletonBlock";
 import { useAuthSession } from "@/lib/use-auth-session";
 import { usePageBenchmark } from "@/lib/use-page-benchmark";
@@ -43,17 +40,6 @@ interface FechaOption {
 }
 
 type PronosticosMode = "upcoming" | "history";
-
-interface SelectorGroupOption {
-  id: string;
-  name: string;
-  competition: string;
-}
-
-const TEAM_NAME_BY_CODE: Record<string, string> = {
-  DEF: "Defensa y Justicia",
-  BEL: "Belgrano"
-};
 
 function isTransientStatus(status: number) {
   return status === 408 || status === 409 || status === 429 || status >= 500;
@@ -122,21 +108,6 @@ function formatMatchDateBadge(iso?: string, fallback?: string) {
   return `${day}/${month} • ${hour}:${minute}`;
 }
 
-function formatModalCloseTime(iso?: string) {
-  if (!iso) {
-    return "--:--";
-  }
-
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) {
-    return "--:--";
-  }
-
-  const hour = String(date.getHours()).padStart(2, "0");
-  const minute = String(date.getMinutes()).padStart(2, "0");
-  return `${hour}:${minute}`;
-}
-
 function initialsFromLabel(label: string) {
   const chunks = label
     .trim()
@@ -180,24 +151,6 @@ function resolveTeamLogoUrl(team: MatchCardData["homeTeam"]) {
   );
 }
 
-function resolveTeamDisplayName(team: MatchCardData["homeTeam"]) {
-  const candidate = team as MatchCardData["homeTeam"] & {
-    name?: string | null;
-    fullName?: string | null;
-    shortName?: string | null;
-    displayName?: string | null;
-  };
-
-  return (
-    asTrimmedText(candidate.fullName) ||
-    asTrimmedText(candidate.name) ||
-    asTrimmedText(candidate.displayName) ||
-    asTrimmedText(candidate.shortName) ||
-    TEAM_NAME_BY_CODE[team.code.toUpperCase()] ||
-    team.code
-  );
-}
-
 function TeamLogoBadge({
   code,
   logoUrl,
@@ -226,70 +179,6 @@ function TeamLogoBadge({
   );
 }
 
-function GroupSelectorModal({
-  open,
-  groups,
-  activeGroupId,
-  onSelect,
-  onClose
-}: {
-  open: boolean;
-  groups: SelectorGroupOption[];
-  activeGroupId: string | null;
-  onSelect: (groupId: string) => void;
-  onClose: () => void;
-}) {
-  if (!open) {
-    return null;
-  }
-
-  return (
-    <div className="fixed inset-0 z-[110] flex items-end justify-center overflow-hidden no-scrollbar">
-      <div className="absolute inset-0 bg-[var(--surface-overlay)] backdrop-blur-sm transition-opacity" onClick={onClose} />
-      <div className="relative max-h-[70%] w-full max-w-[469px] overflow-y-auto rounded-t-3xl bg-[var(--surface-card)] p-6 shadow-2xl no-scrollbar">
-        <div className="mx-auto mb-6 h-1.5 w-12 rounded-full bg-[var(--surface-card-muted)]" />
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-[var(--text-primary)]">Cambiar Grupo</h3>
-          <button type="button" onClick={onClose} className="rounded-full bg-[var(--surface-card-muted)] p-2 text-[var(--text-muted)]" aria-label="Cerrar selector">
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="space-y-2 no-scrollbar">
-          {groups.map((group) => {
-            const isActive = group.id === activeGroupId;
-            return (
-              <button
-                key={group.id}
-                type="button"
-                onClick={() => onSelect(group.id)}
-                className={`flex w-full items-center justify-between rounded-xl p-3 text-left transition-all ${
-                  isActive ? "border-2 border-[var(--accent-primary)] bg-[var(--accent-soft)]" : "border border-[var(--border-subtle)] bg-[var(--surface-card-muted)] hover:bg-[var(--surface-card-muted)]"
-                }`}
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg text-sm font-bold ${isActive ? "bg-[var(--accent-soft)] text-[var(--accent-primary)]" : "bg-[var(--surface-card)] text-[var(--text-secondary)] shadow-sm"}`}>
-                    {group.name.substring(0, 2).toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <p className={`truncate text-sm font-bold ${isActive ? "text-[var(--text-primary)]" : "text-[var(--text-primary)]"}`}>{group.name}</p>
-                    <p className="truncate text-xs text-[var(--text-secondary)]">{group.competition}</p>
-                  </div>
-                </div>
-                {isActive ? (
-                  <div className="flex flex-shrink-0 rounded-full bg-[var(--accent-primary)] p-1 text-[var(--text-on-accent)]">
-                    <Check size={14} strokeWidth={3} />
-                  </div>
-                ) : null}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function PronosticosPage() {
   const router = useRouter();
   const { showToast } = useToast();
@@ -306,13 +195,12 @@ export default function PronosticosPage() {
   const [draftPredictions, setDraftPredictions] = useState<PredictionsByMatch>({});
   const [saveStatusByMatch, setSaveStatusByMatch] = useState<Record<string, PredictionSaveStatus>>({});
   const [saveErrorByMatch, setSaveErrorByMatch] = useState<Record<string, string>>({});
-  const [savingAll, setSavingAll] = useState(false);
-  const [editorMatchId, setEditorMatchId] = useState<string | null>(null);
-  const [editorDraft, setEditorDraft] = useState<PredictionValue>({ home: null, away: null });
   const [activeTab, setActiveTab] = useState<PronosticosMode>("upcoming");
-  const [isSelectorOpen, setIsSelectorOpen] = useState(false);
   const fechasCacheRef = useRef<Map<string, FechasPayload>>(new Map());
   const payloadCacheRef = useRef<Map<string, PronosticosPayload>>(new Map());
+  const autoSaveTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const autoSaveQueueRef = useRef<Map<string, PredictionValue>>(new Map());
+  const autoSaveInFlightRef = useRef<Set<string>>(new Set());
   const { loading: authLoading, authenticated, user, memberships, activeGroupId, setActiveGroupId } = useAuthSession();
   usePageBenchmark("pronosticos", loading);
 
@@ -335,16 +223,6 @@ export default function PronosticosPage() {
   const activeSelection = useMemo(
     () => selectionOptions.find((option) => option.groupId === activeGroupId) || null,
     [selectionOptions, activeGroupId]
-  );
-
-  const selectorGroups = useMemo<SelectorGroupOption[]>(
-    () =>
-      selectionOptions.map((option) => ({
-        id: option.groupId,
-        name: option.groupName,
-        competition: option.leagueName
-      })),
-    [selectionOptions]
   );
 
   const period = periods[periodIndex]?.id || "";
@@ -423,8 +301,10 @@ export default function PronosticosPage() {
       setDraftPredictions({});
       setSaveStatusByMatch({});
       setSaveErrorByMatch({});
-      setSavingAll(false);
-      setEditorMatchId(null);
+      autoSaveTimersRef.current.forEach((timer) => clearTimeout(timer));
+      autoSaveTimersRef.current.clear();
+      autoSaveQueueRef.current.clear();
+      autoSaveInFlightRef.current.clear();
       setPeriodLabel(period || "Sin fechas disponibles");
       return;
     }
@@ -442,8 +322,10 @@ export default function PronosticosPage() {
       setDraftPredictions(cached.predictions);
       setSaveStatusByMatch({});
       setSaveErrorByMatch({});
-      setSavingAll(false);
-      setEditorMatchId(null);
+      autoSaveTimersRef.current.forEach((timer) => clearTimeout(timer));
+      autoSaveTimersRef.current.clear();
+      autoSaveQueueRef.current.clear();
+      autoSaveInFlightRef.current.clear();
       return;
     }
 
@@ -473,8 +355,10 @@ export default function PronosticosPage() {
           setDraftPredictions(payload.predictions);
           setSaveStatusByMatch({});
           setSaveErrorByMatch({});
-          setSavingAll(false);
-          setEditorMatchId(null);
+          autoSaveTimersRef.current.forEach((timer) => clearTimeout(timer));
+          autoSaveTimersRef.current.clear();
+          autoSaveQueueRef.current.clear();
+          autoSaveInFlightRef.current.clear();
         }
       } catch (fetchError) {
         if (!cancelled) {
@@ -496,6 +380,16 @@ export default function PronosticosPage() {
       cancelled = true;
     };
   }, [period, activeSelection, reloadNonce, showToast]);
+
+  useEffect(
+    () => () => {
+      autoSaveTimersRef.current.forEach((timer) => clearTimeout(timer));
+      autoSaveTimersRef.current.clear();
+      autoSaveQueueRef.current.clear();
+      autoSaveInFlightRef.current.clear();
+    },
+    []
+  );
 
   async function persistPrediction(matchId: string, value: PredictionValue) {
     if (!activeSelection || !period) {
@@ -537,6 +431,10 @@ export default function PronosticosPage() {
       }
 
       setSaveStatusByMatch((prev) => ({ ...prev, [matchId]: "idle" }));
+      setCommittedPredictions((prev) => ({
+        ...prev,
+        [matchId]: value
+      }));
 
       const cacheKey = `${groupId}:${period}`;
       const cachedPayload = payloadCacheRef.current.get(cacheKey);
@@ -561,15 +459,38 @@ export default function PronosticosPage() {
     }
   }
 
-  const openPredictionEditor = (matchId: string) => {
-    const current = draftPredictions[matchId] ?? { home: null, away: null };
-    setEditorDraft(normalizePrediction(current));
-    setEditorMatchId(matchId);
+  const flushQueuedPrediction = async (matchId: string) => {
+    if (autoSaveInFlightRef.current.has(matchId)) {
+      return;
+    }
+
+    const queued = autoSaveQueueRef.current.get(matchId);
+    if (!queued || !isPredictionComplete(queued)) {
+      return;
+    }
+
+    autoSaveInFlightRef.current.add(matchId);
+    await persistPrediction(matchId, queued);
+    autoSaveInFlightRef.current.delete(matchId);
+
+    const latest = autoSaveQueueRef.current.get(matchId);
+    if (latest && !arePredictionsEqual(latest, queued)) {
+      void flushQueuedPrediction(matchId);
+    }
   };
 
-  const closePredictionEditor = () => {
-    if (savingAll) return;
-    setEditorMatchId(null);
+  const queuePredictionAutosave = (matchId: string, value: PredictionValue) => {
+    autoSaveQueueRef.current.set(matchId, value);
+    const pendingTimer = autoSaveTimersRef.current.get(matchId);
+    if (pendingTimer) {
+      clearTimeout(pendingTimer);
+    }
+
+    const timer = setTimeout(() => {
+      autoSaveTimersRef.current.delete(matchId);
+      void flushQueuedPrediction(matchId);
+    }, 800);
+    autoSaveTimersRef.current.set(matchId, timer);
   };
 
   const refreshCurrentPeriod = () => {
@@ -580,57 +501,38 @@ export default function PronosticosPage() {
     setReloadNonce((current) => current + 1);
   };
 
-  const updateEditorDraft = (side: "home" | "away", delta: number) => {
-    setEditorDraft((prev) => {
-      const currentNumber = prev[side] ?? 0;
+  const adjustDraftPrediction = (matchId: string, side: "home" | "away", delta: number) => {
+    setSaveErrorByMatch((prev) => {
+      if (!prev[matchId]) {
+        return prev;
+      }
+      const next = { ...prev };
+      delete next[matchId];
+      return next;
+    });
+
+    setDraftPredictions((prev) => {
+      const current = normalizePrediction(prev[matchId] ?? { home: null, away: null });
+      const currentNumber = current[side] ?? 0;
       const updated = Math.max(0, Math.min(20, currentNumber + delta));
+      const nextPrediction: PredictionValue = {
+        ...current,
+        [side]: updated
+      };
+
+      if (isPredictionComplete(nextPrediction)) {
+        queuePredictionAutosave(matchId, nextPrediction);
+      }
+
       return {
         ...prev,
-        [side]: updated
+        [matchId]: nextPrediction
       };
     });
   };
 
-  const applyEditorPrediction = () => {
-    if (!editorMatchId) return;
-
-    const normalized = normalizePrediction(editorDraft);
-    setDraftPredictions((prev) => ({
-      ...prev,
-      [editorMatchId]: normalized
-    }));
-    setEditorMatchId(null);
-  };
-
-  const hasPendingChanges = useMemo(() => {
-    const upcomingMatches = matches.filter((match) => match.status === "upcoming");
-    return upcomingMatches.some((match) => !arePredictionsEqual(draftPredictions[match.id], committedPredictions[match.id]));
-  }, [matches, draftPredictions, committedPredictions]);
-
-  const changedMatchIds = useMemo(
-    () =>
-      matches
-        .filter((match) => match.status === "upcoming")
-        .map((match) => match.id)
-        .filter((matchId) => !arePredictionsEqual(draftPredictions[matchId], committedPredictions[matchId])),
-    [matches, draftPredictions, committedPredictions]
-  );
-
   const upcomingMatches = useMemo(() => matches.filter((match) => match.status === "upcoming"), [matches]);
   const completedMatches = useMemo(() => matches.filter((match) => match.status !== "upcoming"), [matches]);
-
-  const selectedMatch = useMemo(() => matches.find((match) => match.id === editorMatchId) || null, [matches, editorMatchId]);
-
-  const pendingSummary = useMemo(() => {
-    const withValue = changedMatchIds.filter((matchId) => {
-      const prediction = draftPredictions[matchId];
-      return prediction && prediction.home !== null && prediction.away !== null;
-    });
-    return {
-      changed: changedMatchIds.length,
-      ready: withValue.length
-    };
-  }, [changedMatchIds, draftPredictions]);
 
   const nearestDeadline = useMemo(() => {
     const sorted = upcomingMatches
@@ -642,7 +544,7 @@ export default function PronosticosPage() {
   }, [upcomingMatches]);
 
   const completionSummary = useMemo(() => {
-    const total = Math.max(15, matches.length);
+    const total = matches.length;
     const completed = matches.filter((match) => isPredictionComplete(draftPredictions[match.id])).length;
     const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
     return { total, completed, pct };
@@ -650,50 +552,6 @@ export default function PronosticosPage() {
 
   const userBadgeLabel = useMemo(() => initialsFromLabel(user?.name || "FC"), [user?.name]);
   const periodDeadlineLabel = useMemo(() => formatPeriodDeadlineLabel(nearestDeadline), [nearestDeadline]);
-
-  const saveAllChanges = async () => {
-    if (changedMatchIds.length === 0) return;
-
-    setSavingAll(true);
-    let successCount = 0;
-    const failedIds = new Set<string>();
-
-    for (const matchId of changedMatchIds) {
-      const prediction = draftPredictions[matchId] || { home: null, away: null };
-      const normalized = normalizePrediction(prediction);
-      const ok = await persistPrediction(matchId, normalized);
-      if (ok) {
-        successCount += 1;
-      } else {
-        failedIds.add(matchId);
-      }
-    }
-
-    setSavingAll(false);
-
-    if (successCount > 0) {
-      setCommittedPredictions((prev) => {
-        const next = { ...prev };
-        changedMatchIds.forEach((matchId) => {
-          if (!failedIds.has(matchId)) {
-            next[matchId] = normalizePrediction(draftPredictions[matchId] || { home: null, away: null });
-          }
-        });
-        return next;
-      });
-    }
-
-    if (successCount === changedMatchIds.length) {
-      showToast({ title: "Pronósticos guardados", description: `${successCount} partido(s) actualizados`, tone: "success" });
-      return;
-    }
-
-    showToast({
-      title: "Guardado parcial",
-      description: `${successCount}/${changedMatchIds.length} pronósticos guardados`,
-      tone: successCount > 0 ? "info" : "error"
-    });
-  };
 
   return (
     <AppShell activeTab="pronosticos" showTopGlow={false}>
@@ -719,10 +577,10 @@ export default function PronosticosPage() {
               >
                 {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
               </button>
-              <button type="button" aria-label="Notificaciones" className="relative rounded-full bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-card-muted)]">
+              <Link href="/notificaciones" aria-label="Notificaciones" className="relative rounded-full bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-card-muted)]">
                 <Bell size={18} />
                 <span className="absolute right-2 top-2 h-2 w-2 rounded-full border border-[var(--surface-card)] bg-[var(--danger)]" />
-              </button>
+              </Link>
               <Link href="/configuracion/ajustes" aria-label="Configuración" className="rounded-full bg-[var(--surface-card-muted)] p-2 text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-card-muted)]">
                 <Settings size={18} />
               </Link>
@@ -741,38 +599,16 @@ export default function PronosticosPage() {
               <Activity size={18} />
             </div>
             <h2 className="text-lg font-bold text-[var(--text-primary)]">Pronósticos</h2>
-            <span className="ml-auto text-sm font-medium text-[var(--text-muted)]">Resultados y carga</span>
+            <div className="ml-auto flex items-center gap-2">
+              <span className="text-sm font-medium text-[var(--text-muted)]">Resultados y carga</span>
+              <GlobalGroupSelector memberships={memberships} activeGroupId={activeGroupId} onSelectGroup={setActiveGroupId} />
+            </div>
           </div>
         </header>
 
         <main className="mt-6 space-y-4 px-4 pb-6 no-scrollbar">
-          {memberships.length === 0 ? (
-            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-4">
-              <p className="text-sm font-bold text-[var(--text-primary)]">No tenés grupos activos.</p>
-              <p className="mt-1 text-xs text-[var(--text-secondary)]">Creá o uníte a un grupo para cargar pronósticos.</p>
-              <Link href="/configuracion" className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-[var(--accent-primary)] px-4 text-xs font-bold text-[var(--text-on-accent)]">
-                Ir a grupos
-              </Link>
-            </div>
-          ) : (
+          {memberships.length > 0 ? (
             <>
-              <section className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-2 shadow-sm">
-                <p className="mb-1 ml-2 text-[10px] font-bold uppercase tracking-wide text-[var(--text-muted)]">SELECCION ACTUAL</p>
-                <button
-                  type="button"
-                  onClick={() => setIsSelectorOpen(true)}
-                  className="flex w-full items-center justify-between rounded-lg bg-[var(--surface-card-muted)] p-3 text-left transition-colors hover:bg-[var(--surface-card-muted)]"
-                >
-                  <div className="flex min-w-0 items-center gap-2 pr-2 text-sm font-bold text-[var(--text-primary)]">
-                    <Trophy size={16} className="flex-shrink-0 text-[var(--accent-primary)]" />
-                    <span className="truncate">
-                      {activeSelection ? `${activeSelection.leagueName} · ${activeSelection.groupName}` : "Sin grupo activo"}
-                    </span>
-                  </div>
-                  <ChevronDown size={16} className="flex-shrink-0 text-[var(--text-muted)]" />
-                </button>
-              </section>
-
               <section className="flex items-center justify-between rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-2 shadow-sm">
                 <button
                   type="button"
@@ -798,8 +634,8 @@ export default function PronosticosPage() {
                 </button>
               </section>
 
-              <section className="flex items-center justify-between">
-                <div className="mr-2 flex flex-1 items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-1.5 shadow-sm">
+              <section className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 py-2 shadow-sm">
+                <div className="flex items-center gap-2">
                   <span className="whitespace-nowrap text-[10px] font-bold text-[var(--text-muted)]">
                     {completionSummary.completed}/{completionSummary.total}
                   </span>
@@ -807,18 +643,21 @@ export default function PronosticosPage() {
                     <div className="h-full rounded-full bg-[var(--accent-primary)] transition-all duration-500" style={{ width: `${completionSummary.pct}%` }} />
                   </div>
                 </div>
-                <div className="flex flex-shrink-0 rounded-lg bg-[var(--surface-card-muted)] p-0.5">
+              </section>
+
+              <section className="rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] p-1 shadow-sm">
+                <div className="grid grid-cols-2 gap-1">
                   <button
                     type="button"
                     onClick={() => setActiveTab("upcoming")}
-                    className={`rounded-md px-3 py-1 text-[10px] font-bold transition-all ${activeTab === "upcoming" ? "bg-[var(--surface-card)] text-[var(--text-primary)] shadow-sm" : "text-[var(--text-muted)]"}`}
+                    className={`min-h-11 rounded-lg px-3 text-xs font-bold transition-all ${activeTab === "upcoming" ? "bg-[var(--accent-primary)] text-[var(--text-on-accent)] shadow-sm" : "text-[var(--text-muted)] hover:bg-[var(--surface-card-muted)]"}`}
                   >
                     Por Jugar
                   </button>
                   <button
                     type="button"
                     onClick={() => setActiveTab("history")}
-                    className={`rounded-md px-3 py-1 text-[10px] font-bold transition-all ${activeTab === "history" ? "bg-[var(--surface-card)] text-[var(--text-primary)] shadow-sm" : "text-[var(--text-muted)]"}`}
+                    className={`min-h-11 rounded-lg px-3 text-xs font-bold transition-all ${activeTab === "history" ? "bg-[var(--accent-primary)] text-[var(--text-on-accent)] shadow-sm" : "text-[var(--text-muted)] hover:bg-[var(--surface-card-muted)]"}`}
                   >
                     Jugados
                   </button>
@@ -852,21 +691,62 @@ export default function PronosticosPage() {
                                 <span className="truncate text-lg font-black text-[var(--text-primary)]">{match.homeTeam.code}</span>
                               </div>
 
-                              <button
-                                type="button"
-                                onClick={() => openPredictionEditor(match.id)}
-                                disabled={locked || savingAll}
-                                className={`mx-1 flex h-10 min-w-[96px] items-center justify-center gap-2 rounded-lg border px-3 transition-all active:scale-95 ${
+                              <div
+                                className={`mx-1 flex min-w-[132px] items-center justify-center gap-2 rounded-lg border px-2 py-1 transition-all ${
                                   changed || (draft.home !== null && draft.away !== null)
                                     ? "border-[var(--accent-primary)] bg-[var(--accent-soft)] text-[var(--text-primary)]"
-                                    : "border-transparent bg-[var(--surface-card-muted)] text-[var(--text-muted)] hover:bg-[var(--surface-card-muted)]"
-                                } ${locked || savingAll ? "opacity-50" : ""}`}
-                                aria-label={`Editar pronóstico ${match.homeTeam.code} vs ${match.awayTeam.code}`}
+                                    : "border-transparent bg-[var(--surface-card-muted)] text-[var(--text-muted)]"
+                                } ${locked ? "opacity-50" : ""}`}
+                                aria-label={`Editor rápido ${match.homeTeam.code} vs ${match.awayTeam.code}`}
                               >
-                                <span className="w-6 text-center text-lg font-black tracking-tighter">{draft.home !== null ? draft.home : "-"}</span>
-                                <span className="text-lg font-black text-[var(--text-muted)] opacity-20">:</span>
-                                <span className="w-6 text-center text-lg font-black tracking-tighter">{draft.away !== null ? draft.away : "-"}</span>
-                              </button>
+                                <div className="flex flex-col gap-1">
+                                  <button
+                                    type="button"
+                                    disabled={locked}
+                                    onClick={() => adjustDraftPrediction(match.id, "home", 1)}
+                                    className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--surface-card)] text-[var(--text-secondary)] disabled:opacity-50"
+                                    aria-label={`Subir local ${match.homeTeam.code}`}
+                                  >
+                                    <Plus size={12} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={locked}
+                                    onClick={() => adjustDraftPrediction(match.id, "home", -1)}
+                                    className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--surface-card)] text-[var(--text-secondary)] disabled:opacity-50"
+                                    aria-label={`Bajar local ${match.homeTeam.code}`}
+                                  >
+                                    <Minus size={12} />
+                                  </button>
+                                </div>
+
+                                <div className="flex items-center gap-1">
+                                  <span className="w-6 text-center text-lg font-black tracking-tighter">{draft.home !== null ? draft.home : "-"}</span>
+                                  <span className="text-lg font-black text-[var(--text-muted)] opacity-30">:</span>
+                                  <span className="w-6 text-center text-lg font-black tracking-tighter">{draft.away !== null ? draft.away : "-"}</span>
+                                </div>
+
+                                <div className="flex flex-col gap-1">
+                                  <button
+                                    type="button"
+                                    disabled={locked}
+                                    onClick={() => adjustDraftPrediction(match.id, "away", 1)}
+                                    className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--surface-card)] text-[var(--text-secondary)] disabled:opacity-50"
+                                    aria-label={`Subir visitante ${match.awayTeam.code}`}
+                                  >
+                                    <Plus size={12} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={locked}
+                                    onClick={() => adjustDraftPrediction(match.id, "away", -1)}
+                                    className="flex h-7 w-7 items-center justify-center rounded-md bg-[var(--surface-card)] text-[var(--text-secondary)] disabled:opacity-50"
+                                    aria-label={`Bajar visitante ${match.awayTeam.code}`}
+                                  >
+                                    <Minus size={12} />
+                                  </button>
+                                </div>
+                              </div>
 
                               <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
                                 <span className="truncate text-right text-lg font-black text-[var(--text-primary)]">{match.awayTeam.code}</span>
@@ -965,145 +845,10 @@ export default function PronosticosPage() {
                 </div>
               ) : null}
             </>
-          )}
+          ) : null}
         </main>
       </div>
 
-      <GroupSelectorModal
-        open={isSelectorOpen}
-        groups={selectorGroups}
-        activeGroupId={activeGroupId}
-        onSelect={(groupId) => {
-          setActiveGroupId(groupId);
-          setIsSelectorOpen(false);
-        }}
-        onClose={() => setIsSelectorOpen(false)}
-      />
-
-      {selectedMatch ? (
-        <div className="fixed inset-0 z-[120] flex items-end justify-center overflow-hidden no-scrollbar">
-          <div className="absolute inset-0 bg-[var(--surface-overlay)] backdrop-blur-sm transition-opacity" onClick={closePredictionEditor} />
-          <div className="relative w-full max-w-[469px] rounded-t-3xl bg-[var(--surface-card)] p-5 shadow-2xl animate-in slide-in-from-bottom duration-300 no-scrollbar">
-            <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[var(--surface-card-muted)]" />
-
-            <div className="mb-6 text-center">
-              <h3 className="text-lg font-black uppercase tracking-tight text-[var(--text-primary)]">PRONÓSTICO</h3>
-              <span className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-muted)]">
-                CIERRA: {formatModalCloseTime(selectedMatch.deadlineAt || selectedMatch.kickoffAt)}
-              </span>
-            </div>
-
-            <div className="mb-8 flex items-center justify-between gap-4">
-              <div className="flex w-1/3 flex-col items-center">
-                <TeamLogoBadge code={selectedMatch.homeTeam.code} logoUrl={resolveTeamLogoUrl(selectedMatch.homeTeam)} size="lg" />
-                <h4 className="mt-2 text-xl font-black leading-none text-[var(--text-primary)]">{selectedMatch.homeTeam.code}</h4>
-                {resolveTeamDisplayName(selectedMatch.homeTeam).toUpperCase() !== selectedMatch.homeTeam.code.toUpperCase() ? (
-                  <p className="mt-1 px-1 text-center text-[10px] font-bold leading-tight text-[var(--text-muted)]">{resolveTeamDisplayName(selectedMatch.homeTeam)}</p>
-                ) : null}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <div className="flex flex-col items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => updateEditorDraft("home", 1)}
-                    className="flex h-8 w-10 items-center justify-center rounded-lg bg-[var(--surface-card-muted)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-card-muted)]"
-                    aria-label="Incrementar local"
-                  >
-                    <ChevronUp size={20} />
-                  </button>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl border-2 border-[var(--border-subtle)] bg-[var(--surface-card)] shadow-sm">
-                    <span className="text-2xl font-black text-[var(--text-primary)]">{editorDraft.home !== null ? editorDraft.home : "-"}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => updateEditorDraft("home", -1)}
-                    className="flex h-8 w-10 items-center justify-center rounded-lg bg-[var(--surface-card-muted)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-card-muted)]"
-                    aria-label="Disminuir local"
-                  >
-                    <ChevronDown size={20} />
-                  </button>
-                </div>
-
-                <div className="pb-1 text-xl font-black text-[var(--text-muted)]">:</div>
-
-                <div className="flex flex-col items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => updateEditorDraft("away", 1)}
-                    className="flex h-8 w-10 items-center justify-center rounded-lg bg-[var(--surface-card-muted)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-card-muted)]"
-                    aria-label="Incrementar visitante"
-                  >
-                    <ChevronUp size={20} />
-                  </button>
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl border-2 border-[var(--border-subtle)] bg-[var(--surface-card)] shadow-sm">
-                    <span className="text-2xl font-black text-[var(--text-primary)]">{editorDraft.away !== null ? editorDraft.away : "-"}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => updateEditorDraft("away", -1)}
-                    className="flex h-8 w-10 items-center justify-center rounded-lg bg-[var(--surface-card-muted)] text-[var(--text-secondary)] transition-colors hover:bg-[var(--surface-card-muted)]"
-                    aria-label="Disminuir visitante"
-                  >
-                    <ChevronDown size={20} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex w-1/3 flex-col items-center">
-                <TeamLogoBadge code={selectedMatch.awayTeam.code} logoUrl={resolveTeamLogoUrl(selectedMatch.awayTeam)} size="lg" />
-                <h4 className="mt-2 text-xl font-black leading-none text-[var(--text-primary)]">{selectedMatch.awayTeam.code}</h4>
-                {resolveTeamDisplayName(selectedMatch.awayTeam).toUpperCase() !== selectedMatch.awayTeam.code.toUpperCase() ? (
-                  <p className="mt-1 px-1 text-center text-[10px] font-bold leading-tight text-[var(--text-muted)]">{resolveTeamDisplayName(selectedMatch.awayTeam)}</p>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={closePredictionEditor}
-                className="flex-1 rounded-xl border border-[var(--border-subtle)] py-3 text-sm font-bold text-[var(--text-secondary)] hover:bg-[var(--surface-card-muted)]"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={applyEditorPrediction}
-                className="flex-[2] rounded-xl bg-[var(--accent-primary)] py-3 text-sm font-bold text-[var(--text-on-accent)] shadow-lg shadow-[0_10px_24px_var(--accent-soft)] transition-all hover:brightness-95"
-              >
-                Confirmar
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {hasPendingChanges ? (
-        <div
-          className="fixed inset-x-0 bottom-0 z-[95] mx-auto w-full max-w-[469px] border-t border-[var(--border-subtle)] bg-[var(--surface-card)] px-4 pt-2 backdrop-blur"
-          style={{ paddingBottom: "calc(92px + env(safe-area-inset-bottom, 0px))" }}
-        >
-          <div className="mb-2 flex items-center justify-between gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card-muted)] px-3 py-2">
-            <p className="text-[11px] text-[var(--text-secondary)]" aria-live="polite">
-              {pendingSummary.changed} cambio(s) pendiente(s) · {pendingSummary.ready} listo(s)
-            </p>
-            <p className="inline-flex items-center gap-1 text-[11px] text-[var(--warning)]">
-              <CircleAlert size={12} />
-              No guardado
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => void saveAllChanges()}
-            disabled={savingAll}
-            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[var(--accent-primary)] px-4 text-[13px] font-bold text-[var(--text-on-accent)] disabled:opacity-60"
-          >
-            <Save size={16} />
-            {savingAll ? "Guardando cambios..." : "Guardar cambios"}
-          </button>
-        </div>
-      ) : null}
     </AppShell>
   );
 }

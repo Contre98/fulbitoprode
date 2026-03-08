@@ -159,6 +159,88 @@ function uniqNonEmpty(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
+function firstDefinedEnv(keys: string[]) {
+  for (const key of keys) {
+    const value = process.env[key]?.trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+async function ensureGlobalGroupEnrollment(input: { userId: string; authToken: string }) {
+  const groupId = firstDefinedEnv(["FULBITO_GLOBAL_GROUP_ID", "GLOBAL_GROUP_ID"]);
+  const inviteCodeOrToken = firstDefinedEnv(["FULBITO_GLOBAL_GROUP_INVITE", "GLOBAL_GROUP_INVITE"]);
+
+  if (!groupId && !inviteCodeOrToken) {
+    return;
+  }
+
+  if (inviteCodeOrToken) {
+    const result = await joinGroupByCodeOrToken(
+      {
+        userId: input.userId,
+        codeOrToken: inviteCodeOrToken
+      },
+      input.authToken
+    );
+
+    if (!result.ok) {
+      throw new Error(`Global group auto-enrollment failed: ${result.error}`);
+    }
+
+    return;
+  }
+
+  const targetGroupId = groupId;
+  if (!targetGroupId) {
+    return;
+  }
+
+  const existingFilter = encodeURIComponent(`user_id=${q(input.userId)} && group_id=${q(targetGroupId)}`);
+  const existing = await pbRequest<PbListResult<{ id: string; role: "owner" | "admin" | "member"; status: string }>>(
+    `/api/collections/group_members/records?perPage=1&filter=${existingFilter}`,
+    { method: "GET" },
+    input.authToken
+  );
+
+  const membership = existing.items[0];
+  if (!membership) {
+    await pbRequest(
+      "/api/collections/group_members/records",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          group_id: targetGroupId,
+          user_id: input.userId,
+          role: "member",
+          status: "active",
+          joined_at: new Date().toISOString()
+        })
+      },
+      input.authToken
+    );
+    return;
+  }
+
+  if (membership.status !== "active") {
+    await pbRequest(
+      `/api/collections/group_members/records/${membership.id}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          status: "active",
+          joined_at: new Date().toISOString(),
+          role: membership.role === "owner" || membership.role === "admin" ? membership.role : "member"
+        })
+      },
+      input.authToken
+    );
+  }
+}
+
 async function getActiveMembership(userId: string, groupId: string, authToken: string) {
   const membershipFilter = encodeURIComponent(`user_id=${q(userId)} && group_id=${q(groupId)} && status='active'`);
   const membership = await pbRequest<PbListResult<GroupMembershipRecord>>(
@@ -261,7 +343,24 @@ export async function registerWithPassword(input: {
     })
   });
 
-  return loginWithPassword(input.email, input.password);
+  const session = await loginWithPassword(input.email, input.password);
+  await ensureGlobalGroupEnrollment({
+    userId: session.user.id,
+    authToken: session.token
+  });
+
+  return session;
+}
+
+export async function requestPasswordReset(email: string) {
+  try {
+    await pbRequest("/api/collections/users/request-password-reset", {
+      method: "POST",
+      body: JSON.stringify({ email })
+    });
+  } catch (error) {
+    throw new Error(extractPocketBaseErrorMessage(error));
+  }
 }
 
 export async function getUserById(userId: string, authToken: string) {

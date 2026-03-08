@@ -4,11 +4,12 @@ import {
   fetchLigaArgentinaFixtures,
   formatRoundLabel,
   mapFixturesToFixtureCards,
+  mapFixturesToPronosticosMatches,
   resolveDefaultFecha
 } from "@/lib/liga-live-provider";
 import { getSessionPocketBaseTokenFromRequest, getSessionUserIdFromRequest } from "@/lib/request-auth";
 import { listGroupsForUser } from "@/lib/m3-repo";
-import type { FixturePayload } from "@/lib/types";
+import type { FixtureApiPayload } from "@fulbito/api-contracts";
 
 export async function GET(request: Request) {
   const userId = getSessionUserIdFromRequest(request);
@@ -23,10 +24,11 @@ export async function GET(request: Request) {
 
   const memberships = await listGroupsForUser(userId, pbToken);
   if (memberships.length === 0) {
-    const payload: FixturePayload = {
+    const payload: FixtureApiPayload = {
       period: "",
       periodLabel: "Sin fechas disponibles",
       cards: [],
+      matches: [],
       updatedAt: new Date().toISOString()
     };
     return NextResponse.json(payload, { status: 200 });
@@ -57,10 +59,11 @@ export async function GET(request: Request) {
       "";
   }
   if (!period) {
-    const payload: FixturePayload = {
+    const payload: FixtureApiPayload = {
       period: "",
       periodLabel: "Sin fechas disponibles",
       cards: [],
+      matches: [],
       updatedAt: new Date().toISOString()
     };
     return NextResponse.json(payload, { status: 200 });
@@ -73,10 +76,26 @@ export async function GET(request: Request) {
     competitionStage: selected.group.competitionStage
   });
 
-  const payload: FixturePayload = {
+  const payload: FixtureApiPayload = {
     period,
     periodLabel: formatRoundLabel(period),
     cards: mapFixturesToFixtureCards(liveFixtures),
+    matches: mapFixturesToPronosticosMatches(liveFixtures).map((match) => ({
+      id: match.id,
+      status: match.status,
+      kickoffAt: match.kickoffAt,
+      homeTeam: {
+        code: match.homeTeam.code,
+        name: match.homeTeam.name,
+        logoUrl: match.homeTeam.logoUrl
+      },
+      awayTeam: {
+        code: match.awayTeam.code,
+        name: match.awayTeam.name,
+        logoUrl: match.awayTeam.logoUrl
+      },
+      score: match.score
+    })),
     updatedAt: new Date().toISOString()
   };
 

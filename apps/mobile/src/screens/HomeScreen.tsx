@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { fixtureRepository, leaderboardRepository } from "@/repositories";
+import { fixtureRepository, leaderboardRepository, notificationsRepository } from "@/repositories";
 import { ScreenFrame } from "@/components/ScreenFrame";
+import { HeaderGroupSelector } from "@/components/HeaderGroupSelector";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
@@ -33,33 +34,63 @@ function toTeamCode(name: string) {
 export function HomeScreen() {
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
-  const { memberships, selectedGroupId } = useGroupSelection();
-  const { fecha } = usePeriod();
+  const { memberships, selectedGroupId, setSelectedGroupId } = useGroupSelection();
+  const { fecha, options } = usePeriod();
   const [fixtureFilter, setFixtureFilter] = useState<HomeFixtureFilter>("all");
   const activeMembership = memberships.find((membership) => membership.groupId === selectedGroupId) ?? memberships[0];
   const groupId = activeMembership?.groupId ?? "grupo-1";
 
   const leaderboardQuery = useQuery({
-    queryKey: ["leaderboard", groupId, fecha],
+    queryKey: ["leaderboard", groupId],
     queryFn: () =>
       leaderboardRepository.getLeaderboard({
         groupId,
-        fecha
+        fecha: ""
       })
   });
 
   const fixtureQuery = useQuery({
-    queryKey: ["fixture", groupId, fecha],
-    queryFn: () =>
-      fixtureRepository.listFixture({
-        groupId,
-        fecha
-      })
+    queryKey: ["fixture-home", groupId, fecha, options.map((option) => option.id).join("|")],
+    queryFn: async () => {
+      const candidatePeriods = Array.from(new Set([fecha, ...options.map((option) => option.id), ""]));
+      let firstSuccessfulRows: Awaited<ReturnType<typeof fixtureRepository.listFixture>> | null = null;
+      let firstError: unknown = null;
+
+      for (const period of candidatePeriods) {
+        try {
+          const rows = await fixtureRepository.listFixture({
+            groupId,
+            fecha: period
+          });
+
+          if (firstSuccessfulRows === null) {
+            firstSuccessfulRows = rows;
+          }
+
+          if (filterHomeFixtures(rows, "all").length > 0) {
+            return rows;
+          }
+        } catch (error) {
+          if (!firstError) {
+            firstError = error;
+          }
+        }
+      }
+
+      if (firstSuccessfulRows) {
+        return firstSuccessfulRows;
+      }
+
+      throw (firstError ?? new Error("No se pudo cargar el fixture."));
+    }
+  });
+  const notificationsQuery = useQuery({
+    queryKey: ["notifications-weekly-winner"],
+    queryFn: () => notificationsRepository.listInbox()
   });
 
   const summaryCards = useMemo(() => {
     const top = leaderboardQuery.data?.[0];
-    const points = top?.points ?? 0;
     return [
       { label: "RANKING", value: top ? `#${top.rank}` : "#-" },
       { label: "PENDIENTES", value: String((fixtureQuery.data ?? []).filter((f) => f.status === "upcoming").length) },
@@ -67,12 +98,20 @@ export function HomeScreen() {
     ];
   }, [fixtureQuery.data, leaderboardQuery.data]);
 
-  const membershipsCards = memberships.slice(0, 2);
   const filteredFixtures = useMemo(
     () => filterHomeFixtures(fixtureQuery.data ?? [], fixtureFilter),
     [fixtureQuery.data, fixtureFilter]
   );
-  const fixtures = filteredFixtures.slice(0, 4);
+  const fixtures = filteredFixtures.slice(0, 5);
+  const weeklyWinner = notificationsQuery.data?.weeklyWinner ?? null;
+
+  async function shareWeeklyWinner() {
+    if (!weeklyWinner) {
+      return;
+    }
+    const message = `Ganador ${weeklyWinner.periodLabel}: ${weeklyWinner.winnerName} con ${weeklyWinner.points} pts en Fulbito Prode.`;
+    await Share.share({ message });
+  }
 
   return (
     <ScreenFrame
@@ -91,22 +130,10 @@ export function HomeScreen() {
               <Text style={styles.brandTitleDark}>FULBITO</Text>
               <Text style={styles.brandTitleAccent}>PRODE</Text>
             </Text>
-            <View style={styles.headerActions}>
-              <Pressable style={styles.headerActionButton}>
-                <Text allowFontScaling={false} style={styles.headerActionGlyph}>◔</Text>
-              </Pressable>
-              <Pressable style={styles.headerActionButton}>
-                <Text allowFontScaling={false} style={styles.headerActionGlyph}>⌂</Text>
-                <View style={styles.headerAlertDot} />
-              </Pressable>
-              <Pressable style={styles.headerActionButton}>
-                <Text allowFontScaling={false} style={styles.headerActionGlyph}>⌘</Text>
-              </Pressable>
-              <View style={styles.profileDot}>
-                <Text allowFontScaling={false} style={styles.profileDotText}>
-                  {session?.user.name?.slice(0, 2).toUpperCase() || "FC"}
-                </Text>
-              </View>
+            <View style={styles.profileDot}>
+              <Text allowFontScaling={false} style={styles.profileDotText}>
+                {session?.user.name?.slice(0, 2).toUpperCase() || "FC"}
+              </Text>
             </View>
           </View>
           <View style={styles.titleRow}>
@@ -114,32 +141,11 @@ export function HomeScreen() {
               <Text allowFontScaling={false} style={styles.sectionIconText}>⌂</Text>
             </View>
             <Text allowFontScaling={false} style={styles.sectionTitle}>Inicio</Text>
-            <Text allowFontScaling={false} style={styles.sectionSubtitle}>Tablero general</Text>
+            <HeaderGroupSelector memberships={memberships} selectedGroupId={selectedGroupId} onSelectGroup={(nextGroupId) => void setSelectedGroupId(nextGroupId)} />
           </View>
         </View>
       }
     >
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.topCardsRow}>
-        {membershipsCards.map((membership) => (
-          <View key={membership.groupId} style={styles.topCard}>
-            <Text allowFontScaling={false} style={styles.topCardLabel}>TEMP {membership.season}</Text>
-            <Text allowFontScaling={false} numberOfLines={1} style={styles.topCardTitle}>
-              {membership.groupName}
-            </Text>
-            <View style={styles.topCardStatsRow}>
-              <View style={styles.statBox}>
-                <Text allowFontScaling={false} style={styles.statBoxLabel}>RANKING</Text>
-                <Text allowFontScaling={false} style={styles.statBoxValue}>#1</Text>
-              </View>
-              <View style={[styles.statBox, styles.statBoxAccent]}>
-                <Text allowFontScaling={false} style={styles.statBoxLabelAccent}>PUNTOS</Text>
-                <Text allowFontScaling={false} style={styles.statBoxValueAccent}>{leaderboardQuery.data?.[0]?.points ?? 0}</Text>
-              </View>
-            </View>
-          </View>
-        ))}
-      </ScrollView>
-
       <View style={styles.summaryRow}>
         {summaryCards.map((item) => (
           <View key={item.label} style={styles.summaryCard}>
@@ -148,6 +154,21 @@ export function HomeScreen() {
           </View>
         ))}
       </View>
+
+      {weeklyWinner ? (
+        <View style={styles.winnerCard}>
+          <Text allowFontScaling={false} style={styles.winnerLabel}>GANADOR SEMANAL</Text>
+          <Text allowFontScaling={false} style={styles.winnerTitle}>
+            {weeklyWinner.periodLabel}: {weeklyWinner.winnerName}
+          </Text>
+          <Text allowFontScaling={false} style={styles.winnerSub}>
+            {weeklyWinner.points} pts {weeklyWinner.tied ? "· empatado" : ""}
+          </Text>
+          <Pressable onPress={() => void shareWeeklyWinner()} style={styles.winnerShareButton}>
+            <Text allowFontScaling={false} style={styles.winnerShareText}>Compartir resultado</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <View style={styles.sectionHeaderRow}>
         <Text allowFontScaling={false} style={styles.sectionHeader}>Próximos Partidos</Text>
@@ -185,21 +206,26 @@ export function HomeScreen() {
         const homeCode = toTeamCode(fixture.homeTeam);
         const awayCode = toTeamCode(fixture.awayTeam);
         const kickoff = new Date(fixture.kickoffAt);
+        const finalScore = fixture.status === "final" && fixture.score ? `${fixture.score.home}-${fixture.score.away}` : null;
         return (
-          <View key={fixture.id} style={styles.matchCard}>
+          <View key={fixture.id} style={[styles.matchCard, fixture.status === "live" ? styles.matchCardLive : null]}>
             <View style={styles.matchMainRow}>
               <View style={styles.side}>
-                <TeamCrest teamName={fixture.homeTeam} code={homeCode} size={32} />
-                <Text allowFontScaling={false} numberOfLines={1} style={styles.teamName}>{fixture.homeTeam}</Text>
+                <TeamCrest teamName={fixture.homeTeam} code={homeCode} logoUrl={fixture.homeLogoUrl} size={32} />
+                <Text allowFontScaling={false} numberOfLines={2} style={styles.teamName}>{fixture.homeTeam}</Text>
               </View>
               <View style={styles.centerBlock}>
-                <Text allowFontScaling={false} style={styles.centerVersus}>{fixture.status === "final" ? "1-1" : "VS"}</Text>
-                <Text allowFontScaling={false} style={styles.centerMeta}>{`${kickoff.getDate()}/${kickoff.getMonth() + 1}`}</Text>
+                <Text allowFontScaling={false} style={fixture.status === "final" ? styles.centerFinalScore : styles.centerVersus}>
+                  {fixture.status === "final" ? finalScore ?? "--" : fixture.status === "live" ? "EN VIVO" : "VS"}
+                </Text>
+                <Text allowFontScaling={false} style={fixture.status === "live" ? styles.centerLiveMeta : styles.centerMeta}>
+                  {fixture.status === "final" ? "FINAL" : `${kickoff.getDate()}/${kickoff.getMonth() + 1}`}
+                </Text>
                 <Text allowFontScaling={false} style={styles.centerMeta}>{kickoff.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}</Text>
               </View>
               <View style={[styles.side, styles.sideRight]}>
-                <TeamCrest teamName={fixture.awayTeam} code={awayCode} size={32} />
-                <Text allowFontScaling={false} numberOfLines={1} style={styles.teamName}>{fixture.awayTeam}</Text>
+                <TeamCrest teamName={fixture.awayTeam} code={awayCode} logoUrl={fixture.awayLogoUrl} size={32} />
+                <Text allowFontScaling={false} numberOfLines={2} style={styles.teamName}>{fixture.awayTeam}</Text>
               </View>
             </View>
           </View>
@@ -255,32 +281,6 @@ const styles = StyleSheet.create({
   brandTitleAccent: {
     color: "#A3C90A"
   },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6
-  },
-  headerActionButton: {
-    height: 32,
-    width: 32,
-    borderRadius: 999,
-    backgroundColor: "#ECEFF3",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  headerActionGlyph: {
-    color: "#6B7280",
-    fontSize: 14
-  },
-  headerAlertDot: {
-    position: "absolute",
-    top: 8,
-    right: 9,
-    height: 4,
-    width: 4,
-    borderRadius: 999,
-    backgroundColor: "#D94651"
-  },
   profileDot: {
     height: 32,
     width: 32,
@@ -325,73 +325,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700"
   },
-  topCardsRow: {
-    gap: 10,
-    paddingRight: 4
-  },
-  topCard: {
-    width: 234,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#D7DCE3",
-    backgroundColor: "#F8FAFC",
-    padding: 11
-  },
-  topCardLabel: {
-    color: "#8A94A4",
-    fontSize: 10,
-    fontWeight: "800",
-    letterSpacing: 0.8
-  },
-  topCardTitle: {
-    marginTop: 6,
-    color: "#111827",
-    fontSize: 18,
-    lineHeight: 22,
-    fontWeight: "800"
-  },
-  topCardStatsRow: {
-    marginTop: 10,
-    flexDirection: "row",
-    gap: 8
-  },
-  statBox: {
-    flex: 1,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#D7DCE3",
-    backgroundColor: "#E9EDF2",
-    paddingVertical: 8,
-    paddingHorizontal: 10
-  },
-  statBoxAccent: {
-    borderColor: "#B7D70A",
-    backgroundColor: "#E9EFCF"
-  },
-  statBoxLabel: {
-    color: "#8A94A4",
-    fontSize: 9,
-    fontWeight: "800"
-  },
-  statBoxLabelAccent: {
-    color: "#A3C90A",
-    fontSize: 9,
-    fontWeight: "800"
-  },
-  statBoxValue: {
-    marginTop: 2,
-    color: "#111827",
-    fontSize: 28,
-    lineHeight: 30,
-    fontWeight: "900"
-  },
-  statBoxValueAccent: {
-    marginTop: 2,
-    color: "#A3C90A",
-    fontSize: 28,
-    lineHeight: 30,
-    fontWeight: "900"
-  },
   summaryRow: {
     flexDirection: "row",
     gap: 10
@@ -416,6 +349,43 @@ const styles = StyleSheet.create({
     color: "#111827",
     fontSize: 24,
     lineHeight: 26,
+    fontWeight: "900"
+  },
+  winnerCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#D7DCE3",
+    backgroundColor: "#F8FAFC",
+    padding: 12
+  },
+  winnerLabel: {
+    color: "#8A94A4",
+    fontSize: 9,
+    fontWeight: "900"
+  },
+  winnerTitle: {
+    marginTop: 6,
+    color: "#111827",
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  winnerSub: {
+    marginTop: 3,
+    color: "#4B5563",
+    fontSize: 11,
+    fontWeight: "700"
+  },
+  winnerShareButton: {
+    marginTop: 10,
+    minHeight: 34,
+    borderRadius: 8,
+    backgroundColor: "#E8EDCD",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  winnerShareText: {
+    color: "#44511B",
+    fontSize: 11,
     fontWeight: "900"
   },
   sectionHeaderRow: {
@@ -470,6 +440,10 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 12
   },
+  matchCardLive: {
+    borderColor: "#EF4444",
+    borderWidth: 2
+  },
   matchMainRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -486,7 +460,8 @@ const styles = StyleSheet.create({
   teamName: {
     color: "#1F2937",
     fontWeight: "800",
-    fontSize: 8,
+    fontSize: 10,
+    lineHeight: 12,
     textAlign: "center"
   },
   centerBlock: {
@@ -498,6 +473,17 @@ const styles = StyleSheet.create({
     fontSize: 20,
     lineHeight: 22,
     fontWeight: "900"
+  },
+  centerFinalScore: {
+    color: "#111827",
+    fontSize: 26,
+    lineHeight: 28,
+    fontWeight: "900"
+  },
+  centerLiveMeta: {
+    color: "#DC2626",
+    fontSize: 9,
+    fontWeight: "800"
   },
   centerMeta: {
     color: "#8A94A4",

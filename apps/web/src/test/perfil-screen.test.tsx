@@ -80,13 +80,13 @@ describe("Perfil screen", () => {
     expect(screen.getByText("Perfil")).toBeInTheDocument();
     expect(screen.getByText("Actividad Reciente")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Inicio/i })).toHaveAttribute("href", "/");
-    expect(screen.getByRole("link", { name: /Grupos/i })).toHaveAttribute("href", "/configuracion");
+    expect(screen.queryByRole("link", { name: /Grupos/i })).not.toBeInTheDocument();
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalled());
     await waitFor(() => expect(screen.getByText("Pronóstico: Boca vs River")).toBeInTheDocument());
     await waitFor(() => expect(screen.getByText("1240")).toBeInTheDocument());
     expect(screen.getByText("70%")).toBeInTheDocument();
-    expect(screen.queryByText(/Ranking/i)).not.toBeInTheDocument();
+    expect(screen.getByText("Evolución de ranking")).toBeInTheDocument();
     expect(screen.queryByText(/SELECCIÓN ACTUAL/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Actividad del perfil" }));

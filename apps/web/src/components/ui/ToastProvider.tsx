@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { translateBackendErrorMessage } from "@fulbito/domain";
 import { CheckCircle2, CircleAlert, Info, X } from "lucide-react";
 
 type ToastTone = "success" | "error" | "info";
@@ -60,7 +61,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const showToast = useCallback(
     ({ title, description, tone = "info", durationMs = 2600 }: ToastInput) => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-      setToasts((current) => [...current, { id, title, description, tone }]);
+      const translatedTitle = translateBackendErrorMessage(title);
+      const translatedDescription = description ? translateBackendErrorMessage(description) : undefined;
+      setToasts((current) => [...current, { id, title: translatedTitle, description: translatedDescription, tone }]);
       window.setTimeout(() => removeToast(id), durationMs);
     },
     [removeToast]

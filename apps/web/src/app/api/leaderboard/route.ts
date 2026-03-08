@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { calculatePredictionPoints } from "@fulbito/domain";
+import { calculatePredictionPoints, parseLeaderboardRecord } from "@fulbito/domain";
 import { fetchAvailableFechas, fetchLigaArgentinaFixtures, fetchLigaArgentinaStandings, formatRoundLabel, mapFixturesToPronosticosMatches } from "@/lib/liga-live-provider";
 import { listGroupMembers, listGroupPredictions, listGroupsForUser } from "@/lib/m3-repo";
 import { getSessionPocketBaseTokenFromRequest, getSessionUserIdFromRequest } from "@/lib/request-auth";
@@ -45,6 +45,43 @@ function toLeaderboardRows(rows: LeaderboardRow[]): LeaderboardRow[] {
     rank: index + 1,
     highlight: index === 0
   }));
+}
+
+function rowKey(row: Pick<LeaderboardRow, "userId" | "name">) {
+  return row.userId || row.name.trim().toLowerCase();
+}
+
+function longestConsecutive(values: number[], predicate: (value: number) => boolean) {
+  let current = 0;
+  let best = 0;
+
+  values.forEach((value) => {
+    if (predicate(value)) {
+      current += 1;
+      if (current > best) {
+        best = current;
+      }
+      return;
+    }
+
+    current = 0;
+  });
+
+  return best;
+}
+
+function pickWinner<T>(entries: T[], score: (entry: T) => number, tiebreak: (a: T, b: T) => number) {
+  if (entries.length === 0) {
+    return null;
+  }
+
+  return [...entries].sort((a, b) => {
+    const scoreDelta = score(b) - score(a);
+    if (scoreDelta !== 0) {
+      return scoreDelta;
+    }
+    return tiebreak(a, b);
+  })[0];
 }
 
 function copyMatches(matches: MatchCardData[]): MatchCardData[] {
@@ -307,6 +344,7 @@ function buildGroupStats(input: {
   });
 
   let bestFecha: LeaderboardGroupStats["bestFecha"] = null;
+  let worstFecha: LeaderboardGroupStats["worstFecha"] = null;
 
   pointsByFechaUser.forEach((pointsByUserInPeriod, period) => {
     pointsByUserInPeriod.forEach((points, userId) => {
@@ -321,6 +359,9 @@ function buildGroupStats(input: {
 
       if (!bestFecha || candidate.points > bestFecha.points || (candidate.points === bestFecha.points && candidate.userName.localeCompare(bestFecha.userName) < 0)) {
         bestFecha = candidate;
+      }
+      if (!worstFecha || candidate.points < worstFecha.points || (candidate.points === worstFecha.points && candidate.userName.localeCompare(worstFecha.userName) < 0)) {
+        worstFecha = candidate;
       }
     });
   });
@@ -353,8 +394,293 @@ function buildGroupStats(input: {
     totalPoints,
     averageMemberPoints,
     bestFecha,
+    worstFecha,
     worldBenchmark
   };
+}
+
+interface LeaderboardPeriodSnapshot {
+  period: string;
+  periodLabel: string;
+  rows: LeaderboardRow[];
+}
+
+function buildPeriodSnapshots(input: {
+  members: Array<{ userId: string; name: string }>;
+  predictions: Array<{ userId: string; fixtureId: string; period: string; home: number | null; away: number | null }>;
+  scoreMapByPeriod: Map<string, Map<string, { home: number; away: number }>>;
+  periods: string[];
+}) {
+  const seen = new Set<string>();
+  const orderedPeriods = input.periods.filter((period) => {
+    if (seen.has(period)) return false;
+    seen.add(period);
+    return true;
+  });
+
+  const snapshots: LeaderboardPeriodSnapshot[] = [];
+  orderedPeriods.forEach((period) => {
+    const periodPredictions = input.predictions.filter((prediction) => prediction.period === period);
+    const periodRows = buildRows({
+      mode: "posiciones",
+      members: input.members,
+      predictions: periodPredictions,
+      scoreMap: input.scoreMapByPeriod.get(period) || new Map<string, { home: number; away: number }>()
+    });
+    snapshots.push({
+      period,
+      periodLabel: formatRoundLabel(period),
+      rows: periodRows
+    });
+  });
+
+  return snapshots;
+}
+
+function buildStatsAwards(input: { rows: LeaderboardRow[]; periodSnapshots: LeaderboardPeriodSnapshot[] }): NonNullable<LeaderboardPayload["stats"]>["awards"] {
+  interface StatsEntry {
+    key: string;
+    userId?: string;
+    name: string;
+    exact: number;
+    result: number;
+    miss: number;
+    positiveStreak: number;
+    zeroStreak: number;
+    batacazoCount: number;
+    robinDifficultHits: number;
+    robinEasyFails: number;
+    casiCount: number;
+  }
+
+  const metricsByUser = new Map<string, StatsEntry>();
+  const timelineByUser = new Map<
+    string,
+    {
+      name: string;
+      points: number[];
+      batacazoCount: number;
+      robinDifficultHits: number;
+      robinEasyFails: number;
+    }
+  >();
+
+  const ensureTimeline = (key: string, name: string) => {
+    const current = timelineByUser.get(key);
+    if (current) {
+      return current;
+    }
+    const next = {
+      name,
+      points: [] as number[],
+      batacazoCount: 0,
+      robinDifficultHits: 0,
+      robinEasyFails: 0
+    };
+    timelineByUser.set(key, next);
+    return next;
+  };
+
+  input.rows.forEach((row) => {
+    const key = rowKey(row);
+    const parsed = parseLeaderboardRecord(row.record);
+    metricsByUser.set(key, {
+      key,
+      userId: row.userId,
+      name: row.name,
+      exact: parsed.exact,
+      result: parsed.outcome,
+      miss: parsed.miss,
+      positiveStreak: 0,
+      zeroStreak: 0,
+      batacazoCount: 0,
+      robinDifficultHits: 0,
+      robinEasyFails: 0,
+      casiCount: Math.max(parsed.outcome - parsed.exact, 0)
+    });
+    ensureTimeline(key, row.name);
+  });
+
+  input.periodSnapshots.forEach((snapshot) => {
+    const periodRowsByUser = new Map(snapshot.rows.map((row) => [rowKey(row), row] as const));
+    const allUserKeys = new Set<string>([...timelineByUser.keys(), ...periodRowsByUser.keys()]);
+
+    allUserKeys.forEach((userKey) => {
+      const row = periodRowsByUser.get(userKey);
+      const userName = row?.name || timelineByUser.get(userKey)?.name || "Participante";
+      const timeline = ensureTimeline(userKey, userName);
+      timeline.points.push(row?.points ?? 0);
+
+      if (!metricsByUser.has(userKey)) {
+        const parsed = parseLeaderboardRecord(row?.record || "0/0/0");
+        metricsByUser.set(userKey, {
+          key: userKey,
+          userId: row?.userId,
+          name: userName,
+          exact: parsed.exact,
+          result: parsed.outcome,
+          miss: parsed.miss,
+          positiveStreak: 0,
+          zeroStreak: 0,
+          batacazoCount: 0,
+          robinDifficultHits: 0,
+          robinEasyFails: 0,
+          casiCount: Math.max(parsed.outcome - parsed.exact, 0)
+        });
+      }
+    });
+
+    const scorers = snapshot.rows.filter((row) => row.points > 0);
+    if (snapshot.rows.length > 1 && scorers.length === 1) {
+      const ownerKey = rowKey(scorers[0]);
+      const ownerTimeline = ensureTimeline(ownerKey, scorers[0].name);
+      ownerTimeline.batacazoCount += 1;
+      ownerTimeline.robinDifficultHits += 1;
+    }
+
+    snapshot.rows.forEach((row) => {
+      if (row.points > 0) return;
+      const others = snapshot.rows.filter((candidate) => rowKey(candidate) !== rowKey(row));
+      if (others.length > 0 && others.every((candidate) => candidate.points > 0)) {
+        const timeline = ensureTimeline(rowKey(row), row.name);
+        timeline.robinEasyFails += 1;
+      }
+    });
+  });
+
+  const entries = [...metricsByUser.values()].map((entry) => {
+    const timeline = timelineByUser.get(entry.key);
+    const points = timeline?.points || [];
+    return {
+      ...entry,
+      positiveStreak: longestConsecutive(points, (value) => value > 0),
+      zeroStreak: longestConsecutive(points, (value) => value === 0),
+      batacazoCount: timeline?.batacazoCount || 0,
+      robinDifficultHits: timeline?.robinDifficultHits || 0,
+      robinEasyFails: timeline?.robinEasyFails || 0
+    };
+  });
+
+  const byName = (a: StatsEntry, b: StatsEntry) => a.name.localeCompare(b.name, "es");
+  const fallbackEntry: StatsEntry = {
+    key: "fallback",
+    userId: undefined,
+    name: "Sin datos",
+    exact: 0,
+    result: 0,
+    miss: 0,
+    positiveStreak: 0,
+    zeroStreak: 0,
+    batacazoCount: 0,
+    robinDifficultHits: 0,
+    robinEasyFails: 0,
+    casiCount: 0
+  };
+
+  const nostradamus = pickWinner(entries, (entry) => entry.exact, (a, b) => b.result - a.result || byName(a, b)) || fallbackEntry;
+  const bilardistaPool = entries.filter((entry) => entry.exact === 0);
+  const bilardista =
+    pickWinner(
+      bilardistaPool.length > 0 ? bilardistaPool : entries,
+      (entry) => entry.result,
+      (a, b) => a.miss - b.miss || byName(a, b)
+    ) || fallbackEntry;
+  const laRacha = pickWinner(entries, (entry) => entry.positiveStreak, (a, b) => b.exact - a.exact || byName(a, b)) || fallbackEntry;
+  const batacazo = pickWinner(entries, (entry) => entry.batacazoCount, (a, b) => b.result - a.result || byName(a, b)) || fallbackEntry;
+  const robinHood =
+    pickWinner(
+      entries,
+      (entry) => entry.robinDifficultHits * 10 + entry.robinEasyFails,
+      (a, b) => b.robinDifficultHits - a.robinDifficultHits || byName(a, b)
+    ) || fallbackEntry;
+  const elCasi = pickWinner(entries, (entry) => entry.casiCount, (a, b) => b.result - a.result || byName(a, b)) || fallbackEntry;
+  const elMufa = pickWinner(entries, (entry) => entry.zeroStreak, (a, b) => b.miss - a.miss || byName(a, b)) || fallbackEntry;
+
+  const createAward = (input: {
+    id: string;
+    title: string;
+    winner: StatsEntry;
+    subtitle: string;
+    metricValue: number;
+  }) => ({
+    id: input.id,
+    title: input.title,
+    winnerUserId: input.winner.userId,
+    winnerName: input.winner.name,
+    subtitle: input.subtitle,
+    metricValue: input.metricValue
+  });
+
+  return [
+    createAward({
+      id: "nostradamus",
+      title: "NOSTRADAMUS",
+      winner: nostradamus,
+      subtitle: `Mayor cantidad de plenos (${nostradamus.exact})`,
+      metricValue: nostradamus.exact
+    }),
+    createAward({
+      id: "bilardista",
+      title: "BILARDISTA",
+      winner: bilardista,
+      subtitle: `Suma con lo justo. ${bilardista.result} resultados y 0 plenos.`,
+      metricValue: bilardista.result
+    }),
+    createAward({
+      id: "la-racha",
+      title: "LA RACHA",
+      winner: laRacha,
+      subtitle: `${laRacha.positiveStreak} fechas sumando seguido`,
+      metricValue: laRacha.positiveStreak
+    }),
+    createAward({
+      id: "batacazo",
+      title: "BATACAZO",
+      winner: batacazo,
+      subtitle: `Único acierto grupal (${batacazo.batacazoCount})`,
+      metricValue: batacazo.batacazoCount
+    }),
+    createAward({
+      id: "robin-hood",
+      title: "ROBIN HOOD",
+      winner: robinHood,
+      subtitle: `Acierta difíciles (${robinHood.robinDifficultHits}), erra fáciles (${robinHood.robinEasyFails})`,
+      metricValue: robinHood.robinDifficultHits * 10 + robinHood.robinEasyFails
+    }),
+    createAward({
+      id: "el-casi",
+      title: 'EL "CASI"',
+      winner: elCasi,
+      subtitle: `Resultado sí, pleno no por 1 gol (${elCasi.casiCount})`,
+      metricValue: elCasi.casiCount
+    }),
+    createAward({
+      id: "el-mufa",
+      title: "EL MUFA",
+      winner: elMufa,
+      subtitle: `${elMufa.zeroStreak} fechas sin sumar nada`,
+      metricValue: elMufa.zeroStreak
+    })
+  ];
+}
+
+function buildHistoricalSeries(input: {
+  members: Array<{ userId: string; name: string }>;
+  periodSnapshots: LeaderboardPeriodSnapshot[];
+}): NonNullable<LeaderboardPayload["stats"]>["historicalSeries"] {
+  return input.members.map((member) => ({
+    userId: member.userId,
+    userName: member.name,
+    points: input.periodSnapshots.map((snapshot) => {
+      const row = snapshot.rows.find((candidate) => candidate.userId === member.userId);
+      return {
+        period: snapshot.period,
+        periodLabel: snapshot.periodLabel,
+        rank: row?.rank ?? snapshot.rows.length + 1,
+        points: row?.points ?? 0
+      };
+    })
+  }));
 }
 
 export async function GET(request: Request) {
@@ -382,7 +708,8 @@ export async function GET(request: Request) {
       periodLabel: period === "global" ? "Global acumulado" : formatRoundLabel(period),
       updatedAt: new Date().toISOString(),
       rows: [],
-      groupStats: null
+      groupStats: null,
+      stats: null
     };
     return NextResponse.json(payload, { status: 200 });
   }
@@ -440,6 +767,7 @@ export async function GET(request: Request) {
     });
 
     let groupStats: LeaderboardPayload["groupStats"] = null;
+    let stats: LeaderboardPayload["stats"] = null;
 
     if (mode === "stats") {
       const allPredictions =
@@ -474,6 +802,45 @@ export async function GET(request: Request) {
         scoreMapByPeriod: allPeriodScoreMaps.scoreMapByPeriod,
         standings
       });
+
+      const periodsForHistory = allPeriods.length > 0 ? allPeriods : periods.map((value) => String(value));
+      const periodSnapshots = buildPeriodSnapshots({
+        members: memberRows,
+        predictions: allPredictions,
+        scoreMapByPeriod: allPeriodScoreMaps.scoreMapByPeriod,
+        periods: periodsForHistory
+      });
+      const globalReferenceRows = buildRows({
+        mode: "posiciones",
+        members: memberRows,
+        predictions: allPredictions,
+        scoreMap: allPeriodScoreMaps.scoreMap
+      });
+
+      stats = {
+        summary: {
+          memberCount: groupStats.memberCount,
+          scoredPredictions: groupStats.scoredPredictions,
+          correctPredictions: groupStats.correctPredictions,
+          exactPredictions: groupStats.exactPredictions,
+          resultPredictions: groupStats.resultPredictions,
+          missPredictions: groupStats.missPredictions,
+          accuracyPct: groupStats.accuracyPct,
+          totalPoints: groupStats.totalPoints,
+          averageMemberPoints: groupStats.averageMemberPoints,
+          bestRound: groupStats.bestFecha || null,
+          worstRound: groupStats.worstFecha || null,
+          worldBenchmark: groupStats.worldBenchmark
+        },
+        awards: buildStatsAwards({
+          rows: globalReferenceRows,
+          periodSnapshots
+        }),
+        historicalSeries: buildHistoricalSeries({
+          members: memberRows,
+          periodSnapshots
+        })
+      };
     }
 
     const payload: LeaderboardPayload = {
@@ -483,7 +850,8 @@ export async function GET(request: Request) {
       periodLabel: period === "global" ? "Global acumulado" : formatRoundLabel(String(period)),
       updatedAt: new Date().toISOString(),
       rows,
-      groupStats
+      groupStats,
+      stats
     };
 
     return NextResponse.json(payload, { status: 200 });

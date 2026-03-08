@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { View, Text, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, ScrollView } from "react-native";
 import type { StyleProp, ViewStyle } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing } from "@fulbito/design-tokens";
 import { DataModeBadge } from "@/components/DataModeBadge";
 
@@ -21,6 +22,8 @@ export function ScreenFrame({
   contentStyle?: StyleProp<ViewStyle>;
   children?: ReactNode;
 }) {
+  const insets = useSafeAreaInsets();
+
   return (
     <View style={[styles.container, containerStyle]}>
       {header ? (
@@ -32,7 +35,14 @@ export function ScreenFrame({
         </>
       )}
       {hideDataModeBadge ? null : <DataModeBadge />}
-      <View style={[styles.content, contentStyle]}>{children}</View>
+      <ScrollView
+        style={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={[styles.content, { paddingBottom: spacing.xl + insets.bottom }, contentStyle]}
+      >
+        {children}
+      </ScrollView>
     </View>
   );
 }
@@ -51,6 +61,9 @@ const styles = StyleSheet.create({
   subtitle: {
     color: colors.textSecondary,
     marginTop: spacing.sm
+  },
+  scroll: {
+    flex: 1
   },
   content: {
     marginTop: spacing.lg,

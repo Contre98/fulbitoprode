@@ -1,10 +1,14 @@
-export type AppTab = "inicio" | "posiciones" | "pronosticos" | "fixture" | "configuracion";
+import type { LeaderboardApiGroupStats, LeaderboardApiPayload, LeaderboardApiRow } from "@fulbito/api-contracts";
+import type { LeaderboardBestRound, LeaderboardMode, LeaderboardPeriod, LeaderboardWorldBenchmark } from "@fulbito/domain";
+
+export type AppTab = "inicio" | "posiciones" | "pronosticos" | "fixture";
 
 export type MatchStatus = "live" | "upcoming" | "final";
 export type PointsTone = "positive" | "warning" | "danger" | "neutral";
 
 export interface TeamRef {
   code: string;
+  name?: string;
   logoUrl?: string;
 }
 
@@ -53,61 +57,12 @@ export interface GroupCard {
   primary?: boolean;
 }
 
-export interface LeaderboardRow {
-  rank: number;
-  userId?: string;
-  name: string;
-  predictions: number;
-  record: string;
-  points: number;
-  highlight?: boolean;
-  deltaRank?: number;
-  streak?: number;
-}
-
-export type LeaderboardMode = "posiciones" | "stats";
+export type LeaderboardRow = LeaderboardApiRow;
 export type MatchPeriod = string;
-export type LeaderboardPeriod = "global" | MatchPeriod;
-
-export interface LeaderboardBestFecha {
-  period: MatchPeriod;
-  periodLabel: string;
-  userId?: string;
-  userName: string;
-  points: number;
-}
-
-export interface LeaderboardWorldBenchmark {
-  leagueName: string;
-  leaderPoints: number;
-  groupTotalPoints: number;
-  averageMemberPoints: number;
-  ratioVsLeaderPct: number;
-}
-
-export interface LeaderboardGroupStats {
-  memberCount: number;
-  scoredPredictions: number;
-  correctPredictions: number;
-  exactPredictions: number;
-  resultPredictions: number;
-  missPredictions: number;
-  accuracyPct: number;
-  totalPoints: number;
-  averageMemberPoints: number;
-  bestFecha: LeaderboardBestFecha | null;
-  worldBenchmark: LeaderboardWorldBenchmark | null;
-}
-
-export interface LeaderboardPayload {
-  groupLabel: string;
-  mode: LeaderboardMode;
-  period: LeaderboardPeriod;
-  periodLabel: string;
-  updatedAt: string;
-  rows: LeaderboardRow[];
-  groupStats?: LeaderboardGroupStats | null;
-}
+export type LeaderboardBestFecha = LeaderboardBestRound;
+export type LeaderboardGroupStats = LeaderboardApiGroupStats;
+export type LeaderboardPayload = LeaderboardApiPayload;
+export type { LeaderboardMode, LeaderboardPeriod, LeaderboardWorldBenchmark };
 
 export type FixtureScoreTone = "final" | "live" | "upcoming" | "warning";
 
@@ -116,6 +71,7 @@ export interface FixtureMatchRow {
   away: string;
   homeLogoUrl?: string;
   awayLogoUrl?: string;
+  score?: MatchScore;
   scoreLabel: string;
   tone: FixtureScoreTone;
   kickoffAt?: string;
@@ -156,6 +112,13 @@ export interface HomeSummary {
   liveMatches?: number;
   myRank?: number;
   myPoints?: number;
+  weeklyWinner?: {
+    period: string;
+    periodLabel: string;
+    winnerName: string;
+    points: number;
+    tied?: boolean;
+  } | null;
 }
 
 export interface HomePayload {
@@ -182,7 +145,49 @@ export interface ProfileActivityItem {
 export interface ProfilePayload {
   stats: ProfileStats;
   recentActivity: ProfileActivityItem[];
+  performance?: {
+    exactHitRatePct: number;
+    outcomeHitRatePct: number;
+    misses: number;
+    averagePointsPerRound: number;
+    bestRound: { period: string; periodLabel: string; userName: string; points: number } | null;
+    streak: number;
+  } | null;
+  achievements?: Array<{
+    id: string;
+    title: string;
+    description: string;
+    unlockedAt: string;
+  }>;
+  rankHistory?: Array<{
+    period: string;
+    periodLabel: string;
+    rank: number;
+    points: number;
+  }>;
+  weeklyWinner?: {
+    period: string;
+    periodLabel: string;
+    winnerName: string;
+    points: number;
+    tied?: boolean;
+  } | null;
   updatedAt: string;
+}
+
+export interface NotificationPreferences {
+  reminders: boolean;
+  results: boolean;
+  social: boolean;
+}
+
+export interface NotificationItem {
+  id: string;
+  type: "prediction_lock" | "results_published" | "weekly_winner" | "social";
+  title: string;
+  body: string;
+  createdAt: string;
+  read: boolean;
 }
 
 export interface LeagueOption {

@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { Fixture, Prediction } from "@fulbito/domain";
+import type { Fixture, Prediction, PredictionHistoryEntry } from "@fulbito/domain";
 import { colors, spacing } from "@fulbito/design-tokens";
 import { isPredictionInputComplete, normalizePredictionInput } from "@fulbito/domain";
 import { ScreenFrame } from "@/components/ScreenFrame";
+import { HeaderGroupSelector } from "@/components/HeaderGroupSelector";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
@@ -17,6 +18,7 @@ import { usePeriod } from "@/state/PeriodContext";
 
 type DraftByFixture = Record<string, { home: string; away: string }>;
 type PronosticosMode = "upcoming" | "history";
+type FixtureSaveStatus = "idle" | "saving" | "error";
 
 function toTeamCode(name: string) {
   const clean = name.trim();
@@ -40,17 +42,6 @@ function toTeamCode(name: string) {
     .toUpperCase();
 }
 
-function explicitScoreFromFixtureId(fixtureId: string) {
-  const explicit = fixtureId.match(/final-(\d+)-(\d+)/i);
-  if (!explicit) {
-    return null;
-  }
-  return {
-    home: explicit[1],
-    away: explicit[2]
-  };
-}
-
 function stageLabel(value: string | undefined) {
   if (!value) return "";
   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
@@ -69,6 +60,14 @@ function competitionLabelForPronosticos(input: {
   return leagueOrCompetition || stage || "Sin competencia";
 }
 
+function isOpenUpcomingFixture(fixture: Fixture) {
+  if (fixture.status !== "upcoming") {
+    return false;
+  }
+  const kickoffMs = new Date(fixture.kickoffAt).getTime();
+  return Number.isFinite(kickoffMs) && kickoffMs > Date.now();
+}
+
 export function PronosticosScreen() {
   const queryClient = useQueryClient();
   const insets = useSafeAreaInsets();
@@ -78,8 +77,13 @@ export function PronosticosScreen() {
   const [draftByFixture, setDraftByFixture] = useState<DraftByFixture>({});
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [mode, setMode] = useState<PronosticosMode>("upcoming");
-  const [pendingFixtureId, setPendingFixtureId] = useState<string | null>(null);
+  const [saveStatusByFixture, setSaveStatusByFixture] = useState<Record<string, FixtureSaveStatus>>({});
   const [saveErrorByFixture, setSaveErrorByFixture] = useState<Record<string, string>>({});
+  const draftByFixtureRef = useRef<DraftByFixture>({});
+  const autoSaveTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const autoSaveQueueRef = useRef<Map<string, Prediction>>(new Map());
+  const autoSaveInFlightRef = useRef<Set<string>>(new Set());
+  const missingFinalScoreLoggedRef = useRef<Set<string>>(new Set());
 
   const fixtureQuery = useQuery({
     queryKey: ["fixture", groupId, fecha],
@@ -88,6 +92,52 @@ export function PronosticosScreen() {
         groupId,
         fecha
       })
+  });
+
+  const historyFixtureQuery = useQuery({
+    queryKey: ["fixture-history", groupId, fecha, options.map((option) => option.id).join("|")],
+    queryFn: async () => {
+      const fallbackPeriods = options
+        .map((option) => option.id)
+        .filter((periodId) => periodId !== fecha);
+      const candidatePeriods = Array.from(new Set([fecha, ...fallbackPeriods, ""]));
+      let firstSuccessfulRows: Fixture[] | null = null;
+
+      try {
+        const selectedRows = await fixtureRepository.listFixture({
+          groupId,
+          fecha
+        });
+        firstSuccessfulRows = selectedRows;
+        const selectedHistoricalRows = selectedRows.filter((fixture) => !isOpenUpcomingFixture(fixture));
+        if (selectedRows.length > 0) {
+          return selectedHistoricalRows;
+        }
+      } catch {
+        // Continue with fallback search when selected period fails.
+      }
+
+      for (const period of candidatePeriods.slice(1)) {
+        try {
+          const rows = await fixtureRepository.listFixture({
+            groupId,
+            fecha: period
+          });
+          if (firstSuccessfulRows === null) {
+            firstSuccessfulRows = rows;
+          }
+          const historicalRows = rows.filter((fixture) => !isOpenUpcomingFixture(fixture));
+          if (historicalRows.length > 0) {
+            return historicalRows;
+          }
+        } catch {
+          // Continue searching other periods for history rows.
+        }
+      }
+
+      return (firstSuccessfulRows ?? []).filter((fixture) => !isOpenUpcomingFixture(fixture));
+    },
+    enabled: mode === "history"
   });
 
   const predictionsQuery = useQuery({
@@ -117,6 +167,10 @@ export function PronosticosScreen() {
     setDraftByFixture(nextDrafts);
   }, [fixtureQuery.data, predictionsQuery.data]);
 
+  useEffect(() => {
+    draftByFixtureRef.current = draftByFixture;
+  }, [draftByFixture]);
+
   const savePredictionMutation = useMutation({
     mutationFn: async (input: Prediction) => {
       await predictionsRepository.savePrediction({
@@ -127,7 +181,10 @@ export function PronosticosScreen() {
     },
     onMutate: async (prediction) => {
       setStatusMessage(null);
-      setPendingFixtureId(prediction.fixtureId);
+      setSaveStatusByFixture((previous) => ({
+        ...previous,
+        [prediction.fixtureId]: "saving"
+      }));
       setSaveErrorByFixture((previous) => {
         if (!previous[prediction.fixtureId]) {
           return previous;
@@ -150,33 +207,47 @@ export function PronosticosScreen() {
         ...previous,
         [prediction.fixtureId]: "No se pudo guardar este pronóstico."
       }));
+      setSaveStatusByFixture((previous) => ({
+        ...previous,
+        [prediction.fixtureId]: "error"
+      }));
       setStatusMessage("No se pudo guardar el pronóstico. Reintentá.");
     },
     onSuccess: () => {
-      setStatusMessage("Pronóstico guardado.");
+      setStatusMessage(null);
     },
-    onSettled: async () => {
-      setPendingFixtureId(null);
+    onSettled: async (_data, _error, prediction) => {
+      setSaveStatusByFixture((previous) => ({
+        ...previous,
+        [prediction.fixtureId]: "idle"
+      }));
       await queryClient.invalidateQueries({ queryKey: ["predictions", groupId, fecha] });
     }
   });
 
   const upcomingFixtures = useMemo(
-    () => (fixtureQuery.data ?? []).filter((fixture) => fixture.status === "upcoming"),
+    () => (fixtureQuery.data ?? []).filter((fixture) => isOpenUpcomingFixture(fixture)),
     [fixtureQuery.data]
   );
   const historyFixtures = useMemo(
-    () => (fixtureQuery.data ?? []).filter((fixture) => fixture.status !== "upcoming"),
+    () => (fixtureQuery.data ?? []).filter((fixture) => !isOpenUpcomingFixture(fixture)),
     [fixtureQuery.data]
   );
-  const visibleFixtures = mode === "upcoming" ? upcomingFixtures : historyFixtures;
+  const fallbackHistoryFixtures = historyFixtureQuery.data ?? [];
+  const visibleFixtures = useMemo(() => {
+    if (mode === "upcoming") {
+      return upcomingFixtures;
+    }
+
+    return historyFixtures.length > 0 ? historyFixtures : fallbackHistoryFixtures;
+  }, [mode, upcomingFixtures, historyFixtures, fallbackHistoryFixtures]);
   const predictionByFixture = useMemo(
     () => new Map((predictionsQuery.data ?? []).map((prediction) => [prediction.fixtureId, prediction])),
     [predictionsQuery.data]
   );
-  const selectedMembership = useMemo(
-    () => memberships.find((membership) => membership.groupId === groupId) ?? memberships[0],
-    [groupId, memberships]
+  const fixtureById = useMemo(
+    () => new Map((fixtureQuery.data ?? []).map((fixture) => [fixture.id, fixture])),
+    [fixtureQuery.data]
   );
   const safeOptions = options.length > 0 ? options : [{ id: fecha, label: fecha }];
   const periodIndex = Math.max(
@@ -184,64 +255,140 @@ export function PronosticosScreen() {
     safeOptions.findIndex((option) => option.id === fecha)
   );
   const currentPeriod = safeOptions[periodIndex] ?? safeOptions[0];
-  const fechaClosed = (fixtureQuery.data ?? []).every((fixture) => fixture.status !== "upcoming");
-  const groupSummary = selectedMembership
-    ? `${competitionLabelForPronosticos(selectedMembership)} · ${selectedMembership.groupName}`
-    : "Sin grupo activo";
+  const fechaClosed = (fixtureQuery.data ?? []).every((fixture) => !isOpenUpcomingFixture(fixture));
 
   const completionSummary = useMemo(() => {
-    const total = Math.max(1, (fixtureQuery.data ?? []).length);
+    const total = (fixtureQuery.data ?? []).length;
     const completed = (fixtureQuery.data ?? []).filter((fixture) => {
       const draft = draftByFixture[fixture.id];
       if (!draft) return false;
       return isPredictionInputComplete(normalizePredictionInput(draft));
     }).length;
-    const pct = Math.round((completed / total) * 100);
+    const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
     return { total, completed, pct };
   }, [draftByFixture, fixtureQuery.data]);
 
+  useEffect(
+    () => () => {
+      autoSaveTimersRef.current.forEach((timer) => clearTimeout(timer));
+      autoSaveTimersRef.current.clear();
+      autoSaveQueueRef.current.clear();
+      autoSaveInFlightRef.current.clear();
+    },
+    []
+  );
+
+  useEffect(() => {
+    autoSaveTimersRef.current.forEach((timer) => clearTimeout(timer));
+    autoSaveTimersRef.current.clear();
+    autoSaveQueueRef.current.clear();
+    autoSaveInFlightRef.current.clear();
+    missingFinalScoreLoggedRef.current.clear();
+  }, [groupId, fecha]);
+
+  useEffect(() => {
+    if (mode !== "history") {
+      return;
+    }
+
+    const missingFixtureIds = visibleFixtures
+      .filter((fixture) => fixture.status === "final" && !fixture.score)
+      .map((fixture) => fixture.id)
+      .filter((fixtureId) => {
+        const logKey = `${groupId}:${fecha}:${fixtureId}`;
+        if (missingFinalScoreLoggedRef.current.has(logKey)) {
+          return false;
+        }
+        missingFinalScoreLoggedRef.current.add(logKey);
+        return true;
+      });
+
+    if (missingFixtureIds.length === 0) {
+      return;
+    }
+
+    console.error("[pronosticos] final fixtures missing actual result score", {
+      fixtureIds: missingFixtureIds,
+      count: missingFixtureIds.length,
+      groupId,
+      fecha
+    });
+  }, [mode, visibleFixtures, groupId, fecha]);
+
+  const flushQueuedPrediction = async (fixtureId: string) => {
+    if (autoSaveInFlightRef.current.has(fixtureId)) {
+      return;
+    }
+
+    const queued = autoSaveQueueRef.current.get(fixtureId);
+    if (!queued) {
+      return;
+    }
+
+    autoSaveInFlightRef.current.add(fixtureId);
+    await savePredictionMutation.mutateAsync(queued);
+    autoSaveInFlightRef.current.delete(fixtureId);
+
+    const latest = autoSaveQueueRef.current.get(fixtureId);
+    if (latest && (latest.home !== queued.home || latest.away !== queued.away)) {
+      void flushQueuedPrediction(fixtureId);
+    }
+  };
+
+  const queuePredictionAutosave = (prediction: Prediction) => {
+    autoSaveQueueRef.current.set(prediction.fixtureId, prediction);
+    const pendingTimer = autoSaveTimersRef.current.get(prediction.fixtureId);
+    if (pendingTimer) {
+      clearTimeout(pendingTimer);
+    }
+
+    const timer = setTimeout(() => {
+      autoSaveTimersRef.current.delete(prediction.fixtureId);
+      void flushQueuedPrediction(prediction.fixtureId);
+    }, 800);
+    autoSaveTimersRef.current.set(prediction.fixtureId, timer);
+  };
+
   function updateDraft(fixtureId: string, side: "home" | "away", value: string) {
     const sanitized = value.replace(/[^\d]/g, "");
-    setDraftByFixture((previous) => ({
-      ...previous,
-      [fixtureId]: {
-        home: side === "home" ? sanitized : (previous[fixtureId]?.home ?? ""),
-        away: side === "away" ? sanitized : (previous[fixtureId]?.away ?? "")
+    const currentDraft = draftByFixtureRef.current[fixtureId] ?? { home: "", away: "" };
+    const nextDraft = {
+      home: side === "home" ? sanitized : currentDraft.home,
+      away: side === "away" ? sanitized : currentDraft.away
+    };
+    setSaveErrorByFixture((previous) => {
+      if (!previous[fixtureId]) {
+        return previous;
       }
-    }));
-  }
+      const next = { ...previous };
+      delete next[fixtureId];
+      return next;
+    });
 
-  function saveFixturePrediction(fixtureId: string) {
-    const fixture = fixtureQuery.data?.find((item) => item.id === fixtureId);
-    if (!fixture || fixture.status !== "upcoming") {
-      setStatusMessage("Este partido ya está cerrado para edición.");
+    setDraftByFixture((previous) => {
+      const nextState = {
+        ...previous,
+        [fixtureId]: nextDraft
+      };
+      draftByFixtureRef.current = nextState;
+      return nextState;
+    });
+
+    const fixture = fixtureById.get(fixtureId);
+    if (!fixture || !isOpenUpcomingFixture(fixture)) {
       return;
     }
 
-    const draft = draftByFixture[fixtureId] ?? { home: "", away: "" };
-    const normalized = normalizePredictionInput(draft);
+    const normalized = normalizePredictionInput(nextDraft);
     if (!isPredictionInputComplete(normalized)) {
-      setStatusMessage("Completá ambos goles antes de guardar.");
       return;
     }
 
-    void savePredictionMutation.mutateAsync({
+    queuePredictionAutosave({
       fixtureId,
       home: normalized.home,
       away: normalized.away
     });
-  }
-
-  function cycleGroup() {
-    if (memberships.length <= 1) {
-      return;
-    }
-    const currentIndex = memberships.findIndex((membership) => membership.groupId === groupId);
-    const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % memberships.length : 0;
-    const nextGroupId = memberships[nextIndex]?.groupId;
-    if (nextGroupId) {
-      void setSelectedGroupId(nextGroupId);
-    }
   }
 
   function goPrevFecha() {
@@ -260,10 +407,15 @@ export function PronosticosScreen() {
 
   function renderFixtureCard(fixture: Fixture) {
     const draft = draftByFixture[fixture.id] ?? { home: "", away: "" };
-    const normalized = normalizePredictionInput(draft);
-    const isEditable = mode === "upcoming" && fixture.status === "upcoming";
-    const canSave = isEditable && isPredictionInputComplete(normalized) && !savePredictionMutation.isPending;
-    const statusBadgeLabel = fixture.status === "upcoming" ? "Abierto" : fixture.status === "live" ? "En juego" : "Finalizado";
+    const isEditable = mode === "upcoming" && isOpenUpcomingFixture(fixture);
+    const statusBadgeLabel =
+      fixture.status === "upcoming"
+        ? isOpenUpcomingFixture(fixture)
+          ? "Abierto"
+          : "Cerrado"
+        : fixture.status === "live"
+          ? "En juego"
+          : "Finalizado";
     const kickoffLabel = new Date(fixture.kickoffAt).toLocaleString("es-AR", {
       day: "2-digit",
       month: "2-digit",
@@ -273,20 +425,46 @@ export function PronosticosScreen() {
     const homeCode = toTeamCode(fixture.homeTeam);
     const awayCode = toTeamCode(fixture.awayTeam);
     const hasDraft = draft.home.length > 0 || draft.away.length > 0;
-    const isSavingThisFixture = pendingFixtureId === fixture.id && savePredictionMutation.isPending;
+    const isSavingThisFixture = saveStatusByFixture[fixture.id] === "saving";
     const fixtureSaveError = saveErrorByFixture[fixture.id];
 
     const committed = predictionByFixture.get(fixture.id);
-    const explicitScore = explicitScoreFromFixtureId(fixture.id);
-    const readOnlyHome = explicitScore?.home ?? (committed ? String(committed.home) : draft.home || "0");
-    const readOnlyAway = explicitScore?.away ?? (committed ? String(committed.away) : draft.away || "0");
+    const historyEntry: PredictionHistoryEntry | null =
+      mode === "history"
+        ? {
+            fixtureId: fixture.id,
+            status: fixture.status,
+            kickoffAt: fixture.kickoffAt,
+            homeTeam: fixture.homeTeam,
+            awayTeam: fixture.awayTeam,
+            homeLogoUrl: fixture.homeLogoUrl,
+            awayLogoUrl: fixture.awayLogoUrl,
+            userPrediction: committed ? { home: committed.home, away: committed.away } : null,
+            actualResult: fixture.score ?? null
+          }
+        : null;
+    const readOnlyScore =
+      mode === "history"
+        ? historyEntry?.actualResult ?? null
+        : fixture.score ?? (committed ? { home: committed.home, away: committed.away } : null);
+    const readOnlyHome = readOnlyScore ? String(readOnlyScore.home) : "-";
+    const readOnlyAway = readOnlyScore ? String(readOnlyScore.away) : "-";
+    const userPredictionLabel = historyEntry?.userPrediction
+      ? `${historyEntry.userPrediction.home} - ${historyEntry.userPrediction.away}`
+      : "Sin pronóstico";
+    const actualResultLabel =
+      historyEntry?.status === "final"
+        ? historyEntry.actualResult
+          ? `${historyEntry.actualResult.home} - ${historyEntry.actualResult.away}`
+          : "Pendiente de resultado"
+        : "Pendiente";
 
     return (
       <View key={fixture.id} style={styles.cardWrap}>
         <View style={styles.card}>
           <View style={styles.matchRow}>
             <View style={styles.teamBlock}>
-              <TeamCrest teamName={fixture.homeTeam} code={homeCode} />
+              <TeamCrest teamName={fixture.homeTeam} code={homeCode} logoUrl={fixture.homeLogoUrl} />
               <Text allowFontScaling={false} numberOfLines={1} style={styles.teamCode}>
                 {homeCode}
               </Text>
@@ -329,36 +507,32 @@ export function PronosticosScreen() {
               <Text allowFontScaling={false} numberOfLines={1} style={styles.teamCode}>
                 {awayCode}
               </Text>
-              <TeamCrest teamName={fixture.awayTeam} code={awayCode} />
+              <TeamCrest teamName={fixture.awayTeam} code={awayCode} logoUrl={fixture.awayLogoUrl} />
             </View>
           </View>
 
-          <View style={styles.timeRow}>
-            <Text allowFontScaling={false} style={styles.kickoffBadge}>{kickoffLabel}</Text>
-          </View>
+        <View style={styles.timeRow}>
+          <Text allowFontScaling={false} style={styles.kickoffBadge}>{kickoffLabel}</Text>
         </View>
+      </View>
 
-        {isEditable ? (
-          <Pressable
-            onPress={() => saveFixturePrediction(fixture.id)}
-            disabled={!canSave}
-            style={({ pressed }) => [
-              styles.saveButton,
-              !canSave ? styles.saveButtonDisabled : null,
-              pressed && canSave ? styles.saveButtonPressed : null
-            ]}
-          >
-            <Text allowFontScaling={false} style={styles.saveButtonText}>{isSavingThisFixture ? "Guardando..." : "Guardar pronóstico"}</Text>
-          </Pressable>
+        {mode === "upcoming" && !isEditable ? <Text allowFontScaling={false} style={styles.lockedChip}>Partido bloqueado: no se pueden editar pronósticos.</Text> : null}
+        {mode === "history" ? (
+          <View style={styles.historySummary}>
+            <Text allowFontScaling={false} style={styles.historySummaryText}>Tu pronóstico: {userPredictionLabel}</Text>
+            <Text allowFontScaling={false} style={styles.historySummaryText}>Resultado final: {actualResultLabel}</Text>
+          </View>
         ) : null}
-        {!isEditable ? <Text allowFontScaling={false} style={styles.lockedChip}>Partido bloqueado: no se pueden editar pronósticos.</Text> : null}
         {isSavingThisFixture ? <Text allowFontScaling={false} style={styles.infoChip}>Guardando pronóstico...</Text> : null}
         {fixtureSaveError ? <Text allowFontScaling={false} style={styles.errorChip}>{fixtureSaveError}</Text> : null}
       </View>
     );
   }
 
-  if (fixtureQuery.isLoading || predictionsQuery.isLoading) {
+  const historyIsLoadingFallback = mode === "history" && historyFixtures.length === 0 && historyFixtureQuery.isLoading;
+  const historyHasFallbackError = mode === "history" && historyFixtures.length === 0 && historyFixtureQuery.isError;
+
+  if (fixtureQuery.isLoading || predictionsQuery.isLoading || historyIsLoadingFallback) {
     return (
       <ScreenFrame title="Pronósticos" subtitle="Ingresa y guarda tus predicciones">
         <LoadingState message="Cargando partidos..." />
@@ -366,7 +540,7 @@ export function PronosticosScreen() {
     );
   }
 
-  if (fixtureQuery.isError || predictionsQuery.isError) {
+  if (fixtureQuery.isError || predictionsQuery.isError || historyHasFallbackError) {
     return (
       <ScreenFrame title="Pronósticos" subtitle="Ingresa y guarda tus predicciones">
         <ErrorState
@@ -398,20 +572,8 @@ export function PronosticosScreen() {
               <Text style={styles.brandTitleDark}>FULBITO</Text>
               <Text style={styles.brandTitleAccent}>PRODE</Text>
             </Text>
-            <View style={styles.headerActions}>
-              <Pressable style={styles.headerActionButton} accessibilityRole="button" accessibilityLabel="Cambiar tema">
-                <Text allowFontScaling={false} style={styles.headerActionGlyph}>◔</Text>
-              </Pressable>
-              <Pressable style={styles.headerActionButton} accessibilityRole="button" accessibilityLabel="Notificaciones">
-                <Text allowFontScaling={false} style={styles.headerActionGlyph}>⌂</Text>
-                <View style={styles.iconBellDot} />
-              </Pressable>
-              <Pressable style={styles.headerActionButton} accessibilityRole="button" accessibilityLabel="Configuración">
-                <Text allowFontScaling={false} style={styles.headerActionGlyph}>⚙</Text>
-              </Pressable>
-              <View style={styles.profileDot}>
-                <Text allowFontScaling={false} style={styles.profileDotText}>FC</Text>
-              </View>
+            <View style={styles.profileDot}>
+              <Text allowFontScaling={false} style={styles.profileDotText}>FC</Text>
             </View>
           </View>
           <View style={styles.titleRow}>
@@ -419,21 +581,11 @@ export function PronosticosScreen() {
               <Text allowFontScaling={false} style={styles.sectionIconText}>∿</Text>
             </View>
             <Text allowFontScaling={false} style={styles.sectionTitle}>Pronósticos</Text>
-            <Text allowFontScaling={false} numberOfLines={1} style={styles.sectionSubtitle}>Resultados y carga</Text>
+            <HeaderGroupSelector memberships={memberships} selectedGroupId={selectedGroupId} onSelectGroup={(nextGroupId) => void setSelectedGroupId(nextGroupId)} />
           </View>
         </View>
       }
     >
-      <View style={styles.block}>
-        <Text allowFontScaling={false} style={styles.blockLabel}>SELECCION ACTUAL</Text>
-        <Pressable style={styles.selectionButton} onPress={cycleGroup}>
-          <Text allowFontScaling={false} numberOfLines={1} style={styles.selectionText}>
-            {groupSummary}
-          </Text>
-          <Text allowFontScaling={false} style={styles.selectionChevron}>⌄</Text>
-        </Pressable>
-      </View>
-
       <View style={styles.block}>
         <View style={styles.fechaRow}>
           <Pressable testID="fecha-prev" onPress={goPrevFecha} style={styles.fechaNavButton}>
@@ -449,23 +601,22 @@ export function PronosticosScreen() {
         </View>
       </View>
 
-      <View style={styles.summaryModeRow}>
-        <View style={styles.progressCard}>
-          <Text allowFontScaling={false} style={styles.progressLabel}>
-            {completionSummary.completed}/{completionSummary.total}
-          </Text>
-          <View style={styles.progressTrack}>
-            <View style={[styles.progressFill, { width: `${completionSummary.pct}%` }]} />
-          </View>
+      <View style={styles.progressCard}>
+        <Text allowFontScaling={false} style={styles.progressLabel}>
+          {completionSummary.completed}/{completionSummary.total}
+        </Text>
+        <View style={styles.progressTrack}>
+          <View style={[styles.progressFill, { width: `${completionSummary.pct}%` }]} />
         </View>
-        <View style={styles.modeTabs}>
-          <Pressable onPress={() => setMode("upcoming")} style={[styles.modeTab, mode === "upcoming" ? styles.modeTabActive : null]}>
-            <Text allowFontScaling={false} style={[styles.modeTabLabel, mode === "upcoming" ? styles.modeTabLabelActive : null]}>Por jugar</Text>
-          </Pressable>
-          <Pressable onPress={() => setMode("history")} style={[styles.modeTab, mode === "history" ? styles.modeTabActive : null]}>
-            <Text allowFontScaling={false} style={[styles.modeTabLabel, mode === "history" ? styles.modeTabLabelActive : null]}>Jugados</Text>
-          </Pressable>
-        </View>
+      </View>
+
+      <View style={styles.modeTabs}>
+        <Pressable onPress={() => setMode("upcoming")} style={[styles.modeTab, mode === "upcoming" ? styles.modeTabActive : null]}>
+          <Text allowFontScaling={false} style={[styles.modeTabLabel, mode === "upcoming" ? styles.modeTabLabelActive : null]}>Por Jugar</Text>
+        </Pressable>
+        <Pressable onPress={() => setMode("history")} style={[styles.modeTab, mode === "history" ? styles.modeTabActive : null]}>
+          <Text allowFontScaling={false} style={[styles.modeTabLabel, mode === "history" ? styles.modeTabLabelActive : null]}>Jugados</Text>
+        </Pressable>
       </View>
       {visibleFixtures.length === 0 ? (
         <EmptyState
@@ -541,34 +692,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 0.2
   },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6
-  },
-  headerActionButton: {
-    height: 32,
-    width: 32,
-    borderRadius: 999,
-    backgroundColor: "#ECEFF3",
-    alignItems: "center",
-    justifyContent: "center",
-    position: "relative"
-  },
-  headerActionGlyph: {
-    color: "#6B7280",
-    fontSize: 14
-  },
-  iconBellDot: {
-    position: "absolute",
-    top: 7,
-    right: 9,
-    height: 4,
-    width: 4,
-    borderRadius: 999,
-    backgroundColor: "#D94651"
-  },
-  // icon drawing is intentionally glyph-based for consistency with other parity screens.
+  // Icon drawing is intentionally glyph-based for consistency with other parity screens.
   titleRow: {
     marginTop: 12,
     flexDirection: "row",
@@ -672,11 +796,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "700"
   },
-  summaryModeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8
-  },
   cardWrap: {
     gap: 6
   },
@@ -769,25 +888,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "800"
   },
-  saveButton: {
-    alignItems: "center",
-    justifyContent: "center",
-    minHeight: 38,
-    borderRadius: 10,
-    backgroundColor: "#B7D70A",
-    paddingHorizontal: 10
-  },
-  saveButtonDisabled: {
-    opacity: 0.5
-  },
-  saveButtonPressed: {
-    transform: [{ scale: 0.98 }]
-  },
-  saveButtonText: {
-    color: "#1F2937",
-    fontWeight: "800",
-    fontSize: 11
-  },
   lockedChip: {
     borderRadius: 12,
     borderWidth: 1,
@@ -796,6 +896,20 @@ const styles = StyleSheet.create({
     color: "#D09044",
     paddingHorizontal: 10,
     paddingVertical: 7,
+    fontSize: 11,
+    fontWeight: "700"
+  },
+  historySummary: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#D8DEE7",
+    backgroundColor: "#F5F7FA",
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    gap: 3
+  },
+  historySummaryText: {
+    color: "#5F6B7A",
     fontSize: 11,
     fontWeight: "700"
   },
@@ -821,17 +935,20 @@ const styles = StyleSheet.create({
   },
   modeTabs: {
     flexDirection: "row",
+    width: "100%",
     backgroundColor: "#E8EDF2",
     borderRadius: 10,
     padding: 2,
     gap: 2
   },
   modeTab: {
+    flex: 1,
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
-    height: 34,
-    paddingHorizontal: 12
+    minHeight: 44,
+    paddingHorizontal: 12,
+    paddingVertical: 8
   },
   modeTabActive: {
     backgroundColor: "#FFFFFF",
@@ -847,7 +964,7 @@ const styles = StyleSheet.create({
     color: "#374151"
   },
   progressCard: {
-    width: "56%",
+    width: "100%",
     flexDirection: "row",
     alignItems: "center",
     gap: 6,

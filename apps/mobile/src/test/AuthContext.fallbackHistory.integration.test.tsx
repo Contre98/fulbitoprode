@@ -35,7 +35,11 @@ jest.mock("@/repositories", () => ({
     getSession: jest.fn(),
     loginWithPassword: jest.fn(),
     registerWithPassword: jest.fn(),
+    requestPasswordReset: jest.fn(),
     logout: jest.fn()
+  },
+  notificationsRepository: {
+    registerDeviceToken: jest.fn().mockResolvedValue({ ok: true })
   }
 }));
 
@@ -77,6 +81,7 @@ describe("AuthContext fallback history integration", () => {
         getSession: jest.Mock;
         loginWithPassword: jest.Mock;
         registerWithPassword: jest.Mock;
+        requestPasswordReset: jest.Mock;
         logout: jest.Mock;
       };
     };
@@ -100,6 +105,10 @@ describe("AuthContext fallback history integration", () => {
     mockedRepositories.authRepository.getSession.mockResolvedValue(null);
     mockedRepositories.authRepository.loginWithPassword.mockResolvedValue(null);
     mockedRepositories.authRepository.registerWithPassword.mockResolvedValue(null);
+    mockedRepositories.authRepository.requestPasswordReset.mockResolvedValue({
+      ok: true,
+      message: "If an account exists for this email, we sent password reset instructions."
+    });
     mockedRepositories.authRepository.logout.mockResolvedValue(undefined);
   });
 

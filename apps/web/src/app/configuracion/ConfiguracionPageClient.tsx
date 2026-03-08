@@ -6,7 +6,9 @@ import {
   Bell,
   Link as LinkIcon,
   Moon,
+  Pencil,
   Plus,
+  RefreshCw,
   Settings,
   Shield,
   Sun,
@@ -122,6 +124,9 @@ export default function ConfiguracionPageClient() {
 
   const [inviteByGroupId, setInviteByGroupId] = useState<Record<string, { code: string; token: string; expiresAt: string } | null>>({});
   const [inviteUrlByGroupId, setInviteUrlByGroupId] = useState<Record<string, string | undefined>>({});
+  const [renameDraftByGroupId, setRenameDraftByGroupId] = useState<Record<string, string>>({});
+  const [renamingGroupId, setRenamingGroupId] = useState<string | null>(null);
+  const [refreshingInviteGroupId, setRefreshingInviteGroupId] = useState<string | null>(null);
 
   const selectedLeague = useMemo(
     () => leagues.find((league) => league.competitionKey === selectedCompetitionKey) || null,
@@ -164,6 +169,16 @@ export default function ConfiguracionPageClient() {
 
   const modalMembersLoading = membersModalGroupId ? loadingMembersByGroupId[membersModalGroupId] === true : false;
   const canManageModalMembers = Boolean(modalMembership && (modalMembership.role === "owner" || modalMembership.role === "admin"));
+
+  useEffect(() => {
+    if (!modalMembership) {
+      return;
+    }
+    setRenameDraftByGroupId((prev) => ({
+      ...prev,
+      [modalMembership.groupId]: modalMembership.groupName
+    }));
+  }, [modalMembership]);
 
   useEffect(() => {
     if (!loading && !authenticated) {
@@ -544,6 +559,73 @@ export default function ConfiguracionPageClient() {
     }
   }
 
+  async function renameGroupById(groupId: string) {
+    const name = (renameDraftByGroupId[groupId] || "").trim();
+    if (!name) {
+      showToast({ title: "Ingresá un nombre de grupo", tone: "error" });
+      return;
+    }
+
+    setRenamingGroupId(groupId);
+    try {
+      const response = await fetch(`/api/groups/${encodeURIComponent(groupId)}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ name })
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(payload?.error || "No se pudo renombrar el grupo.");
+      }
+
+      const payload = (await response.json()) as { ok: true; group: { id: string; name: string } };
+      await refresh();
+      setRenameDraftByGroupId((prev) => ({
+        ...prev,
+        [groupId]: payload.group.name
+      }));
+      showToast({ title: "Grupo actualizado", description: payload.group.name, tone: "success" });
+    } catch (error) {
+      showToast({
+        title: "No se pudo renombrar",
+        description: error instanceof Error ? error.message : "Error inesperado",
+        tone: "error"
+      });
+    } finally {
+      setRenamingGroupId(null);
+    }
+  }
+
+  async function refreshInviteByGroupId(groupId: string) {
+    setRefreshingInviteGroupId(groupId);
+    try {
+      const response = await fetch(`/api/groups/${encodeURIComponent(groupId)}/invite/refresh`, {
+        method: "POST"
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(payload?.error || "No se pudo regenerar la invitación.");
+      }
+
+      const payload = (await response.json()) as { ok: true; invite: { code: string; token: string; expiresAt: string } };
+      setInviteByGroupId((prev) => ({ ...prev, [groupId]: payload.invite }));
+      setInviteUrlByGroupId((prev) => ({ ...prev, [groupId]: inviteDeepLink(payload.invite.token) }));
+      showToast({ title: "Invitación actualizada", description: `Código ${payload.invite.code}`, tone: "success" });
+    } catch (error) {
+      showToast({
+        title: "No se pudo regenerar la invitación",
+        description: error instanceof Error ? error.message : "Error inesperado",
+        tone: "error"
+      });
+    } finally {
+      setRefreshingInviteGroupId(null);
+    }
+  }
+
   const loadGroupMembers = useCallback(
     async (groupId: string, options?: { force?: boolean }) => {
       if (!options?.force && membersLoadedByGroupId[groupId]) {
@@ -678,7 +760,7 @@ export default function ConfiguracionPageClient() {
   }, [modalMembers, user?.id]);
 
   return (
-    <AppShell activeTab="configuracion" showTopGlow={false}>
+    <AppShell activeTab={null} showTopGlow={false}>
       <div className="min-h-full bg-[var(--surface-card-muted)]">
         <header className="px-5 pt-12 pb-6 bg-[var(--surface-card)] shadow-sm rounded-b-3xl z-10 sticky top-0">
           <div className="flex justify-between items-center mb-6">
@@ -933,6 +1015,44 @@ export default function ConfiguracionPageClient() {
                 <X size={20} />
               </button>
             </div>
+
+            {canManageModalMembers ? (
+              <section className="mb-6 space-y-3 rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card-muted)] p-3">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-muted)]">Herramientas admin</p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={renameDraftByGroupId[modalMembership.groupId] || ""}
+                    onChange={(event) =>
+                      setRenameDraftByGroupId((prev) => ({
+                        ...prev,
+                        [modalMembership.groupId]: event.target.value
+                      }))
+                    }
+                    placeholder="Nuevo nombre del grupo"
+                    className="min-h-11 flex-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-soft)]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void renameGroupById(modalMembership.groupId)}
+                    disabled={renamingGroupId === modalMembership.groupId}
+                    className="inline-flex min-h-11 items-center justify-center gap-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 text-xs font-bold text-[var(--text-primary)] disabled:opacity-50"
+                  >
+                    <Pencil size={14} />
+                    {renamingGroupId === modalMembership.groupId ? "Guardando..." : "Renombrar"}
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void refreshInviteByGroupId(modalMembership.groupId)}
+                  disabled={refreshingInviteGroupId === modalMembership.groupId}
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[var(--border-subtle)] bg-[var(--surface-card)] px-3 text-xs font-bold text-[var(--text-primary)] disabled:opacity-50"
+                >
+                  <RefreshCw size={14} />
+                  {refreshingInviteGroupId === modalMembership.groupId ? "Actualizando invitación..." : "Regenerar link de invitación"}
+                </button>
+              </section>
+            ) : null}
 
             <button
               type="button"

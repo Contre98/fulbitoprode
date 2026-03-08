@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { Platform } from "react-native";
 import type { AuthSession } from "@fulbito/api-contracts";
 import { canUseHttpSession } from "@/repositories/authBridgeState";
 import type { FallbackFailure } from "@/repositories/fallbackDiagnostics";
@@ -10,7 +11,7 @@ import {
   subscribeFallbackFailure,
   subscribeFallbackHistory
 } from "@/repositories/fallbackDiagnostics";
-import { authRepository } from "@/repositories";
+import { authRepository, notificationsRepository } from "@/repositories";
 
 interface AuthContextValue {
   loading: boolean;
@@ -22,6 +23,7 @@ interface AuthContextValue {
   refresh: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   register: (input: { email: string; password: string; name: string }) => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<{ ok: true; message: string }>;
   logout: () => Promise<void>;
   retryHttpMode: () => Promise<void>;
   clearFallbackDiagnosticsHistory: () => void;
@@ -70,6 +72,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    if (!session?.user?.id) {
+      return;
+    }
+    const syntheticToken = `fulbito-${Platform.OS}-${session.user.id}`;
+    void notificationsRepository
+      .registerDeviceToken({
+        token: syntheticToken,
+        platform: Platform.OS
+      })
+      .catch(() => undefined);
+  }, [session?.user?.id]);
+
   const login = useCallback(async (email: string, password: string) => {
     const nextSession = await authRepository.loginWithPassword(email, password);
     setSession(nextSession);
@@ -80,6 +95,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const nextSession = await authRepository.registerWithPassword(input);
     setSession(nextSession);
     setDataMode(canUseHttpSession() ? "http" : "mock");
+  }, []);
+
+  const requestPasswordReset = useCallback(async (email: string) => {
+    return authRepository.requestPasswordReset(email);
   }, []);
 
   const logout = useCallback(async () => {
@@ -107,11 +126,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refresh,
       login,
       register,
+      requestPasswordReset,
       logout,
       retryHttpMode,
       clearFallbackDiagnosticsHistory
     }),
-    [loading, session, dataMode, fallbackIssue, fallbackHistory, refresh, login, register, logout, retryHttpMode, clearFallbackDiagnosticsHistory]
+    [
+      loading,
+      session,
+      dataMode,
+      fallbackIssue,
+      fallbackHistory,
+      refresh,
+      login,
+      register,
+      requestPasswordReset,
+      logout,
+      retryHttpMode,
+      clearFallbackDiagnosticsHistory
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

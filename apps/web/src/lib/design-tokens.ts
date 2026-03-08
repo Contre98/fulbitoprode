@@ -9,7 +9,12 @@ export const designTokens = {
   textPrimary: "var(--text-primary)",
   textSecondary: "var(--text-secondary)",
   textMuted: "var(--text-muted)",
-  textTertiary: "var(--text-muted)"
+  textTertiary: "var(--text-muted)",
+  space4: "var(--space-4)",
+  space8: "var(--space-8)",
+  space16: "var(--space-16)",
+  space24: "var(--space-24)",
+  space32: "var(--space-32)"
 } as const;
 
 export const pointsToneColors = {

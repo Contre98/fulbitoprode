@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { vi } from "vitest";
 import ConfiguracionAjustesPageClient from "@/app/configuracion/ajustes/ConfiguracionAjustesPageClient";
 
@@ -44,19 +44,17 @@ vi.mock("@/components/ui/ToastProvider", () => ({
 }));
 
 describe("Configuracion ajustes screen", () => {
-  it("renders sections and keeps toggle behavior", () => {
+  it("renders wired account actions only", () => {
     render(<ConfiguracionAjustesPageClient />);
 
     expect(screen.getByText("Configuración")).toBeInTheDocument();
     expect(screen.getByText("Ajustes de la cuenta")).toBeInTheDocument();
-    expect(screen.getByText("Push Notifications")).toBeInTheDocument();
-    expect(screen.getByText("Vibración")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Mi Perfil/i })).toHaveAttribute("href", "/perfil");
     expect(screen.getByRole("button", { name: /Cerrar Sesión/i })).toBeInTheDocument();
-
-    const toggle = screen.getByRole("button", { name: "Push Notifications" });
-    expect(toggle).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(toggle);
-    expect(toggle).toHaveAttribute("aria-pressed", "false");
+    expect(screen.queryByText("Push Notifications")).not.toBeInTheDocument();
+    expect(screen.queryByText("Vibración")).not.toBeInTheDocument();
+    expect(screen.queryByText("Cambiar Contraseña")).not.toBeInTheDocument();
+    expect(screen.queryByText("Ayuda y FAQ")).not.toBeInTheDocument();
+    expect(screen.queryByText("Términos y Condiciones")).not.toBeInTheDocument();
   });
 });

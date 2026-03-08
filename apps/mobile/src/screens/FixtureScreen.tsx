@@ -8,6 +8,7 @@ import { fixtureRepository } from "@/repositories";
 import { useGroupSelection } from "@/state/GroupContext";
 import { usePeriod } from "@/state/PeriodContext";
 import { ScreenFrame } from "@/components/ScreenFrame";
+import { HeaderGroupSelector } from "@/components/HeaderGroupSelector";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
@@ -50,20 +51,6 @@ function toTeamCode(name: string) {
     .map((word) => word[0] ?? "")
     .join("")
     .toUpperCase();
-}
-
-function deriveDisplayScore(fixture: Fixture) {
-  if (fixture.status === "upcoming") {
-    return null;
-  }
-  const explicit = fixture.id.match(/final-(\d+)-(\d+)/i);
-  if (explicit) {
-    return `${explicit[1]}-${explicit[2]}`;
-  }
-  const hash = fixture.id.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const home = hash % 3;
-  const away = Math.floor(hash / 3) % 3;
-  return `${home}-${away}`;
 }
 
 function statusLabel(status: Fixture["status"]) {
@@ -111,16 +98,6 @@ export function FixtureScreen() {
       .filter((group) => group.fixtures.length > 0);
   }, [filter, grouped]);
 
-  function cycleGroup() {
-    if (memberships.length <= 1) return;
-    const currentIndex = memberships.findIndex((membership) => membership.groupId === groupId);
-    const nextIndex = currentIndex >= 0 ? (currentIndex + 1) % memberships.length : 0;
-    const nextGroupId = memberships[nextIndex]?.groupId;
-    if (nextGroupId) {
-      void setSelectedGroupId(nextGroupId);
-    }
-  }
-
   function goPrevFecha() {
     const next = safeOptions[(periodIndex - 1 + safeOptions.length) % safeOptions.length];
     if (next) {
@@ -134,8 +111,6 @@ export function FixtureScreen() {
       setFecha(next.id);
     }
   }
-
-  const groupSummary = selectedMembership ? `${competitionLabelForFixture(selectedMembership)} · ${selectedMembership.groupName}` : "Sin grupo activo";
 
   return (
     <ScreenFrame
@@ -154,20 +129,8 @@ export function FixtureScreen() {
               <Text style={styles.brandTitleDark}>FULBITO</Text>
               <Text style={styles.brandTitleAccent}>PRODE</Text>
             </Text>
-            <View style={styles.headerActions}>
-              <Pressable style={styles.headerActionButton}>
-                <Text allowFontScaling={false} style={styles.headerActionGlyph}>◔</Text>
-              </Pressable>
-              <Pressable style={styles.headerActionButton}>
-                <Text allowFontScaling={false} style={styles.headerActionGlyph}>⌂</Text>
-                <View style={styles.headerAlertDot} />
-              </Pressable>
-              <Pressable style={styles.headerActionButton}>
-                <Text allowFontScaling={false} style={styles.headerActionGlyph}>⚙</Text>
-              </Pressable>
-              <View style={styles.profileDot}>
-                <Text allowFontScaling={false} style={styles.profileDotText}>FC</Text>
-              </View>
+            <View style={styles.profileDot}>
+              <Text allowFontScaling={false} style={styles.profileDotText}>FC</Text>
             </View>
           </View>
           <View style={styles.titleRow}>
@@ -175,21 +138,11 @@ export function FixtureScreen() {
               <Text allowFontScaling={false} style={styles.sectionIconText}>▦</Text>
             </View>
             <Text allowFontScaling={false} style={styles.sectionTitle}>Fixture</Text>
-            <Text allowFontScaling={false} style={styles.sectionSubtitle}>Partidos por fecha</Text>
+            <HeaderGroupSelector memberships={memberships} selectedGroupId={selectedGroupId} onSelectGroup={(nextGroupId) => void setSelectedGroupId(nextGroupId)} />
           </View>
         </View>
       }
     >
-      <View style={styles.block}>
-        <Text allowFontScaling={false} style={styles.blockLabel}>SELECCION ACTUAL</Text>
-        <Pressable style={styles.selectionButton} onPress={cycleGroup}>
-          <Text allowFontScaling={false} numberOfLines={1} style={styles.selectionText}>
-            {groupSummary}
-          </Text>
-          <Text allowFontScaling={false} style={styles.selectionChevron}>⌄</Text>
-        </Pressable>
-      </View>
-
       <View style={styles.block}>
         <View style={styles.fechaRow}>
           <Pressable onPress={goPrevFecha} style={styles.fechaNavButton}>
@@ -234,24 +187,26 @@ export function FixtureScreen() {
         <View key={group.dateKey} style={styles.groupCard}>
           <Text allowFontScaling={false} style={styles.dateLabel}>{group.dateLabel}</Text>
           {group.fixtures.map((fixture, index) => {
-            const score = deriveDisplayScore(fixture);
+            const score = fixture.score ? `${fixture.score.home}-${fixture.score.away}` : null;
             const homeCode = toTeamCode(fixture.homeTeam);
             const awayCode = toTeamCode(fixture.awayTeam);
             return (
               <View key={fixture.id} style={[styles.row, index > 0 ? styles.rowWithBorder : null]}>
                 <View style={styles.teamSide}>
-                  <TeamCrest teamName={fixture.homeTeam} code={homeCode} size={24} />
+                  <TeamCrest teamName={fixture.homeTeam} code={homeCode} logoUrl={fixture.homeLogoUrl} size={24} />
                   <Text allowFontScaling={false} numberOfLines={1} style={styles.teamName}>{fixture.homeTeam}</Text>
                 </View>
 
                 <View style={styles.middleCol}>
                   <Text allowFontScaling={false} style={styles.statusLabel}>{statusLabel(fixture.status)}</Text>
-                  <Text allowFontScaling={false} style={styles.scoreText}>{score ?? "vs"}</Text>
+                  <Text allowFontScaling={false} style={fixture.status === "final" ? styles.finalScoreText : styles.scoreText}>
+                    {score ?? (fixture.status === "final" ? "--" : "vs")}
+                  </Text>
                 </View>
 
                 <View style={[styles.teamSide, styles.teamSideRight]}>
                   <Text allowFontScaling={false} numberOfLines={1} style={styles.teamNameRight}>{fixture.awayTeam}</Text>
-                  <TeamCrest teamName={fixture.awayTeam} code={awayCode} size={24} />
+                  <TeamCrest teamName={fixture.awayTeam} code={awayCode} logoUrl={fixture.awayLogoUrl} size={24} />
                 </View>
               </View>
             );
@@ -307,32 +262,6 @@ const styles = StyleSheet.create({
   },
   brandTitleAccent: {
     color: "#A3C90A"
-  },
-  headerActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6
-  },
-  headerActionButton: {
-    height: 32,
-    width: 32,
-    borderRadius: 999,
-    backgroundColor: "#ECEFF3",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  headerActionGlyph: {
-    color: "#6B7280",
-    fontSize: 14
-  },
-  headerAlertDot: {
-    position: "absolute",
-    top: 8,
-    right: 9,
-    height: 4,
-    width: 4,
-    borderRadius: 999,
-    backgroundColor: "#D94651"
   },
   profileDot: {
     height: 32,
@@ -540,6 +469,14 @@ const styles = StyleSheet.create({
     color: "#111827",
     fontWeight: "900",
     fontSize: 20,
+    letterSpacing: -0.4
+  },
+  finalScoreText: {
+    marginTop: 1,
+    color: "#111827",
+    fontWeight: "900",
+    fontSize: 26,
+    lineHeight: 28,
     letterSpacing: -0.4
   }
 });

@@ -31,20 +31,33 @@ jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 })
 }));
 
+jest.mock("@/components/HeaderGroupSelector", () => ({
+  HeaderGroupSelector: () => null
+}));
+
 const mockedFixtureList = fixtureRepository.listFixture as unknown as jest.Mock;
 const mockedLeaderboard = leaderboardRepository.getLeaderboard as unknown as jest.Mock;
 const mockedUseAuth = useAuth as unknown as jest.Mock;
 const mockedUseGroupSelection = useGroupSelection as unknown as jest.Mock;
 const mockedUsePeriod = usePeriod as unknown as jest.Mock;
+const mockedSetSelectedGroupId = jest.fn();
 type HomeFixtureStatus = "upcoming" | "live" | "final";
 
 function buildFixture(id: string, status: HomeFixtureStatus, homeTeam: string, awayTeam: string) {
+  const now = Date.now();
+  const kickoffByStatus =
+    status === "upcoming"
+      ? new Date(now + 60 * 60 * 1000).toISOString()
+      : status === "live"
+        ? new Date(now - 20 * 60 * 1000).toISOString()
+        : new Date(now - 2 * 60 * 60 * 1000).toISOString();
+
   return {
     id,
     dateKey: "2026-03-03",
     homeTeam,
     awayTeam,
-    kickoffAt: "2026-03-03T21:00:00.000Z",
+    kickoffAt: kickoffByStatus,
     status
   };
 }
@@ -87,15 +100,17 @@ describe("HomeScreen filters", () => {
         }
       ],
       selectedGroupId: "g-1",
-      setSelectedGroupId: jest.fn()
+      setSelectedGroupId: mockedSetSelectedGroupId
     });
 
     mockedUsePeriod.mockReturnValue({
-      fecha: 3,
+      fecha: "2026-09",
       setFecha: jest.fn(),
-      availableFechas: [1, 2, 3],
-      loading: false,
-      error: null
+      options: [
+        { id: "2026-09", label: "Fecha 9" },
+        { id: "2026-08", label: "Fecha 8" },
+        { id: "2026-07", label: "Fecha 7" }
+      ]
     });
 
     mockedLeaderboard.mockResolvedValue([
@@ -115,7 +130,82 @@ describe("HomeScreen filters", () => {
     jest.clearAllMocks();
   });
 
-  it("renders all matches by default and filters with tabs", async () => {
+  it("does not render inline group cards in Inicio", async () => {
+    mockedUseGroupSelection.mockReturnValue({
+      memberships: [
+        {
+          groupId: "g-1",
+          groupName: "Grupo Amigos",
+          leagueId: 128,
+          leagueName: "Liga Profesional",
+          competitionStage: "apertura",
+          season: "2026",
+          role: "owner",
+          joinedAt: "2026-01-01T00:00:00.000Z"
+        },
+        {
+          groupId: "g-2",
+          groupName: "Grupo Oficina",
+          leagueId: 128,
+          leagueName: "Liga Profesional",
+          competitionStage: "apertura",
+          season: "2026",
+          role: "member",
+          joinedAt: "2026-01-01T00:00:00.000Z"
+        },
+        {
+          groupId: "g-3",
+          groupName: "Grupo Familia",
+          leagueId: 128,
+          leagueName: "Liga Profesional",
+          competitionStage: "apertura",
+          season: "2026",
+          role: "member",
+          joinedAt: "2026-01-01T00:00:00.000Z"
+        }
+      ],
+      selectedGroupId: "g-1",
+      setSelectedGroupId: mockedSetSelectedGroupId
+    });
+    mockedFixtureList.mockResolvedValue([buildFixture("f-1", "upcoming", "River Plate", "San Lorenzo")]);
+
+    const screen = renderScreen();
+    await waitFor(() => {
+      expect(screen.getByText("RANKING")).toBeTruthy();
+    });
+
+    expect(screen.queryByText("Grupo Oficina")).toBeNull();
+    expect(screen.queryByText("Grupo Familia")).toBeNull();
+    expect(mockedSetSelectedGroupId).not.toHaveBeenCalled();
+  });
+
+  it("falls back to other periods when selected period has no upcoming or live matches", async () => {
+    mockedFixtureList.mockImplementation(async (input: { fecha: string }) => {
+      if (input.fecha === "2026-09") {
+        return [buildFixture("f-final-only", "final", "Boca Juniors", "Racing Club")];
+      }
+      if (input.fecha === "2026-08") {
+        return [buildFixture("f-upcoming", "upcoming", "River Plate", "San Lorenzo")];
+      }
+      return [];
+    });
+
+    const screen = renderScreen();
+
+    await waitFor(() => {
+      expect(mockedFixtureList).toHaveBeenCalledWith({
+        groupId: "g-1",
+        fecha: "2026-09"
+      });
+      expect(mockedFixtureList).toHaveBeenCalledWith({
+        groupId: "g-1",
+        fecha: "2026-08"
+      });
+      expect(screen.getByText("River Plate")).toBeTruthy();
+    });
+  });
+
+  it("renders upcoming/live matches by default and filters with tabs", async () => {
     mockedFixtureList.mockResolvedValue([
       buildFixture("f-1", "final", "Boca Juniors", "Racing Club"),
       buildFixture("f-2", "live", "Lanus", "Banfield"),
@@ -125,9 +215,9 @@ describe("HomeScreen filters", () => {
     const screen = renderScreen();
 
     await waitFor(() => {
-      expect(screen.getByText("Boca Juniors")).toBeTruthy();
       expect(screen.getByText("Lanus")).toBeTruthy();
       expect(screen.getByText("River Plate")).toBeTruthy();
+      expect(screen.queryByText("Boca Juniors")).toBeNull();
     });
 
     fireEvent.press(screen.getByText("En vivo"));
@@ -155,7 +245,7 @@ describe("HomeScreen filters", () => {
     const screen = renderScreen();
 
     await waitFor(() => {
-      expect(screen.getByText("Defensa Y Justicia")).toBeTruthy();
+      expect(screen.getByText("Sin partidos")).toBeTruthy();
     });
 
     fireEvent.press(screen.getByText("En vivo"));

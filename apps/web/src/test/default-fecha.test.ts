@@ -60,4 +60,76 @@ describe("resolveDefaultFecha", () => {
 
     expect(result).toBe("Fecha 2");
   });
+
+  it("prefers pending fecha closest to now over old postponed rounds", async () => {
+    const now = Date.now();
+    global.fetch = vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
+      const url = new URL(typeof input === "string" ? input : input.toString());
+      const round = url.searchParams.get("round");
+
+      if (round === "Fecha 6") {
+        return {
+          ok: true,
+          json: async () => ({
+            response: [
+              {
+                fixture: {
+                  id: 6,
+                  date: new Date(now - 21 * 24 * 60 * 60 * 1000).toISOString(),
+                  status: { short: "PST", long: "Postponed", elapsed: null }
+                },
+                teams: { home: { name: "Home 6" }, away: { name: "Away 6" } },
+                goals: { home: null, away: null }
+              }
+            ]
+          })
+        };
+      }
+
+      if (round === "Fecha 9") {
+        return {
+          ok: true,
+          json: async () => ({
+            response: [
+              {
+                fixture: {
+                  id: 9,
+                  date: new Date(now - 2 * 24 * 60 * 60 * 1000).toISOString(),
+                  status: { short: "PST", long: "Postponed", elapsed: null }
+                },
+                teams: { home: { name: "Home 9" }, away: { name: "Away 9" } },
+                goals: { home: null, away: null }
+              }
+            ]
+          })
+        };
+      }
+
+      return {
+        ok: true,
+        json: async () => ({
+          response: [
+            {
+              fixture: {
+                id: 10,
+                date: new Date(now + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                status: { short: "NS", long: "Not Started", elapsed: null }
+              },
+              teams: { home: { name: "Home 10" }, away: { name: "Away 10" } },
+              goals: { home: null, away: null }
+            }
+          ]
+        })
+      };
+    }) as unknown as typeof fetch;
+
+    const result = await resolveDefaultFecha({
+      leagueId: 128,
+      season: "2026",
+      competitionStage: "apertura",
+      fechas: ["Fecha 6", "Fecha 9", "Fecha 10"]
+    });
+
+    expect(result).toBe("Fecha 9");
+  });
 });

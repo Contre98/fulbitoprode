@@ -9,7 +9,7 @@ if (!Number.isFinite(major)) {
 
 if (major < 20 || major > 22) {
   console.error(
-    `[mobile] Unsupported Node.js ${raw}. Expo SDK 52 is currently validated on Node 20-22 for this workspace.`
+    `[mobile] Unsupported Node.js ${raw}. Expo SDK 54 is currently validated on Node 20-22 for this workspace.`
   );
   console.error(
     "[mobile] Switch to Node 22 LTS (or 20 LTS) and retry mobile commands."

@@ -1,0 +1,56 @@
+import { NextResponse } from "next/server";
+import { getApiSession, unauthorizedJson } from "@/lib/api-session";
+import { addNotification } from "@/lib/notifications-store";
+import { logServerEvent } from "@/lib/observability";
+
+export async function POST(request: Request) {
+  const session = getApiSession(request);
+  if (!session) {
+    return unauthorizedJson();
+  }
+
+  try {
+    const body = (await request.json()) as {
+      event?: "prediction_lock" | "results_published" | "weekly_winner" | "social";
+      title?: string;
+      body?: string;
+    };
+    if (!body.event) {
+      return NextResponse.json({ error: "event is required" }, { status: 400 });
+    }
+
+    const defaults: Record<string, { title: string; body: string }> = {
+      prediction_lock: {
+        title: "Cierre de pronósticos",
+        body: "Queda poco para que cierre la fecha. Revisá tus pronósticos."
+      },
+      results_published: {
+        title: "Resultados publicados",
+        body: "Ya se publicaron los resultados de la fecha."
+      },
+      weekly_winner: {
+        title: "Ganador semanal",
+        body: "Ya está definido el ganador de la última fecha."
+      },
+      social: {
+        title: "Nueva actividad en tu grupo",
+        body: "Un usuario se unió al grupo."
+      }
+    };
+
+    const fallback = defaults[body.event];
+    addNotification(session.userId, {
+      type: body.event,
+      title: body.title?.trim() || fallback.title,
+      body: body.body?.trim() || fallback.body
+    });
+    logServerEvent("notifications.dispatch", {
+      userId: session.userId,
+      event: body.event
+    });
+
+    return NextResponse.json({ ok: true }, { status: 200 });
+  } catch {
+    return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
+  }
+}

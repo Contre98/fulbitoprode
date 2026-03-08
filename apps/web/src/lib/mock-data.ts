@@ -144,21 +144,21 @@ export const fixtureDateCards: FixtureDateCard[] = [
   {
     dateLabel: "Jueves, 12 de Febrero",
     rows: [
-      { home: "Tigre", away: "Aldosivi", scoreLabel: "FINAL · 3 - 1", tone: "final" },
-      { home: "Argentinos JRS", away: "River Plate", scoreLabel: "FINAL · 2 - 4", tone: "final" }
+      { home: "Tigre", away: "Aldosivi", score: { home: 3, away: 1 }, scoreLabel: "FINAL · 3 - 1", tone: "final" },
+      { home: "Argentinos JRS", away: "River Plate", score: { home: 2, away: 4 }, scoreLabel: "FINAL · 2 - 4", tone: "final" }
     ]
   },
   {
     dateLabel: "Viernes, 13 de Febrero",
     rows: [
-      { home: "Defensa y Justicia", away: "Velez Sarsfield", scoreLabel: "FINAL · 0 - 0", tone: "final" },
-      { home: "Union Santa Fe", away: "San Lorenzo", scoreLabel: "FINAL · 3 - 1", tone: "final" }
+      { home: "Defensa y Justicia", away: "Velez Sarsfield", score: { home: 0, away: 0 }, scoreLabel: "FINAL · 0 - 0", tone: "final" },
+      { home: "Union Santa Fe", away: "San Lorenzo", score: { home: 3, away: 1 }, scoreLabel: "FINAL · 3 - 1", tone: "final" }
     ]
   },
   {
     dateLabel: "Sábado, 14 de Febrero",
     accent: "live",
-    rows: [{ home: "Boca Juniors", away: "Rosario Central", scoreLabel: "EN VIVO · 0 - 0", tone: "live" }]
+    rows: [{ home: "Boca Juniors", away: "Rosario Central", score: { home: 0, away: 0 }, scoreLabel: "EN VIVO · 0 - 0", tone: "live" }]
   },
   {
     dateLabel: "Domingo, 15 de Febrero",
@@ -176,21 +176,21 @@ export const fixtureDateCardsByPeriod: Record<MatchPeriod, FixtureDateCard[]> = 
     {
       dateLabel: "Lunes, 16 de Febrero",
       rows: [
-        { home: "Huracán", away: "Lanús", scoreLabel: "FINAL · 1 - 0", tone: "final" },
-        { home: "Racing Club", away: "Velez Sarsfield", scoreLabel: "FINAL · 2 - 2", tone: "final" }
+        { home: "Huracán", away: "Lanús", score: { home: 1, away: 0 }, scoreLabel: "FINAL · 1 - 0", tone: "final" },
+        { home: "Racing Club", away: "Velez Sarsfield", score: { home: 2, away: 2 }, scoreLabel: "FINAL · 2 - 2", tone: "final" }
       ]
     },
     {
       dateLabel: "Martes, 17 de Febrero",
       rows: [
-        { home: "River Plate", away: "Rosario Central", scoreLabel: "FINAL · 3 - 1", tone: "final" },
-        { home: "Talleres", away: "Defensa y Justicia", scoreLabel: "FINAL · 0 - 0", tone: "final" }
+        { home: "River Plate", away: "Rosario Central", score: { home: 3, away: 1 }, scoreLabel: "FINAL · 3 - 1", tone: "final" },
+        { home: "Talleres", away: "Defensa y Justicia", score: { home: 0, away: 0 }, scoreLabel: "FINAL · 0 - 0", tone: "final" }
       ]
     },
     {
       dateLabel: "Miércoles, 18 de Febrero",
       accent: "live",
-      rows: [{ home: "Boca Juniors", away: "Estudiantes", scoreLabel: "EN VIVO · 2 - 1", tone: "live" }]
+      rows: [{ home: "Boca Juniors", away: "Estudiantes", score: { home: 2, away: 1 }, scoreLabel: "EN VIVO · 2 - 1", tone: "live" }]
     },
     {
       dateLabel: "Jueves, 19 de Febrero",

@@ -105,6 +105,47 @@ export function joinMockGroup(input: { codeOrToken: string }) {
   return { ...nextGroup };
 }
 
+export function renameMockGroup(input: { groupId: string; name: string }) {
+  const cleanName = input.name.trim();
+  if (!cleanName) {
+    throw new Error("Group name is required");
+  }
+
+  let renamed = false;
+  groupsStore = groupsStore.map((group) => {
+    if (group.id !== input.groupId) {
+      return group;
+    }
+    renamed = true;
+    return {
+      ...group,
+      name: cleanName
+    };
+  });
+
+  membershipsStore = membershipsStore.map((membership) => {
+    if (membership.groupId !== input.groupId) {
+      return membership;
+    }
+    return {
+      ...membership,
+      groupName: cleanName
+    };
+  });
+
+  if (!renamed) {
+    throw new Error("Group not found");
+  }
+
+  return {
+    ok: true as const,
+    group: {
+      id: input.groupId,
+      name: cleanName
+    }
+  };
+}
+
 export function resetMockGroupStore() {
   groupsStore = [baseGroup];
   membershipsStore = [baseMembership];
