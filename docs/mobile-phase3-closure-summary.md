@@ -1,5 +1,7 @@
 # Phase 3 Mobile MVP Closure Summary (Draft)
 
+> Status note (2026-03-08): this summary remains valid for mobile evidence, but command examples now use `@fulbito/api` instead of removed web package checks.
+
 ## Scope
 This draft summarizes Phase 3 delivery status for `mobile/react-native-rewrite` and groups evidence by tab for final parity sign-off.
 
@@ -63,9 +65,9 @@ Latest required validations are tracked in:
 - `docs/mobile-migration-plan.md` -> `Validation Log`
 
 Key recurring commands:
-- `pnpm run typecheck:web`
+- `pnpm run typecheck:api`
 - `pnpm --filter @fulbito/mobile typecheck`
-- `pnpm run build:web`
+- `pnpm run build:api`
 - `pnpm --filter @fulbito/mobile test -- <targeted test file>`
 
 ## Manual Sign-off Status

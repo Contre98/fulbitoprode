@@ -1,5 +1,7 @@
 # Mobile Rewrite Migration Plan
 
+> Status note (2026-03-08): this document contains historical entries from the web+mobile period. Current runtime architecture is `apps/api` + `apps/mobile`.
+
 ## Objective
 Deliver a native-first iOS/Android app (Expo React Native) from the existing Fulbito web product while preserving backend portability through shared contracts, incremental domain extraction, and auditable phase-based execution so future backend/database migration can happen without rewriting mobile feature flows.
 

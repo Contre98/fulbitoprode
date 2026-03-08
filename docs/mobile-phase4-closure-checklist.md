@@ -1,5 +1,7 @@
 # Phase 4 Closure Checklist (Draft)
 
+> Status note (2026-03-08): `apps/web` has been decommissioned. Active platform guards are `@fulbito/api` + `@fulbito/mobile`.
+
 ## Objective
 Define explicit, auditable closure gates for mobile rewrite hardening before Phase 4 sign-off.
 
@@ -12,9 +14,9 @@ Define explicit, auditable closure gates for mobile rewrite hardening before Pha
   - [ ] `RepositoryFallbackTransitions.test.ts`
   - [ ] `FallbackDiagnostics.history.test.ts`
   - [ ] `AuthContext.fallbackHistory.integration.test.tsx`
-- [ ] `pnpm run typecheck:web` green on latest branch head.
+- [ ] `pnpm run typecheck:api` green on latest branch head.
 - [ ] `pnpm --filter @fulbito/mobile typecheck` green on latest branch head.
-- [ ] `pnpm run build:web` green (pre-existing warnings allowed if unchanged and logged).
+- [ ] `pnpm run build:api` green on latest branch head.
 
 ## Manual QA Gates
 - [ ] Full iOS pass across 5 tabs in `Mock Fallback` mode.

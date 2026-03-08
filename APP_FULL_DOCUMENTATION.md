@@ -1,5 +1,7 @@
 # App Full Documentation
 
+> Status note (2026-03-08): `apps/web` has been removed and backend runtime moved to standalone `apps/api`. Web-specific sections below are archival and not current architecture truth.
+
 ## Table of Contents
 - [1. Executive Summary](#1-executive-summary)
 - [2. Product Overview](#2-product-overview)

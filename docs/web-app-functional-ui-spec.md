@@ -1,5 +1,7 @@
 # Fulbito Prode — Web App Functional & UI Specification
 
+> Archived (2026-03-08): `apps/web` has been decommissioned. Keep this document only as historical reference for pre-cutover behavior.
+
 ## 1. Document Purpose
 - This document is a functional + UX specification reconstructed from the **implemented web code**.
 - Intended audiences:
