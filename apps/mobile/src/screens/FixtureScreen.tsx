@@ -17,14 +17,13 @@ import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { TeamCrest } from "@/components/TeamCrest";
 
-type FixtureFilter = "all" | "live" | "final" | "upcoming" | "postponed";
+type FixtureFilter = "all" | "live" | "final" | "upcoming";
 
 const filterLabels: Record<FixtureFilter, string> = {
   all: "Todos",
   live: "En vivo",
   final: "Finalizados",
-  upcoming: "Próximos",
-  postponed: "Postergados"
+  upcoming: "Próximos"
 };
 
 function stageLabel(value: string | undefined) {
@@ -59,7 +58,6 @@ function toTeamCode(name: string) {
 function statusLabel(status: Fixture["status"]) {
   if (status === "live") return "EN VIVO";
   if (status === "final") return "FINAL";
-  if (status === "postponed") return "POSTERGADO";
   return "PRÓXIMO";
 }
 
@@ -179,7 +177,7 @@ export function FixtureScreen() {
                 <View style={styles.middleCol}>
                   <Text allowFontScaling={false} style={styles.statusLabel}>{statusLabel(fixture.status)}</Text>
                   <Text allowFontScaling={false} style={fixture.status === "final" ? styles.finalScoreText : styles.scoreText}>
-                    {score ?? (fixture.status === "live" ? "0-0" : fixture.status === "final" ? "--" : fixture.status === "postponed" ? "POST." : "vs")}
+                    {score ?? (fixture.status === "final" ? "--" : "vs")}
                   </Text>
                 </View>
 

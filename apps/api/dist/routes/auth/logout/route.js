@@ -22,6 +22,7 @@ export async function POST(request) {
         await revokeRefreshSession({
             sessionId: refreshPayload.sid,
             userId: refreshPayload.uid,
+            refreshToken,
             authToken: refreshPayload.pbt
         });
     }

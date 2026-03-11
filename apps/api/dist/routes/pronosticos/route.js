@@ -172,7 +172,7 @@ export async function POST(request, context) {
         });
         const matches = mapFixturesToPronosticosMatches(fixtures);
         const match = matches.find((candidate) => candidate.id === matchId);
-        if (!match || match.status !== "upcoming") {
+        if (!match || (match.status !== "upcoming" && match.status !== "postponed")) {
             return jsonResponse({ error: "Invalid upcoming match id." }, { status: 400 });
         }
         if (match.isLocked) {
