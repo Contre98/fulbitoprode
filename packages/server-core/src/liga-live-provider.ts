@@ -490,6 +490,16 @@ function sortFechas(input: string[]) {
   });
 }
 
+function readLastNumericToken(value: string) {
+  const matches = [...value.matchAll(/(\d+)/g)];
+  if (matches.length === 0) {
+    return "";
+  }
+  const token = matches[matches.length - 1]?.[1] || "";
+  const normalized = Number(token);
+  return Number.isFinite(normalized) ? String(normalized) : token;
+}
+
 function filterRoundsByCompetitionStage(rounds: string[], stage?: CompetitionStage) {
   if (!stage || stage === "general") {
     return rounds;
@@ -708,8 +718,11 @@ export function formatRoundLabel(period: string) {
   if (!clean) return clean;
 
   const normalized = normalizeAscii(clean.toLowerCase());
-  const numericMatch = clean.match(/(\d+)/);
-  const number = numericMatch?.[1];
+  const number = readLastNumericToken(clean);
+
+  if (/^\d{4}-\d{2}$/.test(clean) && number) {
+    return `Fecha ${Number(number)}`;
+  }
 
   if (normalized.startsWith("fecha") && number) {
     return `Fecha ${number}`;
@@ -1187,7 +1200,7 @@ export async function fetchLigaArgentinaFixtures(
           };
         }
 
-        const requestedNumber = requestedPeriod.match(/(\d+)/)?.[1];
+        const requestedNumber = readLastNumericToken(requestedPeriod);
         if (!requestedNumber) {
           return {
             value: primaryRows,
@@ -1203,7 +1216,7 @@ export async function fetchLigaArgentinaFixtures(
 
         for (const candidate of candidateFechas) {
           if (candidate === requestedPeriod) continue;
-          const candidateNumber = candidate.match(/(\d+)/)?.[1];
+          const candidateNumber = readLastNumericToken(candidate);
           if (candidateNumber !== requestedNumber) continue;
           let candidateRows: LiveFixture[] = [];
           try {
