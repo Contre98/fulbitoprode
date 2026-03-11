@@ -13,6 +13,7 @@ const LEGACY_PERIOD_WINDOWS: Record<string, { fromDays: number; toDays: number }
   fecha14: { fromDays: -2, toDays: 2 },
   fecha15: { fromDays: 3, toDays: 7 }
 };
+const LEGACY_FALLBACK_FECHAS: MatchPeriod[] = ["fecha14", "fecha15"];
 
 interface LiveProviderConfig {
   baseUrl: string;
@@ -993,8 +994,9 @@ export async function fetchAvailableFechas(input: {
             competitionStage: input.competitionStage,
             fechas: sorted
           });
+          return sorted;
         }
-        return sorted;
+        return [...LEGACY_FALLBACK_FECHAS];
       }
     );
   } catch (error) {
