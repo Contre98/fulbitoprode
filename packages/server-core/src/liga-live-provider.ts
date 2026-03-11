@@ -954,7 +954,7 @@ export async function fetchAvailableFechas(input: {
 }): Promise<MatchPeriod[]> {
   const config = parseLiveProviderConfig();
   if (!config) {
-    return [];
+    return [...LEGACY_FALLBACK_FECHAS];
   }
 
   try {
@@ -1002,7 +1002,7 @@ export async function fetchAvailableFechas(input: {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown provider error";
     console.error(`[live-provider] Failed to fetch available fechas: ${message}`);
-    return [];
+    return [...LEGACY_FALLBACK_FECHAS];
   }
 }
 

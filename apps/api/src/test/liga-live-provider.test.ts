@@ -135,4 +135,42 @@ describe("@fulbito/server-core liga-live-provider", () => {
       expect.any(Object)
     );
   });
+
+  it("falls back to legacy fechas when provider config is missing", async () => {
+    process.env.API_FOOTBALL_BASE_URL = "";
+    process.env.API_FOOTBALL_KEY = "";
+    process.env.FOOTBALL_API_BASE_URL = "";
+    process.env.FOOTBALL_API_KEY = "";
+
+    const { fetchAvailableFechas } = await import("@fulbito/server-core/liga-live-provider");
+
+    const fechas = await fetchAvailableFechas({
+      leagueId: 128,
+      season: "2026",
+      competitionStage: "apertura"
+    });
+
+    expect(fechas).toEqual(["fecha14", "fecha15"]);
+  });
+
+  it("falls back to legacy fechas when provider rounds request fails", async () => {
+    const fetchMock = vi.fn<Promise<MockFetchResponse>, [string, RequestInit | undefined]>();
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      json: async () => ({})
+    });
+    global.fetch = fetchMock as unknown as typeof global.fetch;
+
+    const { fetchAvailableFechas } = await import("@fulbito/server-core/liga-live-provider");
+
+    const fechas = await fetchAvailableFechas({
+      leagueId: 128,
+      season: "2026",
+      competitionStage: "apertura"
+    });
+
+    expect(fechas).toEqual(["fecha14", "fecha15"]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
