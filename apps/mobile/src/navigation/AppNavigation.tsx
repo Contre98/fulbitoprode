@@ -1,9 +1,8 @@
-import { Linking } from "react-native";
 import { NavigationContainer, createNavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { colors } from "@fulbito/design-tokens";
 import { AuthProvider, useAuth } from "@/state/AuthContext";
 import { PeriodProvider } from "@/state/PeriodContext";
@@ -17,8 +16,6 @@ import { PerfilScreen } from "@/screens/PerfilScreen";
 import { AjustesScreen } from "@/screens/AjustesScreen";
 import { NotificacionesScreen } from "@/screens/NotificacionesScreen";
 import { GroupProvider } from "@/state/GroupContext";
-import { parseInviteTokenFromUrl } from "@/lib/inviteDeepLink";
-import { PendingInviteProvider, usePendingInvite } from "@/state/PendingInviteContext";
 
 const RootStack = createNativeStackNavigator();
 const Tabs = createBottomTabNavigator();
@@ -62,42 +59,6 @@ function AppTabs() {
 
 function RootNavigator() {
   const { loading, isAuthenticated } = useAuth();
-  const { hydrated, pendingInviteToken, setPendingInviteToken } = usePendingInvite();
-  const routedInviteRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    void (async () => {
-      const initialUrl = await Linking.getInitialURL();
-      const inviteToken = parseInviteTokenFromUrl(initialUrl);
-      if (inviteToken) {
-        await setPendingInviteToken(inviteToken);
-      }
-    })();
-
-    const subscription = Linking.addEventListener("url", ({ url }) => {
-      const inviteToken = parseInviteTokenFromUrl(url);
-      if (!inviteToken) return;
-      void setPendingInviteToken(inviteToken);
-    });
-
-    return () => {
-      subscription.remove();
-    };
-  }, [setPendingInviteToken]);
-
-  useEffect(() => {
-    if (!hydrated || !isAuthenticated || !pendingInviteToken) {
-      return;
-    }
-    if (!navigationRef.isReady()) {
-      return;
-    }
-    if (routedInviteRef.current === pendingInviteToken) {
-      return;
-    }
-    routedInviteRef.current = pendingInviteToken;
-    navigationRef.navigate("Configuracion", { invite: pendingInviteToken });
-  }, [hydrated, isAuthenticated, pendingInviteToken]);
 
   if (loading) {
     return (
@@ -151,15 +112,13 @@ export function AppNavigation() {
 
   return (
     <AuthProvider>
-      <PendingInviteProvider>
-        <GroupProvider>
-          <PeriodProvider>
-            <NavigationContainer ref={navigationRef} linking={linking}>
-              <RootNavigator />
-            </NavigationContainer>
-          </PeriodProvider>
-        </GroupProvider>
-      </PendingInviteProvider>
+      <GroupProvider>
+        <PeriodProvider>
+          <NavigationContainer ref={navigationRef} linking={linking}>
+            <RootNavigator />
+          </NavigationContainer>
+        </PeriodProvider>
+      </GroupProvider>
     </AuthProvider>
   );
 }
