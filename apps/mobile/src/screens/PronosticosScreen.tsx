@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Animated, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Fixture, Prediction, PredictionHistoryEntry } from "@fulbito/domain";
@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { TeamCrest } from "@/components/TeamCrest";
+import { LivePulseBorder, estimateMatchMinute, useLivePulse } from "@/components/LiveMatchIndicator";
 import { fixtureRepository, predictionsRepository } from "@/repositories";
 import { useGroupSelection } from "@/state/GroupContext";
 import { usePeriod } from "@/state/PeriodContext";
@@ -52,6 +53,13 @@ function competitionLabelForPronosticos(input: {
 }
 
 function isOpenUpcomingFixture(fixture: Fixture) {
+  if (fixture.status === "postponed") {
+    if (fixture.newKickoffAt) {
+      const newKickoffMs = new Date(fixture.newKickoffAt).getTime();
+      return Number.isFinite(newKickoffMs) && newKickoffMs > Date.now();
+    }
+    return true;
+  }
   if (fixture.status !== "upcoming") {
     return false;
   }
@@ -220,12 +228,24 @@ export function PronosticosScreen() {
     }
   });
 
+  const hasLiveFixtures = useMemo(
+    () => (fixtureQuery.data ?? []).some((fixture) => fixture.status === "live"),
+    [fixtureQuery.data]
+  );
+  const livePulseOpacity = useLivePulse();
+  const [matchClockTick, setMatchClockTick] = useState(0);
+  useEffect(() => {
+    if (!hasLiveFixtures) return;
+    const interval = setInterval(() => setMatchClockTick((t) => t + 1), 30_000);
+    return () => clearInterval(interval);
+  }, [hasLiveFixtures]);
+
   const upcomingFixtures = useMemo(
-    () => (fixtureQuery.data ?? []).filter((fixture) => isOpenUpcomingFixture(fixture)),
+    () => (fixtureQuery.data ?? []).filter((fixture) => fixture.status === "live" || isOpenUpcomingFixture(fixture)),
     [fixtureQuery.data]
   );
   const historyFixtures = useMemo(
-    () => (fixtureQuery.data ?? []).filter((fixture) => !isOpenUpcomingFixture(fixture)),
+    () => (fixtureQuery.data ?? []).filter((fixture) => fixture.status !== "live" && !isOpenUpcomingFixture(fixture)),
     [fixtureQuery.data]
   );
   const shouldDefaultToUpcomingMode = useMemo(
@@ -414,14 +434,17 @@ export function PronosticosScreen() {
   function renderFixtureCard(fixture: Fixture) {
     const draft = draftByFixture[fixture.id] ?? { home: "", away: "" };
     const isEditable = mode === "upcoming" && isOpenUpcomingFixture(fixture);
+    const isLive = fixture.status === "live";
     const statusBadgeLabel =
-      fixture.status === "upcoming"
-        ? isOpenUpcomingFixture(fixture)
-          ? "Abierto"
-          : "Cerrado"
-        : fixture.status === "live"
-          ? "En juego"
-          : "Finalizado";
+      fixture.status === "postponed"
+        ? "Postergado"
+        : fixture.status === "upcoming"
+          ? isOpenUpcomingFixture(fixture)
+            ? "Abierto"
+            : "En juego"
+          : isLive
+            ? "En vivo"
+            : "Finalizado";
     const kickoffLabel = new Date(fixture.kickoffAt).toLocaleString("es-AR", {
       day: "2-digit",
       month: "2-digit",
@@ -452,7 +475,9 @@ export function PronosticosScreen() {
     const readOnlyScore =
       mode === "history"
         ? historyEntry?.actualResult ?? null
-        : fixture.score ?? (committed ? { home: committed.home, away: committed.away } : null);
+        : isLive
+          ? fixture.score ?? { home: 0, away: 0 }
+          : fixture.score ?? (committed ? { home: committed.home, away: committed.away } : null);
     const readOnlyHome = readOnlyScore ? String(readOnlyScore.home) : "-";
     const readOnlyAway = readOnlyScore ? String(readOnlyScore.away) : "-";
     const userPredictionLabel = historyEntry?.userPrediction
@@ -467,9 +492,13 @@ export function PronosticosScreen() {
             : "Pendiente"
         : "Pendiente";
 
-    return (
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- read indirectly to trigger re-render
+    void matchClockTick;
+    const liveMinuteLabel = isLive ? estimateMatchMinute(fixture.kickoffAt) : "";
+
+    const cardContent = (
       <View key={fixture.id} style={styles.cardWrap}>
-        <View style={styles.card}>
+        <View style={[styles.card, isLive ? styles.cardLive : null]}>
           <View style={styles.matchRow}>
             <View style={styles.teamBlock}>
               <TeamCrest teamName={fixture.homeTeam} code={homeCode} logoUrl={fixture.homeLogoUrl} />
@@ -507,7 +536,13 @@ export function PronosticosScreen() {
                 <Text allowFontScaling={false} style={styles.resultText}>
                   {readOnlyHome} - {readOnlyAway}
                 </Text>
-                <Text allowFontScaling={false} style={styles.resultSub}>{statusBadgeLabel.toUpperCase()}</Text>
+                {isLive && liveMinuteLabel ? (
+                  <Animated.Text allowFontScaling={false} style={[styles.resultSub, styles.resultSubLive, { opacity: livePulseOpacity }]}>
+                    {liveMinuteLabel}
+                  </Animated.Text>
+                ) : (
+                  <Text allowFontScaling={false} style={styles.resultSub}>{statusBadgeLabel.toUpperCase()}</Text>
+                )}
               </View>
             )}
 
@@ -522,6 +557,12 @@ export function PronosticosScreen() {
           <View style={styles.timeRow}>
             <Text allowFontScaling={false} style={styles.kickoffBadge}>{kickoffLabel}</Text>
           </View>
+          {isLive && committed ? (
+            <View style={styles.livePredictionRow}>
+              <Text allowFontScaling={false} style={styles.livePredictionLabel}>Tu pronóstico:</Text>
+              <Text allowFontScaling={false} style={styles.livePredictionValue}>{committed.home} - {committed.away}</Text>
+            </View>
+          ) : null}
           {mode === "history" ? (
             <View style={styles.historySummary}>
               <Text allowFontScaling={false} style={styles.historySummaryText}>Tu pronóstico: {userPredictionLabel}</Text>
@@ -530,11 +571,16 @@ export function PronosticosScreen() {
           ) : null}
         </View>
 
-        {mode === "upcoming" && !isEditable ? <Text allowFontScaling={false} style={styles.lockedChip}>Partido bloqueado: no se pueden editar pronósticos.</Text> : null}
+        {mode === "upcoming" && !isEditable && !isLive ? <Text allowFontScaling={false} style={styles.lockedChip}>Partido bloqueado: no se pueden editar pronósticos.</Text> : null}
         {isSavingThisFixture ? <Text allowFontScaling={false} style={styles.infoChip}>Guardando pronóstico...</Text> : null}
         {fixtureSaveError ? <Text allowFontScaling={false} style={styles.errorChip}>{fixtureSaveError}</Text> : null}
       </View>
     );
+
+    if (isLive) {
+      return <LivePulseBorder key={fixture.id}>{cardContent}</LivePulseBorder>;
+    }
+    return cardContent;
   }
 
   const historyIsLoadingFallback = mode === "history" && historyFixtures.length === 0 && historyFixtureQuery.isLoading;
@@ -702,6 +748,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     gap: 8
   },
+  cardLive: {
+    borderWidth: 0
+  },
   matchRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -758,6 +807,9 @@ const styles = StyleSheet.create({
     color: colors.textGray,
     fontSize: 12,
     fontWeight: "800"
+  },
+  resultSubLive: {
+    color: colors.dangerAccent
   },
   scoreInput: {
     width: 28,
@@ -884,6 +936,22 @@ const styles = StyleSheet.create({
     height: "100%",
     borderRadius: 999,
     backgroundColor: colors.primaryStrong
+  },
+  livePredictionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6
+  },
+  livePredictionLabel: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "700"
+  },
+  livePredictionValue: {
+    color: colors.textHigh,
+    fontSize: 12,
+    fontWeight: "900"
   },
   statusText: {
     color: colors.textMutedAlt,

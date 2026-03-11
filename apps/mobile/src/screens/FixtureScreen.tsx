@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { compareFixturesByStatusAndKickoff, groupFixturesByDate } from "@fulbito/domain";
@@ -16,14 +16,16 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { TeamCrest } from "@/components/TeamCrest";
+import { LivePulseBorder, estimateMatchMinute, useLivePulse } from "@/components/LiveMatchIndicator";
 
-type FixtureFilter = "all" | "live" | "final" | "upcoming";
+type FixtureFilter = "all" | "live" | "final" | "upcoming" | "postponed";
 
 const filterLabels: Record<FixtureFilter, string> = {
   all: "Todos",
   live: "En vivo",
   final: "Finalizados",
-  upcoming: "Próximos"
+  upcoming: "Próximos",
+  postponed: "Postergados"
 };
 
 function stageLabel(value: string | undefined) {
@@ -58,6 +60,7 @@ function toTeamCode(name: string) {
 function statusLabel(status: Fixture["status"]) {
   if (status === "live") return "EN VIVO";
   if (status === "final") return "FINAL";
+  if (status === "postponed") return "POSTERGADO";
   return "PRÓXIMO";
 }
 
@@ -83,6 +86,18 @@ export function FixtureScreen() {
         fecha
       })
   });
+
+  const hasLiveFixtures = useMemo(
+    () => (fixtureQuery.data ?? []).some((f) => f.status === "live"),
+    [fixtureQuery.data]
+  );
+  const livePulseOpacity = useLivePulse();
+  const [matchClockTick, setMatchClockTick] = useState(0);
+  useEffect(() => {
+    if (!hasLiveFixtures) return;
+    const interval = setInterval(() => setMatchClockTick((t) => t + 1), 30_000);
+    return () => clearInterval(interval);
+  }, [hasLiveFixtures]);
 
   const grouped = useMemo(() => {
     const sorted = [...(fixtureQuery.data ?? [])].sort(compareFixturesByStatusAndKickoff);
@@ -164,20 +179,30 @@ export function FixtureScreen() {
         <View key={group.dateKey} style={styles.groupCard}>
           <Text allowFontScaling={false} style={styles.dateLabel}>{group.dateLabel}</Text>
           {group.fixtures.map((fixture, index) => {
+            void matchClockTick;
             const score = fixture.score ? `${fixture.score.home}-${fixture.score.away}` : null;
             const homeCode = toTeamCode(fixture.homeTeam);
             const awayCode = toTeamCode(fixture.awayTeam);
-            return (
-              <View key={fixture.id} style={[styles.row, index > 0 ? styles.rowWithBorder : null]}>
+            const isLive = fixture.status === "live";
+            const liveMinute = isLive ? estimateMatchMinute(fixture.kickoffAt) : "";
+
+            const row = (
+              <View key={fixture.id} style={[styles.row, index > 0 && !isLive ? styles.rowWithBorder : null, isLive ? styles.rowLive : null]}>
                 <View style={styles.teamSide}>
                   <TeamCrest teamName={fixture.homeTeam} code={homeCode} logoUrl={fixture.homeLogoUrl} size={24} />
                   <Text allowFontScaling={false} numberOfLines={1} style={styles.teamName}>{fixture.homeTeam}</Text>
                 </View>
 
                 <View style={styles.middleCol}>
-                  <Text allowFontScaling={false} style={styles.statusLabel}>{statusLabel(fixture.status)}</Text>
+                  {isLive && liveMinute ? (
+                    <Animated.Text allowFontScaling={false} style={[styles.liveMinuteLabel, { opacity: livePulseOpacity }]}>
+                      {liveMinute}
+                    </Animated.Text>
+                  ) : (
+                    <Text allowFontScaling={false} style={styles.statusLabel}>{statusLabel(fixture.status)}</Text>
+                  )}
                   <Text allowFontScaling={false} style={fixture.status === "final" ? styles.finalScoreText : styles.scoreText}>
-                    {score ?? (fixture.status === "final" ? "--" : "vs")}
+                    {score ?? (isLive ? "0-0" : fixture.status === "final" ? "--" : fixture.status === "postponed" ? "POST." : "vs")}
                   </Text>
                 </View>
 
@@ -187,6 +212,11 @@ export function FixtureScreen() {
                 </View>
               </View>
             );
+
+            if (isLive) {
+              return <LivePulseBorder key={fixture.id} borderRadius={0}>{row}</LivePulseBorder>;
+            }
+            return row;
           })}
         </View>
       ))}
@@ -357,8 +387,17 @@ const styles = StyleSheet.create({
     minWidth: 62,
     alignItems: "center"
   },
+  rowLive: {
+    backgroundColor: colors.surfaceSoft,
+    borderTopWidth: 0
+  },
   statusLabel: {
     color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "800"
+  },
+  liveMinuteLabel: {
+    color: colors.dangerAccent,
     fontSize: 11,
     fontWeight: "800"
   },
