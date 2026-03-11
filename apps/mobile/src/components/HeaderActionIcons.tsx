@@ -1,13 +1,18 @@
 import { Pressable, StyleSheet, View } from "react-native";
+import { NavigationContext } from "@react-navigation/native";
 import { colors } from "@fulbito/design-tokens";
 import { Text } from "react-native";
+import { useContext } from "react";
 
 export function HeaderActionIcons() {
+  const navigation = useContext(NavigationContext) as { navigate?: (route: string) => void } | null;
+
   return (
     <View style={styles.row}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Abrir ajustes"
+        onPress={() => navigation?.navigate?.("Ajustes")}
         hitSlop={6}
         style={styles.iconButton}
       >
@@ -16,6 +21,7 @@ export function HeaderActionIcons() {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Abrir perfil"
+        onPress={() => navigation?.navigate?.("Perfil")}
         hitSlop={6}
         style={styles.iconButton}
       >

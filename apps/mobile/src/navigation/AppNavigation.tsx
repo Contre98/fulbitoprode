@@ -1,8 +1,9 @@
+import { Linking } from "react-native";
 import { NavigationContainer, createNavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { colors } from "@fulbito/design-tokens";
 import { AuthProvider, useAuth } from "@/state/AuthContext";
 import { PeriodProvider } from "@/state/PeriodContext";
@@ -11,8 +12,13 @@ import { HomeScreen } from "@/screens/HomeScreen";
 import { PronosticosScreen } from "@/screens/PronosticosScreen";
 import { PosicionesScreen } from "@/screens/PosicionesScreen";
 import { FixtureScreen } from "@/screens/FixtureScreen";
+import { ConfiguracionScreen } from "@/screens/ConfiguracionScreen";
+import { PerfilScreen } from "@/screens/PerfilScreen";
+import { AjustesScreen } from "@/screens/AjustesScreen";
+import { NotificacionesScreen } from "@/screens/NotificacionesScreen";
 import { GroupProvider } from "@/state/GroupContext";
-import { PendingInviteProvider } from "@/state/PendingInviteContext";
+import { parseInviteTokenFromUrl } from "@/lib/inviteDeepLink";
+import { PendingInviteProvider, usePendingInvite } from "@/state/PendingInviteContext";
 
 const RootStack = createNativeStackNavigator();
 const Tabs = createBottomTabNavigator();
@@ -56,6 +62,42 @@ function AppTabs() {
 
 function RootNavigator() {
   const { loading, isAuthenticated } = useAuth();
+  const { hydrated, pendingInviteToken, setPendingInviteToken } = usePendingInvite();
+  const routedInviteRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      const initialUrl = await Linking.getInitialURL();
+      const inviteToken = parseInviteTokenFromUrl(initialUrl);
+      if (inviteToken) {
+        await setPendingInviteToken(inviteToken);
+      }
+    })();
+
+    const subscription = Linking.addEventListener("url", ({ url }) => {
+      const inviteToken = parseInviteTokenFromUrl(url);
+      if (!inviteToken) return;
+      void setPendingInviteToken(inviteToken);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [setPendingInviteToken]);
+
+  useEffect(() => {
+    if (!hydrated || !isAuthenticated || !pendingInviteToken) {
+      return;
+    }
+    if (!navigationRef.isReady()) {
+      return;
+    }
+    if (routedInviteRef.current === pendingInviteToken) {
+      return;
+    }
+    routedInviteRef.current = pendingInviteToken;
+    navigationRef.navigate("Configuracion", { invite: pendingInviteToken });
+  }, [hydrated, isAuthenticated, pendingInviteToken]);
 
   if (loading) {
     return (
@@ -68,7 +110,13 @@ function RootNavigator() {
   return (
     <RootStack.Navigator screenOptions={{ headerShown: false }}>
       {isAuthenticated ? (
-        <RootStack.Screen name="App" component={AppTabs} />
+        <>
+          <RootStack.Screen name="App" component={AppTabs} />
+          <RootStack.Screen name="Perfil" component={PerfilScreen} />
+          <RootStack.Screen name="Ajustes" component={AjustesScreen} />
+          <RootStack.Screen name="Notificaciones" component={NotificacionesScreen} />
+          <RootStack.Screen name="Configuracion" component={ConfiguracionScreen} />
+        </>
       ) : (
         <RootStack.Screen name="Auth" component={AuthScreen} />
       )}
@@ -91,6 +139,10 @@ export function AppNavigation() {
               Fixture: "fixture"
             }
           },
+          Perfil: "perfil",
+          Ajustes: "ajustes",
+          Notificaciones: "notificaciones",
+          Configuracion: "configuracion"
         }
       }
     }),

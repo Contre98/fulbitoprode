@@ -1,5 +1,6 @@
-import { useMemo, useRef, useState } from "react";
+import { useContext, useMemo, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { NavigationContext } from "@react-navigation/native";
 import type { Membership } from "@fulbito/domain";
 import { colors, spacing } from "@fulbito/design-tokens";
 
@@ -16,6 +17,7 @@ function competitionLabel(membership: Membership) {
 export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGroup }: HeaderGroupSelectorProps) {
   const HEADER_BOTTOM_CLEARANCE = 12;
   const DROPDOWN_GAP = 14;
+  const navigation = useContext(NavigationContext) as { navigate?: (route: string) => void } | null;
   const triggerRef = useRef<View | null>(null);
   const [open, setOpen] = useState(false);
   const [dropdownTop, setDropdownTop] = useState(86);
@@ -42,6 +44,11 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
     }
 
     setOpen(true);
+  }
+
+  function goToConfiguracion() {
+    setOpen(false);
+    navigation?.navigate?.("Configuracion");
   }
 
   return (
@@ -101,6 +108,13 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
               })}
             </ScrollView>
 
+            <View style={styles.footerDivider} />
+            <Pressable accessibilityRole="button" accessibilityLabel="Unirse a grupo" onPress={goToConfiguracion} style={styles.joinButton}>
+              <View style={styles.joinIconWrap}>
+                <Text allowFontScaling={false} style={styles.joinIcon}>+</Text>
+              </View>
+              <Text allowFontScaling={false} style={styles.joinText}>Unirse a grupo</Text>
+            </Pressable>
           </View>
         </View>
       </Modal>
@@ -251,4 +265,38 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 1
   },
+  footerDivider: {
+    marginTop: 2,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight
+  },
+  joinButton: {
+    marginTop: 10,
+    minHeight: 50,
+    borderRadius: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: 6
+  },
+  joinIconWrap: {
+    height: 30,
+    width: 30,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: colors.textPrimary,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  joinIcon: {
+    color: colors.textPrimary,
+    fontSize: 18,
+    fontWeight: "500",
+    lineHeight: 18
+  },
+  joinText: {
+    color: colors.textPrimary,
+    fontSize: 16,
+    fontWeight: "800"
+  }
 });
