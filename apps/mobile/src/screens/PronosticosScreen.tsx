@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Animated, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Fixture, Prediction, PredictionHistoryEntry } from "@fulbito/domain";
 import { colors, spacing } from "@fulbito/design-tokens";
-import { isPredictionInputComplete, normalizePredictionInput } from "@fulbito/domain";
+import { calculatePredictionPoints, isPredictionInputComplete, normalizePredictionInput } from "@fulbito/domain";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { HeaderGroupSelector } from "@/components/HeaderGroupSelector";
+import { HeaderActionIcons } from "@/components/HeaderActionIcons";
+import { FechaSelector } from "@/components/FechaSelector";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
-import { BrandBadgeIcon } from "@/components/BrandBadgeIcon";
 import { TeamCrest } from "@/components/TeamCrest";
+import { LivePulseBorder, estimateMatchMinute, useLivePulse } from "@/components/LiveMatchIndicator";
 import { fixtureRepository, predictionsRepository } from "@/repositories";
 import { useGroupSelection } from "@/state/GroupContext";
 import { usePeriod } from "@/state/PeriodContext";
@@ -25,21 +27,11 @@ function toTeamCode(name: string) {
   if (!clean) {
     return "---";
   }
-  const words = clean
-    .split(/\s+/)
-    .filter(Boolean)
-    .filter((word) => !["de", "del", "la", "el", "the", "fc", "club"].includes(word.toLowerCase()));
-  if (words.length === 0) {
-    return clean.slice(0, 3).toUpperCase();
+  const lettersOnly = clean.replace(/[^A-Za-zÀ-ÿ]/g, "");
+  if (lettersOnly.length >= 3) {
+    return lettersOnly.slice(0, 3).toUpperCase();
   }
-  if (words.length === 1) {
-    return words[0].slice(0, 3).toUpperCase();
-  }
-  return words
-    .slice(0, 3)
-    .map((word) => word[0] ?? "")
-    .join("")
-    .toUpperCase();
+  return lettersOnly.toUpperCase().padEnd(3, "-");
 }
 
 function stageLabel(value: string | undefined) {
@@ -61,6 +53,13 @@ function competitionLabelForPronosticos(input: {
 }
 
 function isOpenUpcomingFixture(fixture: Fixture) {
+  if (fixture.status === "postponed") {
+    if (fixture.newKickoffAt) {
+      const newKickoffMs = new Date(fixture.newKickoffAt).getTime();
+      return Number.isFinite(newKickoffMs) && newKickoffMs > Date.now();
+    }
+    return true;
+  }
   if (fixture.status !== "upcoming") {
     return false;
   }
@@ -74,6 +73,9 @@ export function PronosticosScreen() {
   const { memberships, selectedGroupId, setSelectedGroupId } = useGroupSelection();
   const { fecha, options, setFecha } = usePeriod();
   const groupId = memberships.find((membership) => membership.groupId === selectedGroupId)?.groupId ?? memberships[0]?.groupId ?? "grupo-1";
+  const safePeriodOptions = options.length > 0 ? options : [{ id: fecha, label: fecha }];
+  const currentPeriodIndex = safePeriodOptions.findIndex((option) => option.id === fecha);
+  const resolvedPeriodIndex = currentPeriodIndex >= 0 ? currentPeriodIndex : 0;
   const [draftByFixture, setDraftByFixture] = useState<DraftByFixture>({});
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [mode, setMode] = useState<PronosticosMode>("upcoming");
@@ -84,6 +86,7 @@ export function PronosticosScreen() {
   const autoSaveQueueRef = useRef<Map<string, Prediction>>(new Map());
   const autoSaveInFlightRef = useRef<Set<string>>(new Set());
   const missingFinalScoreLoggedRef = useRef<Set<string>>(new Set());
+  const lastAutoModeKeyRef = useRef<string>("");
 
   const fixtureQuery = useQuery({
     queryKey: ["fixture", groupId, fecha],
@@ -225,12 +228,28 @@ export function PronosticosScreen() {
     }
   });
 
+  const hasLiveFixtures = useMemo(
+    () => (fixtureQuery.data ?? []).some((fixture) => fixture.status === "live"),
+    [fixtureQuery.data]
+  );
+  const livePulseOpacity = useLivePulse();
+  const [matchClockTick, setMatchClockTick] = useState(0);
+  useEffect(() => {
+    if (!hasLiveFixtures) return;
+    const interval = setInterval(() => setMatchClockTick((t) => t + 1), 30_000);
+    return () => clearInterval(interval);
+  }, [hasLiveFixtures]);
+
   const upcomingFixtures = useMemo(
-    () => (fixtureQuery.data ?? []).filter((fixture) => isOpenUpcomingFixture(fixture)),
+    () => (fixtureQuery.data ?? []).filter((fixture) => fixture.status === "live" || isOpenUpcomingFixture(fixture)),
     [fixtureQuery.data]
   );
   const historyFixtures = useMemo(
-    () => (fixtureQuery.data ?? []).filter((fixture) => !isOpenUpcomingFixture(fixture)),
+    () => (fixtureQuery.data ?? []).filter((fixture) => fixture.status !== "live" && !isOpenUpcomingFixture(fixture)),
+    [fixtureQuery.data]
+  );
+  const shouldDefaultToUpcomingMode = useMemo(
+    () => (fixtureQuery.data ?? []).some((fixture) => fixture.status === "live" || isOpenUpcomingFixture(fixture)),
     [fixtureQuery.data]
   );
   const fallbackHistoryFixtures = historyFixtureQuery.data ?? [];
@@ -249,14 +268,6 @@ export function PronosticosScreen() {
     () => new Map((fixtureQuery.data ?? []).map((fixture) => [fixture.id, fixture])),
     [fixtureQuery.data]
   );
-  const safeOptions = options.length > 0 ? options : [{ id: fecha, label: fecha }];
-  const periodIndex = Math.max(
-    0,
-    safeOptions.findIndex((option) => option.id === fecha)
-  );
-  const currentPeriod = safeOptions[periodIndex] ?? safeOptions[0];
-  const fechaClosed = (fixtureQuery.data ?? []).every((fixture) => !isOpenUpcomingFixture(fixture));
-
   const completionSummary = useMemo(() => {
     const total = (fixtureQuery.data ?? []).length;
     const completed = (fixtureQuery.data ?? []).filter((fixture) => {
@@ -284,7 +295,20 @@ export function PronosticosScreen() {
     autoSaveQueueRef.current.clear();
     autoSaveInFlightRef.current.clear();
     missingFinalScoreLoggedRef.current.clear();
+    lastAutoModeKeyRef.current = "";
   }, [groupId, fecha]);
+
+  useEffect(() => {
+    if (!fixtureQuery.data) {
+      return;
+    }
+    const autoModeKey = `${groupId}:${fecha}`;
+    if (lastAutoModeKeyRef.current === autoModeKey) {
+      return;
+    }
+    setMode(shouldDefaultToUpcomingMode ? "upcoming" : "history");
+    lastAutoModeKeyRef.current = autoModeKey;
+  }, [fixtureQuery.data, groupId, fecha, shouldDefaultToUpcomingMode]);
 
   useEffect(() => {
     if (mode !== "history") {
@@ -349,6 +373,22 @@ export function PronosticosScreen() {
     autoSaveTimersRef.current.set(prediction.fixtureId, timer);
   };
 
+  function swipeToPreviousFecha() {
+    if (safePeriodOptions.length === 0) {
+      return;
+    }
+    const previousIndex = (resolvedPeriodIndex - 1 + safePeriodOptions.length) % safePeriodOptions.length;
+    setFecha(safePeriodOptions[previousIndex].id);
+  }
+
+  function swipeToNextFecha() {
+    if (safePeriodOptions.length === 0) {
+      return;
+    }
+    const nextIndex = (resolvedPeriodIndex + 1) % safePeriodOptions.length;
+    setFecha(safePeriodOptions[nextIndex].id);
+  }
+
   function updateDraft(fixtureId: string, side: "home" | "away", value: string) {
     const sanitized = value.replace(/[^\d]/g, "");
     const currentDraft = draftByFixtureRef.current[fixtureId] ?? { home: "", away: "" };
@@ -391,31 +431,20 @@ export function PronosticosScreen() {
     });
   }
 
-  function goPrevFecha() {
-    const next = safeOptions[(periodIndex - 1 + safeOptions.length) % safeOptions.length];
-    if (next) {
-      setFecha(next.id);
-    }
-  }
-
-  function goNextFecha() {
-    const next = safeOptions[(periodIndex + 1) % safeOptions.length];
-    if (next) {
-      setFecha(next.id);
-    }
-  }
-
   function renderFixtureCard(fixture: Fixture) {
     const draft = draftByFixture[fixture.id] ?? { home: "", away: "" };
     const isEditable = mode === "upcoming" && isOpenUpcomingFixture(fixture);
+    const isLive = fixture.status === "live";
     const statusBadgeLabel =
-      fixture.status === "upcoming"
-        ? isOpenUpcomingFixture(fixture)
-          ? "Abierto"
-          : "Cerrado"
-        : fixture.status === "live"
-          ? "En juego"
-          : "Finalizado";
+      fixture.status === "postponed"
+        ? "Postergado"
+        : fixture.status === "upcoming"
+          ? isOpenUpcomingFixture(fixture)
+            ? "Abierto"
+            : "En juego"
+          : isLive
+            ? "En vivo"
+            : "Finalizado";
     const kickoffLabel = new Date(fixture.kickoffAt).toLocaleString("es-AR", {
       day: "2-digit",
       month: "2-digit",
@@ -446,22 +475,30 @@ export function PronosticosScreen() {
     const readOnlyScore =
       mode === "history"
         ? historyEntry?.actualResult ?? null
-        : fixture.score ?? (committed ? { home: committed.home, away: committed.away } : null);
+        : isLive
+          ? fixture.score ?? { home: 0, away: 0 }
+          : fixture.score ?? (committed ? { home: committed.home, away: committed.away } : null);
     const readOnlyHome = readOnlyScore ? String(readOnlyScore.home) : "-";
     const readOnlyAway = readOnlyScore ? String(readOnlyScore.away) : "-";
     const userPredictionLabel = historyEntry?.userPrediction
       ? `${historyEntry.userPrediction.home} - ${historyEntry.userPrediction.away}`
       : "Sin pronóstico";
-    const actualResultLabel =
+    const earnedPointsLabel =
       historyEntry?.status === "final"
-        ? historyEntry.actualResult
-          ? `${historyEntry.actualResult.home} - ${historyEntry.actualResult.away}`
-          : "Pendiente de resultado"
+        ? historyEntry.actualResult && historyEntry.userPrediction
+          ? String(calculatePredictionPoints(historyEntry.userPrediction, historyEntry.actualResult))
+          : historyEntry.actualResult
+            ? "0"
+            : "Pendiente"
         : "Pendiente";
 
-    return (
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- read indirectly to trigger re-render
+    void matchClockTick;
+    const liveMinuteLabel = isLive ? estimateMatchMinute(fixture.kickoffAt) : "";
+
+    const cardContent = (
       <View key={fixture.id} style={styles.cardWrap}>
-        <View style={styles.card}>
+        <View style={[styles.card, isLive ? styles.cardLive : null]}>
           <View style={styles.matchRow}>
             <View style={styles.teamBlock}>
               <TeamCrest teamName={fixture.homeTeam} code={homeCode} logoUrl={fixture.homeLogoUrl} />
@@ -499,7 +536,13 @@ export function PronosticosScreen() {
                 <Text allowFontScaling={false} style={styles.resultText}>
                   {readOnlyHome} - {readOnlyAway}
                 </Text>
-                <Text allowFontScaling={false} style={styles.resultSub}>{statusBadgeLabel.toUpperCase()}</Text>
+                {isLive && liveMinuteLabel ? (
+                  <Animated.Text allowFontScaling={false} style={[styles.resultSub, styles.resultSubLive, { opacity: livePulseOpacity }]}>
+                    {liveMinuteLabel}
+                  </Animated.Text>
+                ) : (
+                  <Text allowFontScaling={false} style={styles.resultSub}>{statusBadgeLabel.toUpperCase()}</Text>
+                )}
               </View>
             )}
 
@@ -511,49 +554,38 @@ export function PronosticosScreen() {
             </View>
           </View>
 
-        <View style={styles.timeRow}>
-          <Text allowFontScaling={false} style={styles.kickoffBadge}>{kickoffLabel}</Text>
-        </View>
-      </View>
-
-        {mode === "upcoming" && !isEditable ? <Text allowFontScaling={false} style={styles.lockedChip}>Partido bloqueado: no se pueden editar pronósticos.</Text> : null}
-        {mode === "history" ? (
-          <View style={styles.historySummary}>
-            <Text allowFontScaling={false} style={styles.historySummaryText}>Tu pronóstico: {userPredictionLabel}</Text>
-            <Text allowFontScaling={false} style={styles.historySummaryText}>Resultado final: {actualResultLabel}</Text>
+          <View style={styles.timeRow}>
+            <Text allowFontScaling={false} style={styles.kickoffBadge}>{kickoffLabel}</Text>
           </View>
-        ) : null}
+          {isLive && committed ? (
+            <View style={styles.historySummary}>
+              <Text allowFontScaling={false} style={styles.historySummaryText}>Tu pronóstico: {committed.home} - {committed.away}</Text>
+            </View>
+          ) : null}
+          {mode === "history" ? (
+            <View style={styles.historySummary}>
+              <Text allowFontScaling={false} style={styles.historySummaryText}>Tu pronóstico: {userPredictionLabel}</Text>
+              <Text allowFontScaling={false} style={styles.historySummaryText}>Puntos: {earnedPointsLabel}</Text>
+            </View>
+          ) : null}
+        </View>
+
+        {mode === "upcoming" && !isEditable && !isLive ? <Text allowFontScaling={false} style={styles.lockedChip}>Partido bloqueado: no se pueden editar pronósticos.</Text> : null}
         {isSavingThisFixture ? <Text allowFontScaling={false} style={styles.infoChip}>Guardando pronóstico...</Text> : null}
         {fixtureSaveError ? <Text allowFontScaling={false} style={styles.errorChip}>{fixtureSaveError}</Text> : null}
       </View>
     );
+
+    if (isLive) {
+      return <LivePulseBorder key={fixture.id}>{cardContent}</LivePulseBorder>;
+    }
+    return cardContent;
   }
 
   const historyIsLoadingFallback = mode === "history" && historyFixtures.length === 0 && historyFixtureQuery.isLoading;
   const historyHasFallbackError = mode === "history" && historyFixtures.length === 0 && historyFixtureQuery.isError;
-
-  if (fixtureQuery.isLoading || predictionsQuery.isLoading || historyIsLoadingFallback) {
-    return (
-      <ScreenFrame title="Pronósticos" subtitle="Ingresa y guarda tus predicciones">
-        <LoadingState message="Cargando partidos..." />
-      </ScreenFrame>
-    );
-  }
-
-  if (fixtureQuery.isError || predictionsQuery.isError || historyHasFallbackError) {
-    return (
-      <ScreenFrame title="Pronósticos" subtitle="Ingresa y guarda tus predicciones">
-        <ErrorState
-          message="No se pudo cargar la información de pronósticos."
-          retryLabel="Reintentar"
-          onRetry={() => {
-            void fixtureQuery.refetch();
-            void predictionsQuery.refetch();
-          }}
-        />
-      </ScreenFrame>
-    );
-  }
+  const isLoading = fixtureQuery.isLoading || predictionsQuery.isLoading || historyIsLoadingFallback;
+  const hasError = fixtureQuery.isError || predictionsQuery.isError || historyHasFallbackError;
 
   return (
     <ScreenFrame
@@ -562,70 +594,59 @@ export function PronosticosScreen() {
       hideDataModeBadge
       containerStyle={styles.screenContainer}
       contentStyle={styles.screenContent}
+      onSwipeLeft={swipeToNextFecha}
+      onSwipeRight={swipeToPreviousFecha}
       header={
-        <View style={[styles.headerCard, { paddingTop: Math.max(insets.top, 10) + 2, marginTop: 0 }]}>
-          <View style={styles.brandRow}>
-            <View style={styles.brandBadge}>
-              <BrandBadgeIcon size={16} />
-            </View>
-            <Text allowFontScaling={false} numberOfLines={1} style={styles.brandTitle}>
-              <Text style={styles.brandTitleDark}>FULBITO</Text>
-              <Text style={styles.brandTitleAccent}>PRODE</Text>
-            </Text>
-            <View style={styles.profileDot}>
-              <Text allowFontScaling={false} style={styles.profileDotText}>FC</Text>
-            </View>
-          </View>
-          <View style={styles.titleRow}>
-            <View style={styles.sectionIcon}>
-              <Text allowFontScaling={false} style={styles.sectionIconText}>∿</Text>
-            </View>
-            <Text allowFontScaling={false} style={styles.sectionTitle}>Pronósticos</Text>
+        <View style={[styles.headerCard, { paddingTop: Math.max(insets.top, 10) + 2 }]}>
+          <View style={styles.headerRow}>
             <HeaderGroupSelector memberships={memberships} selectedGroupId={selectedGroupId} onSelectGroup={(nextGroupId) => void setSelectedGroupId(nextGroupId)} />
+            <HeaderActionIcons />
           </View>
         </View>
       }
     >
-      <View style={styles.block}>
-        <View style={styles.fechaRow}>
-          <Pressable testID="fecha-prev" onPress={goPrevFecha} style={styles.fechaNavButton}>
-            <Text allowFontScaling={false} style={styles.fechaNavLabel}>‹</Text>
-          </Pressable>
-          <View style={styles.fechaCenter}>
-            <Text allowFontScaling={false} style={styles.fechaTitle}>{currentPeriod.label}</Text>
-            <Text allowFontScaling={false} style={styles.fechaStatus}>{fechaClosed ? "Cerrada" : "Abierta"}</Text>
-          </View>
-          <Pressable testID="fecha-next" onPress={goNextFecha} style={styles.fechaNavButton}>
-            <Text allowFontScaling={false} style={styles.fechaNavLabel}>›</Text>
-          </Pressable>
-        </View>
-      </View>
-
-      <View style={styles.progressCard}>
-        <Text allowFontScaling={false} style={styles.progressLabel}>
-          {completionSummary.completed}/{completionSummary.total}
-        </Text>
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${completionSummary.pct}%` }]} />
-        </View>
-      </View>
-
-      <View style={styles.modeTabs}>
-        <Pressable onPress={() => setMode("upcoming")} style={[styles.modeTab, mode === "upcoming" ? styles.modeTabActive : null]}>
-          <Text allowFontScaling={false} style={[styles.modeTabLabel, mode === "upcoming" ? styles.modeTabLabelActive : null]}>Por Jugar</Text>
-        </Pressable>
-        <Pressable onPress={() => setMode("history")} style={[styles.modeTab, mode === "history" ? styles.modeTabActive : null]}>
-          <Text allowFontScaling={false} style={[styles.modeTabLabel, mode === "history" ? styles.modeTabLabelActive : null]}>Jugados</Text>
-        </Pressable>
-      </View>
-      {visibleFixtures.length === 0 ? (
-        <EmptyState
-          title={mode === "upcoming" ? "Sin partidos próximos" : "Sin partidos finalizados"}
-          description={mode === "upcoming" ? "Volvé más tarde para cargar tus próximos pronósticos." : "Todavía no hay partidos en historial para esta fecha."}
+      <FechaSelector />
+      {isLoading ? <LoadingState message="Cargando partidos..." variant="predictions" /> : null}
+      {hasError ? (
+        <ErrorState
+          message="No se pudo cargar la información de pronósticos."
+          retryLabel="Reintentar"
+          onRetry={() => {
+            void fixtureQuery.refetch();
+            void predictionsQuery.refetch();
+            void historyFixtureQuery.refetch();
+          }}
         />
       ) : null}
-      {visibleFixtures.map((fixture) => renderFixtureCard(fixture))}
-      {statusMessage ? <Text allowFontScaling={false} style={styles.statusText}>{statusMessage}</Text> : null}
+      {!isLoading && !hasError ? (
+        <>
+          <View style={styles.progressCard}>
+            <Text allowFontScaling={false} style={styles.progressLabel}>
+              {completionSummary.completed}/{completionSummary.total}
+            </Text>
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${completionSummary.pct}%` }]} />
+            </View>
+          </View>
+
+          <View style={styles.filterTabs}>
+            <Pressable onPress={() => setMode("upcoming")} style={[styles.filterTab, mode === "upcoming" ? styles.filterTabActive : null]}>
+              <Text allowFontScaling={false} style={mode === "upcoming" ? styles.filterTabLabelActive : styles.filterTabLabel}>Por Jugar</Text>
+            </Pressable>
+            <Pressable onPress={() => setMode("history")} style={[styles.filterTab, mode === "history" ? styles.filterTabActive : null]}>
+              <Text allowFontScaling={false} style={mode === "history" ? styles.filterTabLabelActive : styles.filterTabLabel}>Jugados</Text>
+            </Pressable>
+          </View>
+          {visibleFixtures.length === 0 ? (
+            <EmptyState
+              title={mode === "upcoming" ? "Sin partidos próximos" : "Sin partidos finalizados"}
+              description={mode === "upcoming" ? "Volvé más tarde para cargar tus próximos pronósticos." : "Todavía no hay partidos en historial para esta fecha."}
+            />
+          ) : null}
+          {visibleFixtures.map((fixture) => renderFixtureCard(fixture))}
+          {statusMessage ? <Text allowFontScaling={false} style={styles.statusText}>{statusMessage}</Text> : null}
+        </>
+      ) : null}
     </ScreenFrame>
   );
 }
@@ -635,7 +656,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: 0,
     paddingBottom: 0,
-    backgroundColor: "#DDE2E8"
+    backgroundColor: colors.canvas
   },
   screenContent: {
     gap: 12
@@ -643,60 +664,17 @@ const styles = StyleSheet.create({
   headerCard: {
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.surfaceSoft,
     paddingHorizontal: 16,
-    paddingTop: 10,
     paddingBottom: 14,
     borderWidth: 1,
-    borderColor: "#D7DCE3",
-    marginHorizontal: -12,
-    marginTop: 0
+    borderColor: colors.borderSubtle,
+    marginHorizontal: -12
   },
-  brandRow: {
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8
-  },
-  brandBadge: {
-    height: 28,
-    width: 28,
-    borderRadius: 10,
-    backgroundColor: "#EFF4E6",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  brandTitle: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: "900",
-    letterSpacing: -0.2,
-    marginRight: 6
-  },
-  brandTitleDark: {
-    color: "#0F172A"
-  },
-  brandTitleAccent: {
-    color: "#A3C90A"
-  },
-  profileDot: {
-    height: 32,
-    width: 32,
-    borderRadius: 999,
-    backgroundColor: "#E8EDCD",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  profileDotText: {
-    color: "#374151",
-    fontWeight: "800",
-    fontSize: 12,
-    letterSpacing: 0.2
-  },
-  // Icon drawing is intentionally glyph-based for consistency with other parity screens.
-  titleRow: {
-    marginTop: 12,
-    flexDirection: "row",
-    alignItems: "center",
+    justifyContent: "space-between",
     gap: 8
   },
   sectionIcon: {
@@ -705,108 +683,72 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#B7D70A"
+    backgroundColor: colors.primaryStrong
   },
   sectionIconText: {
     fontSize: 14,
     fontWeight: "800",
-    color: "#1F2937"
+    color: colors.textStrong
   },
   sectionTitle: {
-    color: "#0F172A",
-    fontSize: 22,
+    color: colors.textTitle,
+    fontSize: 24,
     fontWeight: "800"
   },
   sectionSubtitle: {
     marginLeft: "auto",
-    color: "#7A8698",
-    fontSize: 11,
+    color: colors.textMutedAlt,
+    fontSize: 12,
     fontWeight: "700"
   },
   block: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.surfaceSoft,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#D7DCE3",
+    borderColor: colors.borderSubtle,
     padding: 10
   },
   blockLabel: {
     fontSize: 11,
     fontWeight: "800",
-    color: "#8A94A4",
+    color: colors.textMuted,
     letterSpacing: 0.8
   },
   selectionButton: {
     marginTop: 8,
     minHeight: 44,
     borderRadius: 10,
-    backgroundColor: "#EDF1F5",
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: "#DDE3EA",
+    borderColor: colors.borderMuted,
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center"
   },
   selectionText: {
     flex: 1,
-    color: "#0F172A",
+    color: colors.textTitle,
     fontWeight: "800",
-    fontSize: 10
-  },
-  selectionChevron: {
-    color: "#98A2B3",
     fontSize: 14
   },
-  fechaRow: {
-    minHeight: 56,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#DDE3EA",
-    backgroundColor: "#F8FAFC",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 8
-  },
-  fechaNavButton: {
-    height: 34,
-    width: 34,
-    borderRadius: 10,
-    backgroundColor: "#EDF1F5",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  fechaNavLabel: {
-    color: "#98A2B3",
-    fontSize: 22,
-    fontWeight: "700",
-    lineHeight: 24
-  },
-  fechaCenter: {
-    flex: 1,
-    alignItems: "center"
-  },
-  fechaTitle: {
-    color: "#A3C90A",
-    fontSize: 22,
-    fontWeight: "900"
-  },
-  fechaStatus: {
-    marginTop: 2,
-    color: "#8A94A4",
-    fontSize: 11,
-    fontWeight: "700"
+  selectionChevron: {
+    color: colors.textSoft,
+    fontSize: 14
   },
   cardWrap: {
     gap: 6
   },
   card: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.surfaceSoft,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#D7DCE3",
+    borderColor: colors.borderSubtle,
     paddingHorizontal: 14,
     paddingVertical: 12,
     gap: 8
+  },
+  cardLive: {
+    borderWidth: 0
   },
   matchRow: {
     flexDirection: "row",
@@ -824,7 +766,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end"
   },
   teamCode: {
-    color: "#111827",
+    color: colors.textHigh,
     fontSize: 18,
     fontWeight: "900",
     letterSpacing: -0.3
@@ -838,44 +780,47 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: "#CED5DE",
-    backgroundColor: "#EEF2F5"
+    borderColor: colors.borderMutedAlt,
+    backgroundColor: colors.surfaceTintNeutral
   },
   inputsPillActive: {
-    borderColor: "#B7D70A",
-    backgroundColor: "#F4F8E7"
+    borderColor: colors.primaryStrong,
+    backgroundColor: colors.primarySoftAlt
   },
   resultPill: {
     minWidth: 132,
     borderRadius: 10,
-    backgroundColor: "#E9EDF2",
+    backgroundColor: colors.brandTintAlt,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 6,
     paddingHorizontal: 8
   },
   resultText: {
-    color: "#111827",
+    color: colors.textHigh,
     fontWeight: "900",
     fontSize: 18
   },
   resultSub: {
     marginTop: 1,
-    color: "#6B7280",
-    fontSize: 10,
+    color: colors.textGray,
+    fontSize: 12,
     fontWeight: "800"
+  },
+  resultSubLive: {
+    color: colors.dangerAccent
   },
   scoreInput: {
     width: 28,
     height: 28,
-    color: "#4B5563",
+    color: colors.textBodyStrong,
     textAlign: "center",
     fontSize: 18,
     fontWeight: "900",
     paddingVertical: 0
   },
   separator: {
-    color: "#9AA4B2",
+    color: colors.textSoftAlt2,
     fontSize: 18,
     fontWeight: "800",
     marginHorizontal: 2
@@ -884,16 +829,16 @@ const styles = StyleSheet.create({
     alignItems: "center"
   },
   kickoffBadge: {
-    color: "#97A1B1",
-    fontSize: 10,
+    color: colors.textSoftAlt,
+    fontSize: 12,
     fontWeight: "800"
   },
   lockedChip: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#F1C38C",
-    backgroundColor: "#FDF3E8",
-    color: "#D09044",
+    borderColor: colors.borderWarningSoft,
+    backgroundColor: colors.surfaceTintWarning,
+    color: colors.warningMuted,
     paddingHorizontal: 10,
     paddingVertical: 7,
     fontSize: 11,
@@ -902,66 +847,65 @@ const styles = StyleSheet.create({
   historySummary: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#D8DEE7",
-    backgroundColor: "#F5F7FA",
+    borderColor: colors.borderMutedSoft,
+    backgroundColor: colors.surfaceTintCard,
     paddingHorizontal: 10,
     paddingVertical: 7,
     gap: 3
   },
   historySummaryText: {
-    color: "#5F6B7A",
-    fontSize: 11,
+    color: colors.textSteel,
+    fontSize: 12,
     fontWeight: "700"
   },
   infoChip: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#D8DEE7",
-    backgroundColor: "#F5F7FA",
-    color: "#7A8698",
+    borderColor: colors.borderMutedSoft,
+    backgroundColor: colors.surfaceTintCard,
+    color: colors.textMutedAlt,
     paddingHorizontal: 10,
     paddingVertical: 7,
-    fontSize: 11
+    fontSize: 12
   },
   errorChip: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#F1A4AC",
-    backgroundColor: "#FFECEE",
-    color: "#DB5E6D",
+    borderColor: colors.borderDangerSoft,
+    backgroundColor: colors.surfaceTintDanger,
+    color: colors.dangerMuted,
     paddingHorizontal: 10,
     paddingVertical: 7,
-    fontSize: 11
+    fontSize: 12
   },
-  modeTabs: {
+  filterTabs: {
     flexDirection: "row",
-    width: "100%",
-    backgroundColor: "#E8EDF2",
-    borderRadius: 10,
-    padding: 2,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceSoft,
+    padding: 3,
     gap: 2
   },
-  modeTab: {
+  filterTab: {
     flex: 1,
+    minHeight: 44,
     borderRadius: 8,
     alignItems: "center",
-    justifyContent: "center",
-    minHeight: 44,
-    paddingHorizontal: 12,
-    paddingVertical: 8
+    justifyContent: "center"
   },
-  modeTabActive: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#DDE3EA"
+  filterTabActive: {
+    backgroundColor: colors.primaryStrong
   },
-  modeTabLabel: {
-    color: "#8A94A4",
-    fontSize: 10,
-    fontWeight: "700"
+  filterTabLabel: {
+    color: colors.textMutedAlt,
+    fontSize: 14,
+    fontWeight: "800"
   },
-  modeTabLabelActive: {
-    color: "#374151"
+  filterTabLabelActive: {
+    color: colors.textHigh,
+    fontSize: 14,
+    fontWeight: "800"
   },
   progressCard: {
     width: "100%",
@@ -969,31 +913,31 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     borderWidth: 1,
-    borderColor: "#D7DCE3",
-    backgroundColor: "#F8FAFC",
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceSoft,
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 6
   },
   progressLabel: {
-    color: "#7A8698",
-    fontSize: 10,
+    color: colors.textMutedAlt,
+    fontSize: 12,
     fontWeight: "700"
   },
   progressTrack: {
     flex: 1,
     height: 9,
     borderRadius: 999,
-    backgroundColor: "#E8EDF2",
+    backgroundColor: colors.brandTintAlt2,
     overflow: "hidden"
   },
   progressFill: {
     height: "100%",
     borderRadius: 999,
-    backgroundColor: "#B7D70A"
+    backgroundColor: colors.primaryStrong
   },
   statusText: {
-    color: "#7A8698",
-    fontSize: 11
+    color: colors.textMutedAlt,
+    fontSize: 12
   }
 });

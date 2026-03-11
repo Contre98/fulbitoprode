@@ -54,11 +54,11 @@ const styles = StyleSheet.create({
   },
   httpBadge: {
     borderColor: colors.primary,
-    backgroundColor: "#123221"
+    backgroundColor: colors.dataLiveBg
   },
   mockBadge: {
-    borderColor: "#FBBF24",
-    backgroundColor: "#322610"
+    borderColor: colors.warningAccent,
+    backgroundColor: colors.dataMockBg
   },
   label: {
     fontSize: 11,
@@ -68,7 +68,7 @@ const styles = StyleSheet.create({
     color: colors.primary
   },
   mockLabel: {
-    color: "#FBBF24"
+    color: colors.warningAccent
   },
   reason: {
     color: colors.textSecondary,
@@ -79,7 +79,7 @@ const styles = StyleSheet.create({
   },
   historyItem: {
     color: colors.textSecondary,
-    fontSize: 10
+    fontSize: 11
   },
   retryButton: {
     alignSelf: "flex-start",
@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   },
   retryLabel: {
     color: colors.textPrimary,
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: "700"
   },
   clearHistoryButton: {
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
   },
   clearHistoryLabel: {
     color: colors.textSecondary,
-    fontSize: 10,
+    fontSize: 13,
     fontWeight: "700"
   }
 });

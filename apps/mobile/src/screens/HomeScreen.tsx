@@ -1,16 +1,17 @@
-import { useMemo, useState } from "react";
-import { Pressable, Share, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Animated, Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { colors } from "@fulbito/design-tokens";
 import { fixtureRepository, leaderboardRepository, notificationsRepository } from "@/repositories";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { HeaderGroupSelector } from "@/components/HeaderGroupSelector";
+import { HeaderActionIcons } from "@/components/HeaderActionIcons";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
-import { BrandBadgeIcon } from "@/components/BrandBadgeIcon";
 import { TeamCrest } from "@/components/TeamCrest";
-import { useAuth } from "@/state/AuthContext";
+import { LivePulseBorder, estimateMatchMinute, useLivePulse } from "@/components/LiveMatchIndicator";
 import { useGroupSelection } from "@/state/GroupContext";
 import { usePeriod } from "@/state/PeriodContext";
 import { filterHomeFixtures, type HomeFixtureFilter } from "@/screens/homeFilters";
@@ -33,7 +34,6 @@ function toTeamCode(name: string) {
 
 export function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { session } = useAuth();
   const { memberships, selectedGroupId, setSelectedGroupId } = useGroupSelection();
   const { fecha, options } = usePeriod();
   const [fixtureFilter, setFixtureFilter] = useState<HomeFixtureFilter>("all");
@@ -93,10 +93,22 @@ export function HomeScreen() {
     const top = leaderboardQuery.data?.[0];
     return [
       { label: "RANKING", value: top ? `#${top.rank}` : "#-" },
-      { label: "PENDIENTES", value: String((fixtureQuery.data ?? []).filter((f) => f.status === "upcoming").length) },
+      { label: "PENDIENTES", value: String((fixtureQuery.data ?? []).filter((f) => f.status === "upcoming" || f.status === "postponed").length) },
       { label: "EN VIVO", value: String((fixtureQuery.data ?? []).filter((f) => f.status === "live").length) }
     ];
   }, [fixtureQuery.data, leaderboardQuery.data]);
+
+  const hasLiveFixtures = useMemo(
+    () => (fixtureQuery.data ?? []).some((f) => f.status === "live"),
+    [fixtureQuery.data]
+  );
+  const livePulseOpacity = useLivePulse();
+  const [matchClockTick, setMatchClockTick] = useState(0);
+  useEffect(() => {
+    if (!hasLiveFixtures) return;
+    const interval = setInterval(() => setMatchClockTick((t) => t + 1), 30_000);
+    return () => clearInterval(interval);
+  }, [hasLiveFixtures]);
 
   const filteredFixtures = useMemo(
     () => filterHomeFixtures(fixtureQuery.data ?? [], fixtureFilter),
@@ -122,26 +134,9 @@ export function HomeScreen() {
       contentStyle={styles.screenContent}
       header={
         <View style={[styles.headerCard, { paddingTop: Math.max(insets.top, 10) + 2 }]}>
-          <View style={styles.brandRow}>
-            <View style={styles.brandBadge}>
-              <BrandBadgeIcon size={16} />
-            </View>
-            <Text allowFontScaling={false} numberOfLines={1} style={styles.brandTitle}>
-              <Text style={styles.brandTitleDark}>FULBITO</Text>
-              <Text style={styles.brandTitleAccent}>PRODE</Text>
-            </Text>
-            <View style={styles.profileDot}>
-              <Text allowFontScaling={false} style={styles.profileDotText}>
-                {session?.user.name?.slice(0, 2).toUpperCase() || "FC"}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.titleRow}>
-            <View style={styles.sectionIcon}>
-              <Text allowFontScaling={false} style={styles.sectionIconText}>⌂</Text>
-            </View>
-            <Text allowFontScaling={false} style={styles.sectionTitle}>Inicio</Text>
+          <View style={styles.headerRow}>
             <HeaderGroupSelector memberships={memberships} selectedGroupId={selectedGroupId} onSelectGroup={(nextGroupId) => void setSelectedGroupId(nextGroupId)} />
+            <HeaderActionIcons />
           </View>
         </View>
       }
@@ -172,7 +167,6 @@ export function HomeScreen() {
 
       <View style={styles.sectionHeaderRow}>
         <Text allowFontScaling={false} style={styles.sectionHeader}>Próximos Partidos</Text>
-        <Text allowFontScaling={false} style={styles.sectionHeaderGlyph}>∿</Text>
       </View>
 
       <View style={styles.filterTabs}>
@@ -187,7 +181,7 @@ export function HomeScreen() {
         </Pressable>
       </View>
 
-      {fixtureQuery.isLoading ? <LoadingState message="Cargando partidos..." /> : null}
+      {fixtureQuery.isLoading ? <LoadingState message="Cargando partidos..." variant="fixtures" /> : null}
       {fixtureQuery.isError ? <ErrorState message="No se pudo cargar el tablero de partidos." retryLabel="Reintentar" onRetry={() => void fixtureQuery.refetch()} /> : null}
       {!fixtureQuery.isLoading && !fixtureQuery.isError && fixtures.length === 0 ? (
         <EmptyState
@@ -203,12 +197,17 @@ export function HomeScreen() {
       ) : null}
 
       {fixtures.map((fixture) => {
+        void matchClockTick;
         const homeCode = toTeamCode(fixture.homeTeam);
         const awayCode = toTeamCode(fixture.awayTeam);
         const kickoff = new Date(fixture.kickoffAt);
-        const finalScore = fixture.status === "final" && fixture.score ? `${fixture.score.home}-${fixture.score.away}` : null;
-        return (
-          <View key={fixture.id} style={[styles.matchCard, fixture.status === "live" ? styles.matchCardLive : null]}>
+        const isLive = fixture.status === "live";
+        const displayScore = (fixture.status === "final" || isLive) && fixture.score ? `${fixture.score.home}-${fixture.score.away}` : null;
+        const liveScore = isLive ? (displayScore ?? "0-0") : null;
+        const liveMinute = isLive ? estimateMatchMinute(fixture.kickoffAt) : "";
+
+        const card = (
+          <View key={fixture.id} style={[styles.matchCard, isLive ? styles.matchCardLive : null]}>
             <View style={styles.matchMainRow}>
               <View style={styles.side}>
                 <TeamCrest teamName={fixture.homeTeam} code={homeCode} logoUrl={fixture.homeLogoUrl} size={32} />
@@ -216,11 +215,17 @@ export function HomeScreen() {
               </View>
               <View style={styles.centerBlock}>
                 <Text allowFontScaling={false} style={fixture.status === "final" ? styles.centerFinalScore : styles.centerVersus}>
-                  {fixture.status === "final" ? finalScore ?? "--" : fixture.status === "live" ? "EN VIVO" : "VS"}
+                  {fixture.status === "final" ? (displayScore ?? "--") : isLive ? liveScore : "VS"}
                 </Text>
-                <Text allowFontScaling={false} style={fixture.status === "live" ? styles.centerLiveMeta : styles.centerMeta}>
-                  {fixture.status === "final" ? "FINAL" : `${kickoff.getDate()}/${kickoff.getMonth() + 1}`}
-                </Text>
+                {isLive && liveMinute ? (
+                  <Animated.Text allowFontScaling={false} style={[styles.centerLiveMeta, { opacity: livePulseOpacity }]}>
+                    {liveMinute}
+                  </Animated.Text>
+                ) : (
+                  <Text allowFontScaling={false} style={styles.centerMeta}>
+                    {fixture.status === "final" ? "FINAL" : `${kickoff.getDate()}/${kickoff.getMonth() + 1}`}
+                  </Text>
+                )}
                 <Text allowFontScaling={false} style={styles.centerMeta}>{kickoff.toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}</Text>
               </View>
               <View style={[styles.side, styles.sideRight]}>
@@ -230,6 +235,11 @@ export function HomeScreen() {
             </View>
           </View>
         );
+
+        if (isLive) {
+          return <LivePulseBorder key={fixture.id} borderRadius={14}>{card}</LivePulseBorder>;
+        }
+        return card;
       })}
     </ScreenFrame>
   );
@@ -240,7 +250,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: 0,
     paddingBottom: 0,
-    backgroundColor: "#DDE2E8"
+    backgroundColor: colors.canvas
   },
   screenContent: {
     gap: 10
@@ -248,57 +258,17 @@ const styles = StyleSheet.create({
   headerCard: {
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.surfaceSoft,
     paddingHorizontal: 16,
     paddingBottom: 14,
     borderWidth: 1,
-    borderColor: "#D7DCE3",
+    borderColor: colors.borderSubtle,
     marginHorizontal: -12
   },
-  brandRow: {
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8
-  },
-  brandBadge: {
-    height: 28,
-    width: 28,
-    borderRadius: 10,
-    backgroundColor: "#EFF4E6",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  brandTitle: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: "900",
-    letterSpacing: -0.2,
-    marginRight: 6
-  },
-  brandTitleDark: {
-    color: "#0F172A"
-  },
-  brandTitleAccent: {
-    color: "#A3C90A"
-  },
-  profileDot: {
-    height: 32,
-    width: 32,
-    borderRadius: 999,
-    backgroundColor: "#E8EDCD",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  profileDotText: {
-    color: "#374151",
-    fontWeight: "800",
-    fontSize: 12,
-    letterSpacing: 0.2
-  },
-  titleRow: {
-    marginTop: 12,
-    flexDirection: "row",
-    alignItems: "center",
+    justifyContent: "space-between",
     gap: 8
   },
   sectionIcon: {
@@ -307,22 +277,22 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#B7D70A"
+    backgroundColor: colors.primaryStrong
   },
   sectionIconText: {
     fontSize: 14,
     fontWeight: "800",
-    color: "#1F2937"
+    color: colors.textStrong
   },
   sectionTitle: {
-    color: "#0F172A",
-    fontSize: 22,
+    color: colors.textTitle,
+    fontSize: 24,
     fontWeight: "800"
   },
   sectionSubtitle: {
     marginLeft: "auto",
-    color: "#7A8698",
-    fontSize: 11,
+    color: colors.textMutedAlt,
+    fontSize: 12,
     fontWeight: "700"
   },
   summaryRow: {
@@ -333,20 +303,20 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#D7DCE3",
-    backgroundColor: "#F8FAFC",
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceSoft,
     alignItems: "center",
     justifyContent: "center",
     minHeight: 58
   },
   summaryLabel: {
-    color: "#8A94A4",
-    fontSize: 9,
+    color: colors.textMuted,
+    fontSize: 11,
     fontWeight: "800"
   },
   summaryValue: {
     marginTop: 3,
-    color: "#111827",
+    color: colors.textHigh,
     fontSize: 24,
     lineHeight: 26,
     fontWeight: "900"
@@ -354,38 +324,38 @@ const styles = StyleSheet.create({
   winnerCard: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#D7DCE3",
-    backgroundColor: "#F8FAFC",
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceSoft,
     padding: 12
   },
   winnerLabel: {
-    color: "#8A94A4",
-    fontSize: 9,
+    color: colors.textMuted,
+    fontSize: 11,
     fontWeight: "900"
   },
   winnerTitle: {
     marginTop: 6,
-    color: "#111827",
+    color: colors.textHigh,
     fontSize: 14,
     fontWeight: "900"
   },
   winnerSub: {
     marginTop: 3,
-    color: "#4B5563",
-    fontSize: 11,
+    color: colors.textBodyStrong,
+    fontSize: 12,
     fontWeight: "700"
   },
   winnerShareButton: {
     marginTop: 10,
-    minHeight: 34,
+    minHeight: 44,
     borderRadius: 8,
-    backgroundColor: "#E8EDCD",
+    backgroundColor: colors.brandTint,
     alignItems: "center",
     justifyContent: "center"
   },
   winnerShareText: {
-    color: "#44511B",
-    fontSize: 11,
+    color: colors.textBrandDark,
+    fontSize: 13,
     fontWeight: "900"
   },
   sectionHeaderRow: {
@@ -394,55 +364,55 @@ const styles = StyleSheet.create({
     alignItems: "center"
   },
   sectionHeader: {
-    color: "#111827",
+    color: colors.textHigh,
     fontSize: 24,
     lineHeight: 28,
     fontWeight: "800"
   },
   sectionHeaderGlyph: {
     marginLeft: "auto",
-    color: "#8A94A4",
+    color: colors.textMuted,
     fontSize: 18
   },
   filterTabs: {
     flexDirection: "row",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#D7DCE3",
-    backgroundColor: "#F8FAFC",
-    padding: 2
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceSoft,
+    padding: 3,
+    gap: 2
   },
   filterTab: {
     flex: 1,
-    minHeight: 34,
+    minHeight: 44,
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center"
   },
   filterTabActive: {
-    backgroundColor: "#B7D70A"
+    backgroundColor: colors.primaryStrong
   },
   filterTabLabel: {
-    color: "#7A8698",
-    fontSize: 11,
-    fontWeight: "700"
+    color: colors.textMutedAlt,
+    fontSize: 14,
+    fontWeight: "800"
   },
   filterTabLabelActive: {
-    color: "#111827",
-    fontSize: 11,
+    color: colors.textHigh,
+    fontSize: 14,
     fontWeight: "800"
   },
   matchCard: {
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#D7DCE3",
-    backgroundColor: "#F8FAFC",
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceSoft,
     paddingVertical: 10,
     paddingHorizontal: 12
   },
   matchCardLive: {
-    borderColor: "#EF4444",
-    borderWidth: 2
+    borderWidth: 0
   },
   matchMainRow: {
     flexDirection: "row",
@@ -458,10 +428,10 @@ const styles = StyleSheet.create({
     alignItems: "center"
   },
   teamName: {
-    color: "#1F2937",
+    color: colors.textStrong,
     fontWeight: "800",
-    fontSize: 10,
-    lineHeight: 12,
+    fontSize: 14,
+    lineHeight: 16,
     textAlign: "center"
   },
   centerBlock: {
@@ -469,25 +439,25 @@ const styles = StyleSheet.create({
     alignItems: "center"
   },
   centerVersus: {
-    color: "#111827",
+    color: colors.textHigh,
     fontSize: 20,
     lineHeight: 22,
     fontWeight: "900"
   },
   centerFinalScore: {
-    color: "#111827",
+    color: colors.textHigh,
     fontSize: 26,
     lineHeight: 28,
     fontWeight: "900"
   },
   centerLiveMeta: {
-    color: "#DC2626",
-    fontSize: 9,
+    color: colors.dangerAccent,
+    fontSize: 11,
     fontWeight: "800"
   },
   centerMeta: {
-    color: "#8A94A4",
-    fontSize: 9,
+    color: colors.textMuted,
+    fontSize: 11,
     fontWeight: "700"
   }
 });

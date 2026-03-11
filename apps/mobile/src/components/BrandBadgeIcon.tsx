@@ -1,4 +1,5 @@
 import { StyleSheet, View } from "react-native";
+import { colors } from "@fulbito/design-tokens";
 
 type BrandBadgeIconProps = {
   size?: number;
@@ -39,9 +40,9 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 5,
     borderTopLeftRadius: 2,
     borderTopRightRadius: 2,
-    backgroundColor: "#D5A406",
+    backgroundColor: colors.trophy,
     borderWidth: 1,
-    borderColor: "#C59200"
+    borderColor: colors.trophyDeep
   },
   handleLeft: {
     position: "absolute",
@@ -50,7 +51,7 @@ const styles = StyleSheet.create({
     width: 4,
     height: 6,
     borderWidth: 1.4,
-    borderColor: "#C59200",
+    borderColor: colors.trophyDeep,
     borderTopLeftRadius: 4,
     borderBottomLeftRadius: 4,
     borderRightWidth: 0
@@ -62,7 +63,7 @@ const styles = StyleSheet.create({
     width: 4,
     height: 6,
     borderWidth: 1.4,
-    borderColor: "#C59200",
+    borderColor: colors.trophyDeep,
     borderTopRightRadius: 4,
     borderBottomRightRadius: 4,
     borderLeftWidth: 0
@@ -73,7 +74,7 @@ const styles = StyleSheet.create({
     width: 2.5,
     height: 4.5,
     borderRadius: 999,
-    backgroundColor: "#C59200"
+    backgroundColor: colors.trophyDeep
   },
   base: {
     position: "absolute",
@@ -81,6 +82,6 @@ const styles = StyleSheet.create({
     width: 8,
     height: 2.5,
     borderRadius: 999,
-    backgroundColor: "#C59200"
+    backgroundColor: colors.trophyDeep
   }
 });

@@ -3,7 +3,7 @@ import type { LeaderboardBestRound, LeaderboardMode, LeaderboardPeriod, Leaderbo
 
 export type AppTab = "inicio" | "posiciones" | "pronosticos" | "fixture";
 
-export type MatchStatus = "live" | "upcoming" | "final";
+export type MatchStatus = "live" | "upcoming" | "final" | "postponed";
 export type PointsTone = "positive" | "warning" | "danger" | "neutral";
 
 export interface TeamRef {
@@ -38,6 +38,7 @@ export interface MatchCardData {
   points?: MatchPoints;
   progress?: number;
   kickoffAt?: string;
+  newKickoffAt?: string;
   deadlineAt?: string;
   isLocked?: boolean;
 }
@@ -64,7 +65,7 @@ export type LeaderboardGroupStats = LeaderboardApiGroupStats;
 export type LeaderboardPayload = LeaderboardApiPayload;
 export type { LeaderboardMode, LeaderboardPeriod, LeaderboardWorldBenchmark };
 
-export type FixtureScoreTone = "final" | "live" | "upcoming" | "warning";
+export type FixtureScoreTone = "final" | "live" | "upcoming" | "warning" | "postponed";
 
 export interface FixtureMatchRow {
   home: string;

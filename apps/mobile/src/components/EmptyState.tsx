@@ -19,9 +19,11 @@ const styles = StyleSheet.create({
   },
   title: {
     color: colors.textPrimary,
+    fontSize: 14,
     fontWeight: "700"
   },
   description: {
-    color: colors.textSecondary
+    color: colors.textSecondary,
+    fontSize: 12
   }
 });

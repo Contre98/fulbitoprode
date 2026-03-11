@@ -1,27 +1,29 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { colors } from "@fulbito/design-tokens";
 import { leaderboardRepository } from "@/repositories";
 import { useGroupSelection } from "@/state/GroupContext";
 import { usePeriod } from "@/state/PeriodContext";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { HeaderGroupSelector } from "@/components/HeaderGroupSelector";
+import { HeaderActionIcons } from "@/components/HeaderActionIcons";
+import { FechaSelector } from "@/components/FechaSelector";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
-import { BrandBadgeIcon } from "@/components/BrandBadgeIcon";
 
 type PosicionesMode = "positions" | "stats";
 
 const awardVisualById: Record<string, { icon: string; tone: string }> = {
-  nostradamus: { icon: "✣", tone: "#B7D70A" },
-  bilardista: { icon: "◻", tone: "#94A3B8" },
-  "la-racha": { icon: "◔", tone: "#F59E0B" },
-  batacazo: { icon: "⚡", tone: "#F59E0B" },
-  "robin-hood": { icon: "◎", tone: "#22C55E" },
-  "el-casi": { icon: "⌖", tone: "#60A5FA" },
-  "el-mufa": { icon: "☂", tone: "#9CA3AF" }
+  nostradamus: { icon: "✣", tone: colors.primaryStrong },
+  bilardista: { icon: "◻", tone: colors.slate },
+  "la-racha": { icon: "◔", tone: colors.warning },
+  batacazo: { icon: "⚡", tone: colors.warning },
+  "robin-hood": { icon: "◎", tone: colors.successAccent },
+  "el-casi": { icon: "⌖", tone: colors.info },
+  "el-mufa": { icon: "☂", tone: colors.slateMuted }
 };
 
 function stageLabel(value: string | undefined) {
@@ -40,47 +42,48 @@ function competitionLabelForPosiciones(input: {
 export function PosicionesScreen() {
   const insets = useSafeAreaInsets();
   const { memberships, selectedGroupId, setSelectedGroupId } = useGroupSelection();
-  const { fecha, options, setFecha } = usePeriod();
+  const { fecha, options } = usePeriod();
   const [mode, setMode] = useState<PosicionesMode>("positions");
+  const [positionsPeriod, setPositionsPeriod] = useState("global");
 
   const groupId = memberships.find((membership) => membership.groupId === selectedGroupId)?.groupId ?? memberships[0]?.groupId ?? "grupo-1";
   const selectedMembership = useMemo(
     () => memberships.find((membership) => membership.groupId === groupId) ?? memberships[0],
     [groupId, memberships]
   );
-  const safeOptions = options.length > 0 ? options : [{ id: fecha, label: fecha }];
-  const periodIndex = Math.max(0, safeOptions.findIndex((option) => option.id === fecha));
-  const currentPeriod = safeOptions[periodIndex] ?? safeOptions[0];
+  const positionsCycleOptions = useMemo(() => {
+    const fallbackOption = fecha ? [{ id: fecha, label: fecha }] : [];
+    const roundOptions = (options.length > 0 ? options : fallbackOption).filter((option) => option.id !== "global");
+    return [{ id: "global", label: "Global acumulado" }, ...roundOptions];
+  }, [fecha, options]);
+  const currentPositionsOptionIndex = positionsCycleOptions.findIndex((option) => option.id === positionsPeriod);
+  const resolvedPositionsOptionIndex = currentPositionsOptionIndex >= 0 ? currentPositionsOptionIndex : 0;
+
+  useEffect(() => {
+    if (!positionsCycleOptions.some((option) => option.id === positionsPeriod)) {
+      setPositionsPeriod("global");
+    }
+  }, [positionsCycleOptions, positionsPeriod]);
+
+  const selectedLeaderboardPeriod = mode === "positions" ? positionsPeriod : fecha;
 
   const leaderboardQuery = useQuery({
-    queryKey: ["leaderboard-payload", groupId, fecha, mode],
+    queryKey: ["leaderboard-payload", groupId, selectedLeaderboardPeriod, mode],
     queryFn: () =>
       leaderboardRepository.getLeaderboardPayload({
         groupId,
-        fecha,
+        fecha: selectedLeaderboardPeriod,
         mode: mode === "stats" ? "stats" : "posiciones"
       })
   });
-
-  function goPrevFecha() {
-    const next = safeOptions[(periodIndex - 1 + safeOptions.length) % safeOptions.length];
-    if (next) {
-      setFecha(next.id);
-    }
-  }
-
-  function goNextFecha() {
-    const next = safeOptions[(periodIndex + 1) % safeOptions.length];
-    if (next) {
-      setFecha(next.id);
-    }
-  }
 
   const entries = leaderboardQuery.data?.rows ?? [];
   const summary = leaderboardQuery.data?.stats?.summary ?? null;
   const awards = leaderboardQuery.data?.stats?.awards ?? [];
   const historicalSeries = leaderboardQuery.data?.stats?.historicalSeries ?? [];
-  const selectedModeLabel = mode === "positions" ? "GLOBAL ACUMULADO" : "PREMIOS Y CASTIGOS";
+  const tableGroupLabel = leaderboardQuery.data?.groupLabel?.trim() || selectedMembership?.groupName || "Grupo";
+  const tablePeriodLabel = leaderboardQuery.data?.periodLabel?.trim() || "Acumulado";
+  const qualificationCutoff = Math.min(8, Math.max(1, entries.length));
   const performanceMetrics = [
     { key: "exact", label: "Aciertos exactos", value: summary?.exactPredictions ?? 0 },
     { key: "result", label: "Resultado", value: summary?.resultPredictions ?? 0 },
@@ -118,6 +121,22 @@ export function PosicionesScreen() {
     [historicalSeries]
   );
 
+  function swipeToPreviousPeriod() {
+    if (mode !== "positions" || positionsCycleOptions.length === 0) {
+      return;
+    }
+    const previousIndex = (resolvedPositionsOptionIndex - 1 + positionsCycleOptions.length) % positionsCycleOptions.length;
+    setPositionsPeriod(positionsCycleOptions[previousIndex].id);
+  }
+
+  function swipeToNextPeriod() {
+    if (mode !== "positions" || positionsCycleOptions.length === 0) {
+      return;
+    }
+    const nextIndex = (resolvedPositionsOptionIndex + 1) % positionsCycleOptions.length;
+    setPositionsPeriod(positionsCycleOptions[nextIndex].id);
+  }
+
   return (
     <ScreenFrame
       title="Posiciones"
@@ -125,54 +144,31 @@ export function PosicionesScreen() {
       hideDataModeBadge
       containerStyle={styles.screenContainer}
       contentStyle={styles.screenContent}
+      onSwipeLeft={mode === "positions" ? swipeToNextPeriod : undefined}
+      onSwipeRight={mode === "positions" ? swipeToPreviousPeriod : undefined}
       header={
         <View style={[styles.headerCard, { paddingTop: Math.max(insets.top, 10) + 2 }]}>
-          <View style={styles.brandRow}>
-            <View style={styles.brandBadge}>
-              <BrandBadgeIcon size={16} />
-            </View>
-            <Text allowFontScaling={false} numberOfLines={1} style={styles.brandTitle}>
-              <Text style={styles.brandTitleDark}>FULBITO</Text>
-              <Text style={styles.brandTitleAccent}>PRODE</Text>
-            </Text>
-            <View style={styles.profileDot}>
-              <Text allowFontScaling={false} style={styles.profileDotText}>FC</Text>
-            </View>
-          </View>
-          <View style={styles.titleRow}>
-            <View style={styles.sectionIcon}>
-              <Text allowFontScaling={false} style={styles.sectionIconText}>≡</Text>
-            </View>
-            <Text allowFontScaling={false} style={styles.sectionTitle}>Posiciones</Text>
+          <View style={styles.headerRow}>
             <HeaderGroupSelector memberships={memberships} selectedGroupId={selectedGroupId} onSelectGroup={(nextGroupId) => void setSelectedGroupId(nextGroupId)} />
+            <HeaderActionIcons />
           </View>
         </View>
       }
     >
-      <View style={styles.modeTabs}>
-        <Pressable onPress={() => setMode("positions")} style={[styles.modeTab, mode === "positions" ? styles.modeTabActive : null]}>
-          <Text allowFontScaling={false} style={[styles.modeTabLabel, mode === "positions" ? styles.modeTabLabelActive : null]}>
-            POSICIONES
-          </Text>
+      <View style={styles.filterTabs}>
+        <Pressable onPress={() => setMode("positions")} style={[styles.filterTab, mode === "positions" ? styles.filterTabActive : null]}>
+          <Text allowFontScaling={false} style={mode === "positions" ? styles.filterTabLabelActive : styles.filterTabLabel}>Posiciones</Text>
         </Pressable>
-        <Pressable onPress={() => setMode("stats")} style={[styles.modeTab, mode === "stats" ? styles.modeTabActive : null]}>
-          <Text allowFontScaling={false} style={[styles.modeTabLabel, mode === "stats" ? styles.modeTabLabelActive : null]}>
-            STATS
-          </Text>
+        <Pressable onPress={() => setMode("stats")} style={[styles.filterTab, mode === "stats" ? styles.filterTabActive : null]}>
+          <Text allowFontScaling={false} style={mode === "stats" ? styles.filterTabLabelActive : styles.filterTabLabel}>Stats</Text>
         </Pressable>
       </View>
 
-      <View style={styles.fechaBlock}>
-        <Pressable onPress={goPrevFecha} style={styles.fechaNavButton}>
-          <Text allowFontScaling={false} style={styles.fechaNavLabel}>‹</Text>
-        </Pressable>
-        <Text allowFontScaling={false} style={styles.fechaTitle}>{selectedModeLabel}</Text>
-        <Pressable onPress={goNextFecha} style={styles.fechaNavButton}>
-          <Text allowFontScaling={false} style={styles.fechaNavLabel}>›</Text>
-        </Pressable>
-      </View>
+      {mode === "positions" ? (
+        <FechaSelector options={positionsCycleOptions} value={positionsPeriod} onChange={setPositionsPeriod} />
+      ) : null}
 
-      {leaderboardQuery.isLoading ? <LoadingState message="Cargando posiciones..." /> : null}
+      {leaderboardQuery.isLoading ? <LoadingState message="Cargando posiciones..." variant={mode === "positions" ? "leaderboard" : "stats"} /> : null}
       {leaderboardQuery.isError ? (
         <ErrorState
           message="No se pudo cargar la tabla de posiciones."
@@ -185,30 +181,60 @@ export function PosicionesScreen() {
       ) : null}
 
       {!leaderboardQuery.isLoading && !leaderboardQuery.isError && entries.length > 0 && mode === "positions" ? (
-        <View style={styles.tableCard}>
-          <View style={styles.tableHeaderRow}>
-            <Text allowFontScaling={false} style={styles.tableTitle}>{selectedMembership?.groupName ?? "Grupo"}</Text>
-            <View style={styles.tableCols}>
-              <Text allowFontScaling={false} style={styles.tableCol}>PRED</Text>
-              <Text allowFontScaling={false} style={styles.tableCol}>EX/RE/NA</Text>
-              <Text allowFontScaling={false} style={styles.tableCol}>PTS</Text>
+        <View style={styles.standingsCard}>
+          <View style={styles.standingsHeader}>
+            <View style={styles.standingsTitleWrap}>
+              <Text allowFontScaling={false} style={styles.standingsTitle}>{tableGroupLabel}</Text>
+              <Text allowFontScaling={false} style={styles.standingsSubtitle}>{tablePeriodLabel}</Text>
+            </View>
+            <View style={styles.standingsColsHeader}>
+              <Text allowFontScaling={false} style={styles.standingsColLabel}>P</Text>
+              <Text allowFontScaling={false} style={styles.standingsColLabel}>E</Text>
+              <Text allowFontScaling={false} style={styles.standingsColLabel}>R</Text>
+              <Text allowFontScaling={false} style={styles.standingsColLabel}>N</Text>
+              <Text allowFontScaling={false} style={styles.standingsColLabel}>PTS</Text>
             </View>
           </View>
-          {entries.map((entry, index) => (
-            <View key={entry.userId ?? `row-${entry.rank}-${entry.name}`} style={[styles.row, index === 0 ? styles.rowLeader : null]}>
-              <View style={styles.rowRankWrap}>
-                <Text allowFontScaling={false} style={styles.rowRank}>{entry.rank}</Text>
+          {entries.map((entry, index) => {
+            const isQualified = entry.rank <= qualificationCutoff;
+            const isFirst = index === 0;
+            const isLast = index === entries.length - 1;
+            return (
+              <View
+                key={entry.userId ?? `row-${entry.rank}-${entry.name}`}
+                style={[
+                  styles.standingsRow,
+                  isFirst ? styles.standingsRowFirst : null,
+                  isLast ? styles.standingsRowLast : null
+                ]}
+              >
+                <View
+                  style={[
+                    styles.standingsMarker,
+                    isQualified ? styles.standingsMarkerQualified : null,
+                    isFirst && isQualified ? styles.standingsMarkerFirst : null,
+                    isLast && isQualified ? styles.standingsMarkerLast : null
+                  ]}
+                />
+                <Text allowFontScaling={false} style={styles.standingsRank}>{entry.rank}</Text>
+                <Text allowFontScaling={false} numberOfLines={1} style={styles.standingsName}>
+                  {entry.name}
+                </Text>
+                <Text allowFontScaling={false} style={styles.standingsMetric}>{entry.predictions}</Text>
+                <Text allowFontScaling={false} style={styles.standingsMetric}>{entry.record?.split("/")[0] ?? "-"}</Text>
+                <Text allowFontScaling={false} style={styles.standingsMetric}>{entry.record?.split("/")[1] ?? "-"}</Text>
+                <Text allowFontScaling={false} style={styles.standingsMetric}>{entry.record?.split("/")[2] ?? "-"}</Text>
+                <Text allowFontScaling={false} style={styles.standingsPoints}>{entry.points}</Text>
               </View>
-              <Text allowFontScaling={false} numberOfLines={1} style={styles.rowName}>
-                {entry.name}
-                {index === 0 ? " ⭐" : ""}
-              </Text>
-              <Text allowFontScaling={false} style={styles.rowMetric}>{entry.predictions}</Text>
-              <Text allowFontScaling={false} style={styles.rowMetricSmall}>{entry.record}</Text>
-              <Text allowFontScaling={false} style={styles.rowPoints}>{entry.points}</Text>
-            </View>
-          ))}
+            );
+          })}
         </View>
+      ) : null}
+
+      {!leaderboardQuery.isLoading && !leaderboardQuery.isError && entries.length > 0 && mode === "positions" ? (
+        <Text allowFontScaling={false} style={styles.standingsLegend}>
+          P: pronósticos · E: exactos · R: resultado · N: sin acierto
+        </Text>
       ) : null}
 
       {!leaderboardQuery.isLoading && !leaderboardQuery.isError && mode === "stats" ? (
@@ -242,7 +268,7 @@ export function PosicionesScreen() {
             <EmptyState title="Sin stats disponibles" description="Todavía no hay datos suficientes para premios y castigos." />
           ) : null}
           {awards.map((award) => {
-            const visual = awardVisualById[award.id] || { icon: "◎", tone: "#94A3B8" };
+            const visual = awardVisualById[award.id] || { icon: "◎", tone: colors.slate };
             return (
               <View key={award.id} style={styles.rewardRow}>
                 <View style={[styles.rewardIcon, { backgroundColor: `${visual.tone}22` }]}>
@@ -315,7 +341,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: 0,
     paddingBottom: 0,
-    backgroundColor: "#DDE2E8"
+    backgroundColor: colors.canvas
   },
   screenContent: {
     gap: 14
@@ -323,58 +349,17 @@ const styles = StyleSheet.create({
   headerCard: {
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.surfaceSoft,
     paddingHorizontal: 16,
     paddingBottom: 14,
     borderWidth: 1,
-    borderColor: "#D7DCE3",
-    marginHorizontal: -12,
-    marginTop: 0
+    borderColor: colors.borderSubtle,
+    marginHorizontal: -12
   },
-  brandRow: {
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8
-  },
-  brandBadge: {
-    height: 28,
-    width: 28,
-    borderRadius: 10,
-    backgroundColor: "#EFF4E6",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  brandTitle: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: "900",
-    letterSpacing: -0.2,
-    marginRight: 6
-  },
-  brandTitleDark: {
-    color: "#0F172A"
-  },
-  brandTitleAccent: {
-    color: "#A3C90A"
-  },
-  profileDot: {
-    height: 32,
-    width: 32,
-    borderRadius: 999,
-    backgroundColor: "#E8EDCD",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  profileDotText: {
-    color: "#374151",
-    fontWeight: "800",
-    fontSize: 12,
-    letterSpacing: 0.2
-  },
-  titleRow: {
-    marginTop: 12,
-    flexDirection: "row",
-    alignItems: "center",
+    justifyContent: "space-between",
     gap: 8
   },
   sectionIcon: {
@@ -383,190 +368,200 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#B7D70A"
+    backgroundColor: colors.primaryStrong
   },
   sectionIconText: {
     fontSize: 14,
     fontWeight: "800",
-    color: "#1F2937"
+    color: colors.textStrong
   },
   sectionTitle: {
-    color: "#0F172A",
-    fontSize: 22,
+    color: colors.textTitle,
+    fontSize: 24,
     fontWeight: "800"
   },
   sectionSubtitle: {
     marginLeft: "auto",
-    color: "#7A8698",
-    fontSize: 11,
+    color: colors.textMutedAlt,
+    fontSize: 12,
     fontWeight: "700"
   },
   block: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.surfaceSoft,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#D7DCE3",
+    borderColor: colors.borderSubtle,
     padding: 10
   },
   blockLabel: {
     fontSize: 11,
     fontWeight: "800",
-    color: "#8A94A4",
+    color: colors.textMuted,
     letterSpacing: 0.8
   },
   selectionButton: {
     marginTop: 8,
     minHeight: 44,
     borderRadius: 10,
-    backgroundColor: "#EDF1F5",
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: "#DDE3EA",
+    borderColor: colors.borderMuted,
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center"
   },
   selectionText: {
     flex: 1,
-    color: "#0F172A",
+    color: colors.textTitle,
     fontWeight: "800",
-    fontSize: 10
-  },
-  selectionChevron: {
-    color: "#98A2B3",
     fontSize: 14
   },
-  modeTabs: {
+  selectionChevron: {
+    color: colors.textSoft,
+    fontSize: 14
+  },
+  filterTabs: {
     flexDirection: "row",
-    gap: 12
-  },
-  modeTab: {
-    flex: 1,
-    height: 48,
-    borderRadius: 10,
-    backgroundColor: "transparent",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  modeTabActive: {
-    backgroundColor: "#B7D70A"
-  },
-  modeTabLabel: {
-    color: "#8A94A4",
-    fontSize: 11,
-    fontWeight: "900"
-  },
-  modeTabLabelActive: {
-    color: "#111827"
-  },
-  fechaBlock: {
-    minHeight: 44,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#D7DCE3",
-    backgroundColor: "#F8FAFC",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 8
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceSoft,
+    padding: 3,
+    gap: 2
   },
-  fechaNavButton: {
-    height: 28,
-    width: 28,
+  filterTab: {
+    flex: 1,
+    minHeight: 44,
     borderRadius: 8,
-    backgroundColor: "#EDF1F5",
     alignItems: "center",
     justifyContent: "center"
   },
-  fechaNavLabel: {
-    color: "#98A2B3",
-    fontSize: 20,
-    fontWeight: "700"
+  filterTabActive: {
+    backgroundColor: colors.primaryStrong
   },
-  fechaTitle: {
-    flex: 1,
-    textAlign: "center",
-    color: "#A3C90A",
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 0.8
+  filterTabLabel: {
+    color: colors.textMutedAlt,
+    fontSize: 14,
+    fontWeight: "800"
   },
-  tableCard: {
-    borderRadius: 14,
+  filterTabLabelActive: {
+    color: colors.textHigh,
+    fontSize: 14,
+    fontWeight: "800"
+  },
+  standingsCard: {
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#D7DCE3",
-    backgroundColor: "#F8FAFC",
+    borderColor: colors.borderMutedAlt,
+    backgroundColor: colors.surface,
     overflow: "hidden"
   },
-  tableHeaderRow: {
+  standingsHeader: {
+    paddingLeft: 16,
+    paddingRight: 14,
+    paddingTop: 16,
+    paddingBottom: 12,
+    flexDirection: "row",
+    alignItems: "flex-end"
+  },
+  standingsTitleWrap: {
+    flex: 1,
+    paddingRight: 8
+  },
+  standingsTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: colors.textTitle
+  },
+  standingsSubtitle: {
+    marginTop: 2,
+    fontSize: 12,
+    fontWeight: "600",
+    color: colors.textMutedAlt
+  },
+  standingsColsHeader: {
+    flexDirection: "row",
+    alignItems: "center"
+  },
+  standingsColLabel: {
+    width: 36,
+    textAlign: "center",
+    fontSize: 11,
+    color: colors.textMuted,
+    fontWeight: "700"
+  },
+  standingsColLabelWide: {
+    width: 56,
+    textAlign: "center",
+    fontSize: 11,
+    color: colors.textMuted,
+    fontWeight: "700"
+  },
+  standingsRow: {
+    minHeight: 58,
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingRight: 14,
     flexDirection: "row",
     alignItems: "center"
   },
-  tableTitle: {
-    flex: 1,
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#111827"
-  },
-  tableCols: {
-    flexDirection: "row",
-    gap: 10
-  },
-  tableCol: {
-    width: 32,
-    textAlign: "center",
-    fontSize: 9,
-    color: "#8A94A4",
-    fontWeight: "700"
-  },
-  row: {
-    minHeight: 38,
-    paddingHorizontal: 10,
-    flexDirection: "row",
-    alignItems: "center",
+  standingsRowFirst: {
     borderTopWidth: 1,
-    borderTopColor: "#E1E6ED"
+    borderTopColor: colors.borderLight
   },
-  rowLeader: {
-    backgroundColor: "#E9EFCF",
-    borderLeftWidth: 3,
-    borderLeftColor: "#B7D70A"
+  standingsRowLast: {
+    paddingBottom: 4
   },
-  rowRankWrap: {
-    width: 24,
-    alignItems: "center"
+  standingsMarker: {
+    width: 3,
+    alignSelf: "stretch",
+    marginRight: 12,
+    backgroundColor: "transparent"
   },
-  rowRank: {
-    color: "#89B300",
-    fontWeight: "900",
-    fontSize: 10
+  standingsMarkerQualified: {
+    backgroundColor: colors.primaryStrong
   },
-  rowName: {
+  standingsMarkerFirst: {
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3
+  },
+  standingsMarkerLast: {
+    borderBottomLeftRadius: 3,
+    borderBottomRightRadius: 3
+  },
+  standingsRank: {
+    width: 26,
+    textAlign: "center",
+    color: colors.textTertiary,
+    fontWeight: "600",
+    fontSize: 15
+  },
+  standingsName: {
     flex: 1,
-    color: "#1F2937",
-    fontWeight: "800",
-    fontSize: 11
+    color: colors.textStrong,
+    fontWeight: "600",
+    fontSize: 14,
+    marginLeft: 4
   },
-  rowMetric: {
-    width: 32,
+  standingsMetric: {
+    width: 36,
     textAlign: "center",
-    color: "#667085",
+    color: colors.textTertiary,
+    fontSize: 13,
+    fontWeight: "600"
+  },
+standingsLegend: {
     fontSize: 11,
-    fontWeight: "700"
-  },
-  rowMetricSmall: {
-    width: 44,
+    color: colors.textMuted,
+    fontWeight: "500",
     textAlign: "center",
-    color: "#667085",
-    fontSize: 11,
-    fontWeight: "700"
+    marginTop: -6
   },
-  rowPoints: {
-    width: 28,
+  standingsPoints: {
+    width: 36,
     textAlign: "center",
-    color: "#1F2937",
+    color: colors.textTitle,
     fontWeight: "900",
-    fontSize: 11
+    fontSize: 15
   },
   statsSummaryRow: {
     flexDirection: "row",
@@ -576,8 +571,8 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#D7DCE3",
-    backgroundColor: "#F8FAFC",
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceSoft,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 12,
@@ -587,7 +582,7 @@ const styles = StyleSheet.create({
     height: 34,
     width: 34,
     borderRadius: 999,
-    backgroundColor: "#EFF4E6",
+    backgroundColor: colors.secondary,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -595,28 +590,28 @@ const styles = StyleSheet.create({
     fontSize: 14
   },
   statsLabel: {
-    color: "#8A94A4",
-    fontSize: 9,
+    color: colors.textMuted,
+    fontSize: 11,
     fontWeight: "800"
   },
   statsValue: {
-    color: "#111827",
+    color: colors.textHigh,
     fontSize: 24,
     fontWeight: "900"
   },
   statsValueAccent: {
-    color: "#A3C90A"
+    color: colors.primaryAccent
   },
   rewardsTitle: {
-    color: "#111827",
+    color: colors.textHigh,
     fontSize: 18,
     fontWeight: "900"
   },
   rewardRow: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#D7DCE3",
-    backgroundColor: "#F8FAFC",
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceSoft,
     minHeight: 58,
     paddingHorizontal: 10,
     flexDirection: "row",
@@ -638,35 +633,35 @@ const styles = StyleSheet.create({
     flex: 1
   },
   rewardLabel: {
-    color: "#8A94A4",
-    fontSize: 9,
+    color: colors.textMuted,
+    fontSize: 11,
     fontWeight: "900",
     letterSpacing: 0.8
   },
   rewardWinner: {
-    color: "#111827",
-    fontSize: 11,
+    color: colors.textHigh,
+    fontSize: 14,
     fontWeight: "900"
   },
   rewardHint: {
     marginTop: 2,
-    color: "#666F7E",
-    fontSize: 10,
+    color: colors.textQuaternary,
+    fontSize: 12,
     fontWeight: "600"
   },
   rewardChevron: {
-    color: "#98A2B3",
+    color: colors.textSoft,
     fontSize: 16
   },
   performanceCard: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#D7DCE3",
-    backgroundColor: "#F8FAFC",
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceSoft,
     overflow: "hidden"
   },
   performanceRow: {
-    minHeight: 40,
+    minHeight: 44,
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
@@ -674,16 +669,16 @@ const styles = StyleSheet.create({
   },
   performanceRowBorder: {
     borderTopWidth: 1,
-    borderTopColor: "#E1E6ED"
+    borderTopColor: colors.borderLight
   },
   performanceLabel: {
-    color: "#667085",
-    fontSize: 11,
+    color: colors.textTertiary,
+    fontSize: 12,
     fontWeight: "700"
   },
   performanceValue: {
-    color: "#111827",
-    fontSize: 13,
+    color: colors.textHigh,
+    fontSize: 14,
     fontWeight: "900"
   },
   roundSummaryRow: {
@@ -694,33 +689,33 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#D7DCE3",
-    backgroundColor: "#F8FAFC",
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceSoft,
     paddingHorizontal: 10,
     paddingVertical: 10,
     gap: 2
   },
   roundSummaryTag: {
-    color: "#8A94A4",
-    fontSize: 9,
+    color: colors.textMuted,
+    fontSize: 11,
     fontWeight: "900",
     letterSpacing: 0.7
   },
   roundSummaryName: {
-    color: "#111827",
-    fontSize: 12,
+    color: colors.textHigh,
+    fontSize: 14,
     fontWeight: "900"
   },
   roundSummaryMeta: {
-    color: "#667085",
-    fontSize: 10,
+    color: colors.textTertiary,
+    fontSize: 12,
     fontWeight: "700"
   },
   trendRow: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#D7DCE3",
-    backgroundColor: "#F8FAFC",
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceSoft,
     minHeight: 54,
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -732,28 +727,28 @@ const styles = StyleSheet.create({
     flex: 1
   },
   trendName: {
-    color: "#111827",
-    fontSize: 12,
+    color: colors.textHigh,
+    fontSize: 14,
     fontWeight: "900"
   },
   trendMeta: {
     marginTop: 2,
-    color: "#667085",
-    fontSize: 10,
+    color: colors.textTertiary,
+    fontSize: 12,
     fontWeight: "700"
   },
   trendStats: {
     alignItems: "flex-end"
   },
   trendStatPrimary: {
-    color: "#111827",
+    color: colors.textHigh,
     fontSize: 14,
     fontWeight: "900"
   },
   trendStatSecondary: {
     marginTop: 2,
-    color: "#667085",
-    fontSize: 10,
+    color: colors.textTertiary,
+    fontSize: 12,
     fontWeight: "700"
   }
 });

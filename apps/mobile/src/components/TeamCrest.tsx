@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
+import { colors } from "@fulbito/design-tokens";
 
 type TeamCrestProps = {
   teamName: string;
@@ -60,10 +61,10 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     top: "50%",
-    backgroundColor: "#64748B"
+    backgroundColor: colors.textSlateSoft
   },
   code: {
-    color: "#334155",
+    color: colors.textSlateStrong,
     fontWeight: "900",
     letterSpacing: -0.2
   }

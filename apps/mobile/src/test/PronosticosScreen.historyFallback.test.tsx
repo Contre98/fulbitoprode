@@ -116,7 +116,7 @@ describe("PronosticosScreen history fallback", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Por Jugar")).toBeTruthy();
-      expect(screen.getByText("RP")).toBeTruthy();
+      expect(screen.getByText("RIV")).toBeTruthy();
     });
 
     fireEvent.press(screen.getByText("Jugados"));
@@ -132,6 +132,36 @@ describe("PronosticosScreen history fallback", () => {
     expect(mockedFixtureList).not.toHaveBeenCalledWith({
       groupId: "g-1",
       fecha: ""
+    });
+  });
+
+  it("defaults to Jugados when selected fecha is fully in the past", async () => {
+    mockedPredictionsList.mockResolvedValue([
+      {
+        fixtureId: "fx-final-default-history",
+        home: 2,
+        away: 0
+      }
+    ]);
+    mockedFixtureList.mockResolvedValue([
+      {
+        id: "fx-final-default-history",
+        homeTeam: "Lanus",
+        awayTeam: "Instituto",
+        kickoffAt: "2026-02-20T20:00:00.000Z",
+        status: "final",
+        score: {
+          home: 1,
+          away: 1
+        }
+      }
+    ]);
+
+    const screen = renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByText("Tu pronóstico: 2 - 0")).toBeTruthy();
+      expect(screen.getByText("Puntos: 0")).toBeTruthy();
     });
   });
 
@@ -164,9 +194,8 @@ describe("PronosticosScreen history fallback", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Tu pronóstico: 3 - 2")).toBeTruthy();
-      expect(screen.getByText("Resultado final: Pendiente de resultado")).toBeTruthy();
+      expect(screen.getByText("Puntos: Pendiente")).toBeTruthy();
     });
-    expect(screen.queryByText("Resultado final: 3 - 2")).toBeNull();
     expect(errorSpy).toHaveBeenCalledWith(
       "[pronosticos] final fixtures missing actual result score",
       expect.objectContaining({
@@ -227,9 +256,10 @@ describe("PronosticosScreen history fallback", () => {
     fireEvent.press(screen.getByText("Jugados"));
 
     await waitFor(() => {
-      expect(screen.getByText("DYJ")).toBeTruthy();
-      expect(screen.getByText("BC")).toBeTruthy();
+      expect(screen.getByText("DEF")).toBeTruthy();
+      expect(screen.getByText("BEL")).toBeTruthy();
       expect(screen.getByText("2 - 1")).toBeTruthy();
+      expect(screen.getByText("Puntos: 0")).toBeTruthy();
     });
 
     expect(mockedFixtureList).toHaveBeenCalledWith({

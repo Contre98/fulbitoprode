@@ -6,6 +6,7 @@ type JsonObject = Record<string, unknown>;
 
 const LIVE_STATUS_SHORT = new Set(["1H", "HT", "2H", "ET", "P", "INT", "LIVE"]);
 const FINAL_STATUS_SHORT = new Set(["FT", "AET", "PEN", "AWD", "WO"]);
+const POSTPONED_STATUS_SHORT = new Set(["PST", "SUSP", "CANC", "ABD"]);
 const DEFAULT_ALLOWED_LEAGUE_IDS = new Set([128, 39]); // Liga Profesional Argentina, Premier League
 
 const LEGACY_PERIOD_WINDOWS: Record<string, { fromDays: number; toDays: number }> = {
@@ -623,6 +624,9 @@ export function classifyFixtureStatus(statusShort: string): MatchStatus {
   if (FINAL_STATUS_SHORT.has(statusShort)) {
     return "final";
   }
+  if (POSTPONED_STATUS_SHORT.has(statusShort)) {
+    return "postponed";
+  }
   return "upcoming";
 }
 
@@ -1036,6 +1040,10 @@ export async function resolveDefaultFecha(input: {
           if (status === "live") {
             hasLive = true;
           }
+          if (status === "postponed") {
+            hasOpenUpcoming = true;
+            return;
+          }
           if (status !== "upcoming") {
             return;
           }
@@ -1271,7 +1279,12 @@ export function mapFixturesToPronosticosMatches(fixtures: LiveFixture[]): MatchC
   const mapped = fixtures.map((fixture) => {
     const status = classifyFixtureStatus(fixture.statusShort);
     const kickoffMs = new Date(fixture.kickoffAt).getTime();
-    const isLocked = status === "upcoming" && Number.isFinite(kickoffMs) ? kickoffMs <= now : false;
+    const isLocked =
+      status === "postponed"
+        ? false
+        : status === "upcoming" && Number.isFinite(kickoffMs)
+          ? kickoffMs <= now
+          : false;
     const card: MatchCardData = {
       id: fixture.id,
       status,
@@ -1286,12 +1299,14 @@ export function mapFixturesToPronosticosMatches(fixtures: LiveFixture[]): MatchC
             ? formatLiveLabel(fixture)
             : status === "final"
               ? "FINALIZADO"
-              : `${isLocked ? "CERRADO · " : ""}${formatKickoffLabel(fixture.kickoffAt, timezone)}`,
+              : status === "postponed"
+                ? "POSTERGADO"
+                : `${isLocked ? "CERRADO · " : ""}${formatKickoffLabel(fixture.kickoffAt, timezone)}`,
         venue: fixture.venue || undefined
       }
     };
 
-    if (status !== "upcoming") {
+    if (status !== "upcoming" && status !== "postponed") {
       card.score = {
         home: fixture.homeGoals ?? 0,
         away: fixture.awayGoals ?? 0
@@ -1308,7 +1323,8 @@ export function mapFixturesToPronosticosMatches(fixtures: LiveFixture[]): MatchC
   const statusOrder: Record<MatchStatus, number> = {
     live: 0,
     upcoming: 1,
-    final: 2
+    final: 2,
+    postponed: 3
   };
 
   return [...mapped].sort((a, b) => statusOrder[a.status] - statusOrder[b.status]).slice(0, 24);
@@ -1347,17 +1363,21 @@ export function mapFixturesToFixtureCards(fixtures: LiveFixture[]): FixtureDateC
         ? "live"
         : status === "final"
           ? "final"
-          : new Date(fixture.kickoffAt).getTime() - now <= 90 * 60 * 1000
-            ? "warning"
-            : "upcoming";
+          : status === "postponed"
+            ? "postponed"
+            : new Date(fixture.kickoffAt).getTime() - now <= 90 * 60 * 1000
+              ? "warning"
+              : "upcoming";
 
     const scoreLabel =
       status === "live"
         ? `EN VIVO · ${fixture.homeGoals ?? 0} - ${fixture.awayGoals ?? 0}`
         : status === "final"
           ? `FINAL · ${fixture.homeGoals ?? 0} - ${fixture.awayGoals ?? 0}`
-          : formatFixtureUpcomingLabel(fixture.kickoffAt, timezone);
-    const score = status === "upcoming" ? undefined : { home: fixture.homeGoals ?? 0, away: fixture.awayGoals ?? 0 };
+          : status === "postponed"
+            ? "POSTERGADO"
+            : formatFixtureUpcomingLabel(fixture.kickoffAt, timezone);
+    const score = status === "upcoming" || status === "postponed" ? undefined : { home: fixture.homeGoals ?? 0, away: fixture.awayGoals ?? 0 };
 
     entry.rows.push({
       home: fixture.homeName,
@@ -1390,7 +1410,8 @@ export function mapFixturesToHomeUpcomingMatches(fixtures: LiveFixture[]): Fixtu
   const statusOrder: Record<MatchStatus, number> = {
     live: 0,
     upcoming: 1,
-    final: 2
+    final: 2,
+    postponed: 3
   };
 
   const limitedFixtures = [...fixtures]

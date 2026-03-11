@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
   },
   optionActive: {
     borderColor: colors.primary,
-    backgroundColor: "#123221"
+    backgroundColor: colors.dataLiveBg
   },
   optionPressed: {
     opacity: 0.8
@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
   optionLabel: {
     color: colors.textSecondary,
     fontWeight: "600",
-    fontSize: 12
+    fontSize: 13
   },
   optionLabelActive: {
     color: colors.primary

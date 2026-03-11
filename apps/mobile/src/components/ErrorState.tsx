@@ -29,11 +29,12 @@ const styles = StyleSheet.create({
     alignItems: "center"
   },
   message: {
-    color: "#FCA5A5",
+    color: colors.dangerSoft,
+    fontSize: 12,
     textAlign: "center"
   },
   retryButton: {
-    height: 40,
+    minHeight: 44,
     borderRadius: 10,
     paddingHorizontal: spacing.lg,
     alignItems: "center",
@@ -45,6 +46,7 @@ const styles = StyleSheet.create({
   },
   retryLabel: {
     color: colors.textPrimary,
+    fontSize: 14,
     fontWeight: "700"
   }
 });

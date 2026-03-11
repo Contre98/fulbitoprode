@@ -93,45 +93,58 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     color: colors.textSecondary,
+    fontSize: 24,
+    fontWeight: "800",
     marginBottom: spacing.sm
   },
   pendingInviteText: {
     color: colors.textSecondary,
+    fontSize: 12,
     fontWeight: "600"
   },
   input: {
+    minHeight: 44,
     borderRadius: 12,
     backgroundColor: colors.surfaceMuted,
     color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: "500",
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md
   },
   button: {
+    minHeight: 44,
     borderRadius: 12,
     backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     alignItems: "center"
   },
   buttonText: {
     color: colors.primaryText,
+    fontSize: 16,
     fontWeight: "800"
   },
   switchText: {
     color: colors.textSecondary,
+    fontSize: 13,
     textAlign: "center",
     marginTop: spacing.sm
   },
   forgotPasswordText: {
     color: colors.textSecondary,
+    fontSize: 13,
     textAlign: "right",
     fontWeight: "700"
   },
   errorText: {
-    color: "#B91C1C",
+    color: colors.dangerStrong,
+    fontSize: 12,
     fontWeight: "600"
   },
   infoText: {
-    color: "#065F46",
+    color: colors.successDeep,
+    fontSize: 12,
     fontWeight: "600"
   },
   buttonDisabled: {

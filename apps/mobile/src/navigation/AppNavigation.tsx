@@ -1,9 +1,8 @@
-import { Linking } from "react-native";
 import { NavigationContainer, createNavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { colors } from "@fulbito/design-tokens";
 import { AuthProvider, useAuth } from "@/state/AuthContext";
 import { PeriodProvider } from "@/state/PeriodContext";
@@ -12,13 +11,8 @@ import { HomeScreen } from "@/screens/HomeScreen";
 import { PronosticosScreen } from "@/screens/PronosticosScreen";
 import { PosicionesScreen } from "@/screens/PosicionesScreen";
 import { FixtureScreen } from "@/screens/FixtureScreen";
-import { ConfiguracionScreen } from "@/screens/ConfiguracionScreen";
-import { PerfilScreen } from "@/screens/PerfilScreen";
-import { AjustesScreen } from "@/screens/AjustesScreen";
-import { NotificacionesScreen } from "@/screens/NotificacionesScreen";
 import { GroupProvider } from "@/state/GroupContext";
-import { parseInviteTokenFromUrl } from "@/lib/inviteDeepLink";
-import { PendingInviteProvider, usePendingInvite } from "@/state/PendingInviteContext";
+import { PendingInviteProvider } from "@/state/PendingInviteContext";
 
 const RootStack = createNativeStackNavigator();
 const Tabs = createBottomTabNavigator();
@@ -62,42 +56,6 @@ function AppTabs() {
 
 function RootNavigator() {
   const { loading, isAuthenticated } = useAuth();
-  const { hydrated, pendingInviteToken, setPendingInviteToken } = usePendingInvite();
-  const routedInviteRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    void (async () => {
-      const initialUrl = await Linking.getInitialURL();
-      const inviteToken = parseInviteTokenFromUrl(initialUrl);
-      if (inviteToken) {
-        await setPendingInviteToken(inviteToken);
-      }
-    })();
-
-    const subscription = Linking.addEventListener("url", ({ url }) => {
-      const inviteToken = parseInviteTokenFromUrl(url);
-      if (!inviteToken) return;
-      void setPendingInviteToken(inviteToken);
-    });
-
-    return () => {
-      subscription.remove();
-    };
-  }, [setPendingInviteToken]);
-
-  useEffect(() => {
-    if (!hydrated || !isAuthenticated || !pendingInviteToken) {
-      return;
-    }
-    if (!navigationRef.isReady()) {
-      return;
-    }
-    if (routedInviteRef.current === pendingInviteToken) {
-      return;
-    }
-    routedInviteRef.current = pendingInviteToken;
-    navigationRef.navigate("Configuracion", { invite: pendingInviteToken });
-  }, [hydrated, isAuthenticated, pendingInviteToken]);
 
   if (loading) {
     return (
@@ -110,13 +68,7 @@ function RootNavigator() {
   return (
     <RootStack.Navigator screenOptions={{ headerShown: false }}>
       {isAuthenticated ? (
-        <>
-          <RootStack.Screen name="App" component={AppTabs} />
-          <RootStack.Screen name="Perfil" component={PerfilScreen} />
-          <RootStack.Screen name="Ajustes" component={AjustesScreen} />
-          <RootStack.Screen name="Notificaciones" component={NotificacionesScreen} />
-          <RootStack.Screen name="Configuracion" component={ConfiguracionScreen} />
-        </>
+        <RootStack.Screen name="App" component={AppTabs} />
       ) : (
         <RootStack.Screen name="Auth" component={AuthScreen} />
       )}
@@ -139,10 +91,6 @@ export function AppNavigation() {
               Fixture: "fixture"
             }
           },
-          Perfil: "perfil",
-          Ajustes: "ajustes",
-          Notificaciones: "notificaciones",
-          Configuracion: "configuracion"
         }
       }
     }),
@@ -166,9 +114,9 @@ export function AppNavigation() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    height: 78,
-    paddingTop: 6,
-    paddingBottom: 8,
+    height: 84,
+    paddingTop: 8,
+    paddingBottom: 10,
     borderTopWidth: 1,
     borderTopColor: colors.surfaceMuted,
     backgroundColor: colors.surface
@@ -177,21 +125,21 @@ const styles = StyleSheet.create({
     paddingVertical: 2
   },
   tabLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "700"
   },
   tabIconWrap: {
-    height: 24,
-    width: 24,
-    borderRadius: 8,
+    height: 28,
+    width: 28,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center"
   },
   tabIconWrapActive: {
-    backgroundColor: "rgba(182,217,0,0.16)"
+    backgroundColor: colors.primaryAlpha16
   },
   tabIconGlyph: {
-    fontSize: 14,
+    fontSize: 20,
     color: colors.textSecondary
   },
   tabIconGlyphActive: {

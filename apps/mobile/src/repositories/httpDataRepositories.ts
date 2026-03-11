@@ -159,7 +159,7 @@ function normalizeFixtureStatus(value: unknown): Fixture["status"] | null {
     return null;
   }
 
-  if (value === "upcoming" || value === "live" || value === "final") {
+  if (value === "upcoming" || value === "live" || value === "final" || value === "postponed") {
     return value;
   }
 
@@ -180,6 +180,9 @@ function normalizeFixtureStatus(value: unknown): Fixture["status"] | null {
   }
   if (["final", "finished", "ft", "ended", "completed"].includes(normalized)) {
     return "final";
+  }
+  if (["postponed", "pst", "susp", "canc", "abd", "suspended", "cancelled"].includes(normalized)) {
+    return "postponed";
   }
 
   return null;
@@ -232,6 +235,7 @@ function fallbackFixtureIdFromCardRow(input: { home: string; away: string; kicko
 function statusFromCardTone(tone: unknown): Fixture["status"] {
   if (tone === "final") return "final";
   if (tone === "live") return "live";
+  if (tone === "postponed") return "postponed";
   return "upcoming";
 }
 
@@ -324,6 +328,8 @@ function normalizeFixtureMatch(match: FixtureApiMatch): Fixture {
   }
   const score = normalizeFixtureScore(match.score);
 
+  const newKickoffAt = typeof match.newKickoffAt === "string" && match.newKickoffAt.trim().length > 0 ? match.newKickoffAt : undefined;
+
   return {
     id: match.id,
     homeTeam: homeName,
@@ -332,7 +338,8 @@ function normalizeFixtureMatch(match: FixtureApiMatch): Fixture {
     awayLogoUrl: typeof awayTeam.logoUrl === "string" && awayTeam.logoUrl.trim().length > 0 ? awayTeam.logoUrl : undefined,
     kickoffAt,
     status: match.status,
-    score: match.status === "upcoming" ? null : score
+    score: match.status === "upcoming" || match.status === "postponed" ? null : score,
+    newKickoffAt
   };
 }
 

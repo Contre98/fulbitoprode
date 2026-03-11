@@ -1,11 +1,23 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, spacing } from "@fulbito/design-tokens";
 import { usePeriod } from "@/state/PeriodContext";
 
-export function FechaSelector() {
-  const { fecha, options, setFecha } = usePeriod();
-  const safeOptions = options.length > 0 ? options : [{ id: fecha, label: fecha }];
-  const currentIndex = safeOptions.findIndex((option) => option.id === fecha);
+interface FechaSelectorProps {
+  labelOverride?: string;
+  value?: string;
+  options?: Array<{ id: string; label: string }>;
+  onChange?: (nextFecha: string) => void;
+}
+
+export function FechaSelector({ labelOverride, value, options, onChange }: FechaSelectorProps) {
+  const { fecha, options: periodOptions, setFecha } = usePeriod();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const selectedValue = value ?? fecha;
+  const setSelectedValue = onChange ?? setFecha;
+  const sourceOptions = options ?? periodOptions;
+  const safeOptions = sourceOptions.length > 0 ? sourceOptions : [{ id: selectedValue, label: selectedValue }];
+  const currentIndex = safeOptions.findIndex((option) => option.id === selectedValue);
   const resolvedIndex = currentIndex >= 0 ? currentIndex : 0;
   const current = safeOptions[resolvedIndex];
 
@@ -14,7 +26,7 @@ export function FechaSelector() {
       return;
     }
     const prevIndex = (resolvedIndex - 1 + safeOptions.length) % safeOptions.length;
-    setFecha(safeOptions[prevIndex].id);
+    setSelectedValue(safeOptions[prevIndex].id);
   }
 
   function selectNext() {
@@ -22,83 +34,181 @@ export function FechaSelector() {
       return;
     }
     const nextIndex = (resolvedIndex + 1) % safeOptions.length;
-    setFecha(safeOptions[nextIndex].id);
+    setSelectedValue(safeOptions[nextIndex].id);
   }
 
+  function selectById(nextId: string) {
+    setSelectedValue(nextId);
+    setMenuOpen(false);
+  }
+
+  const displayLabel = (labelOverride ?? current.label).toUpperCase();
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.label}>Fecha</Text>
-      <View style={styles.cycler}>
+    <>
+      <View style={styles.fechaBlock}>
         <Pressable
           testID="fecha-prev"
           onPress={selectPrevious}
-          style={({ pressed }) => [styles.navButton, pressed ? styles.optionPressed : null]}
+          hitSlop={8}
+          style={styles.fechaNavButton}
           accessibilityLabel="Fecha anterior"
         >
-          <Text style={styles.navLabel}>‹</Text>
+          <Text allowFontScaling={false} style={styles.fechaNavLabel}>‹</Text>
         </Pressable>
-        <View style={styles.currentBadge}>
-          <Text style={styles.currentText}>{current.label}</Text>
-        </View>
+        <Pressable
+          testID="fecha-dropdown-trigger"
+          accessibilityRole="button"
+          accessibilityLabel="Seleccionar fecha"
+          onPress={() => setMenuOpen(true)}
+          style={styles.fechaCenterTrigger}
+        >
+          <Text allowFontScaling={false} numberOfLines={1} style={styles.fechaTitle}>{displayLabel}</Text>
+          <Text allowFontScaling={false} style={styles.fechaChevron}>⌄</Text>
+        </Pressable>
         <Pressable
           testID="fecha-next"
           onPress={selectNext}
-          style={({ pressed }) => [styles.navButton, pressed ? styles.optionPressed : null]}
+          hitSlop={8}
+          style={styles.fechaNavButton}
           accessibilityLabel="Fecha siguiente"
         >
-          <Text style={styles.navLabel}>›</Text>
+          <Text allowFontScaling={false} style={styles.fechaNavLabel}>›</Text>
         </Pressable>
       </View>
-    </View>
+
+      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+        <View style={styles.modalRoot}>
+          <Pressable style={styles.modalBackdrop} onPress={() => setMenuOpen(false)} />
+          <View style={styles.menuCard}>
+            <ScrollView style={styles.menuScroll} contentContainerStyle={styles.menuContent}>
+              {safeOptions.map((option, index) => {
+                const active = option.id === current.id;
+                return (
+                  <Pressable
+                    key={option.id}
+                    testID={`fecha-option-${index}`}
+                    accessibilityRole="button"
+                    onPress={() => selectById(option.id)}
+                    style={[styles.menuRow, active ? styles.menuRowActive : null]}
+                  >
+                    <Text allowFontScaling={false} numberOfLines={1} style={[styles.menuLabel, active ? styles.menuLabelActive : null]}>
+                      {option.label}
+                    </Text>
+                    {active ? <Text allowFontScaling={false} style={styles.menuCheck}>✓</Text> : null}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    gap: spacing.xs
-  },
-  label: {
-    color: colors.textSecondary,
-    fontSize: 12
-  },
-  cycler: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+  fechaBlock: {
+    minHeight: 44,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.surfaceMuted,
-    backgroundColor: colors.surface,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: spacing.xs
-  },
-  navButton: {
-    height: 32,
-    width: 32,
-    borderRadius: 999,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceSoft,
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: colors.surfaceMuted,
-    backgroundColor: colors.background
+    paddingHorizontal: 8
   },
-  navLabel: {
-    color: colors.textPrimary,
-    fontSize: 20,
-    fontWeight: "700",
-    lineHeight: 22
-  },
-  optionPressed: {
-    opacity: 0.8
-  },
-  currentBadge: {
-    flex: 1,
+  fechaNavButton: {
+    height: 28,
+    width: 28,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center"
   },
-  currentText: {
+  fechaCenterTrigger: {
+    flex: 1,
+    minHeight: 36,
+    marginHorizontal: spacing.xs,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.xs
+  },
+  fechaNavLabel: {
+    color: colors.textSoft,
+    fontSize: 18,
+    lineHeight: 18,
+    fontWeight: "700",
+    textAlign: "center",
+    includeFontPadding: false,
+    textAlignVertical: "center"
+  },
+  fechaTitle: {
+    maxWidth: "85%",
+    textAlign: "center",
+    color: colors.primaryStrong,
+    fontSize: 14,
+    fontWeight: "900",
+    letterSpacing: 0.8,
+    textTransform: "uppercase"
+  },
+  fechaChevron: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "900"
+  },
+  modalRoot: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: spacing.md
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.overlaySubtle
+  },
+  menuCard: {
+    width: "100%",
+    maxWidth: 320,
+    maxHeight: "60%",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
+    overflow: "hidden"
+  },
+  menuScroll: {
+    width: "100%"
+  },
+  menuContent: {
+    padding: spacing.xs
+  },
+  menuRow: {
+    minHeight: 44,
+    borderRadius: 10,
+    paddingHorizontal: spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between"
+  },
+  menuRowActive: {
+    backgroundColor: colors.primaryAlpha16
+  },
+  menuLabel: {
+    flex: 1,
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: "700"
+  },
+  menuLabelActive: {
     color: colors.primary,
-    fontWeight: "600",
-    fontSize: 14
+    fontWeight: "900"
+  },
+  menuCheck: {
+    marginLeft: spacing.sm,
+    color: colors.primary,
+    fontSize: 13,
+    fontWeight: "900"
   }
 });

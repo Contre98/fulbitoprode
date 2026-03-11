@@ -123,6 +123,7 @@ export interface FixtureApiMatch {
   id: string;
   status: Fixture["status"];
   kickoffAt?: string;
+  newKickoffAt?: string;
   homeTeam: FixtureApiTeamRef;
   awayTeam: FixtureApiTeamRef;
   score?: MatchScoreValue;
@@ -135,7 +136,7 @@ export interface FixtureApiCardRow {
   awayLogoUrl?: string;
   score?: MatchScoreValue;
   scoreLabel: string;
-  tone: "final" | "live" | "upcoming" | "warning";
+  tone: "final" | "live" | "upcoming" | "warning" | "postponed";
   kickoffAt?: string;
   venue?: string;
   statusDetail?: string;

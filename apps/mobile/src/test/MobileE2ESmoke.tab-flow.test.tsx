@@ -183,17 +183,17 @@ describe("Mobile E2E smoke tab-flow", () => {
     fireEvent.press(screen.getAllByText("Posiciones")[0]);
 
     await waitFor(() => {
-      expect(screen.getByText("POSICIONES")).toBeTruthy();
-      expect(screen.getByText("STATS")).toBeTruthy();
+      expect(screen.getAllByText("Posiciones").length).toBeGreaterThan(0);
+      expect(screen.getByText("Stats")).toBeTruthy();
     });
 
-    fireEvent.press(screen.getByText("STATS"));
+    fireEvent.press(screen.getByText("Stats"));
 
     await waitFor(() => {
       expect(screen.getAllByText("PREMIOS Y CASTIGOS").length).toBeGreaterThan(0);
     });
 
-    fireEvent.press(screen.getByText("POSICIONES"));
+    fireEvent.press(screen.getAllByText("Posiciones")[0]);
 
     await waitFor(() => {
       expect(screen.getByText("PRED")).toBeTruthy();

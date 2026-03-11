@@ -3,25 +3,28 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { compareFixturesByStatusAndKickoff, groupFixturesByDate } from "@fulbito/domain";
+import { colors } from "@fulbito/design-tokens";
 import type { Fixture } from "@fulbito/domain";
 import { fixtureRepository } from "@/repositories";
 import { useGroupSelection } from "@/state/GroupContext";
 import { usePeriod } from "@/state/PeriodContext";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { HeaderGroupSelector } from "@/components/HeaderGroupSelector";
+import { HeaderActionIcons } from "@/components/HeaderActionIcons";
+import { FechaSelector } from "@/components/FechaSelector";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
-import { BrandBadgeIcon } from "@/components/BrandBadgeIcon";
 import { TeamCrest } from "@/components/TeamCrest";
 
-type FixtureFilter = "all" | "live" | "final" | "upcoming";
+type FixtureFilter = "all" | "live" | "final" | "upcoming" | "postponed";
 
 const filterLabels: Record<FixtureFilter, string> = {
   all: "Todos",
   live: "En vivo",
   final: "Finalizados",
-  upcoming: "Próximos"
+  upcoming: "Próximos",
+  postponed: "Postergados"
 };
 
 function stageLabel(value: string | undefined) {
@@ -56,6 +59,7 @@ function toTeamCode(name: string) {
 function statusLabel(status: Fixture["status"]) {
   if (status === "live") return "EN VIVO";
   if (status === "final") return "FINAL";
+  if (status === "postponed") return "POSTERGADO";
   return "PRÓXIMO";
 }
 
@@ -71,9 +75,8 @@ export function FixtureScreen() {
     [groupId, memberships]
   );
   const safeOptions = options.length > 0 ? options : [{ id: fecha, label: fecha }];
-  const periodIndex = Math.max(0, safeOptions.findIndex((option) => option.id === fecha));
-  const currentPeriod = safeOptions[periodIndex] ?? safeOptions[0];
-
+  const currentOptionIndex = safeOptions.findIndex((option) => option.id === fecha);
+  const resolvedOptionIndex = currentOptionIndex >= 0 ? currentOptionIndex : 0;
   const fixtureQuery = useQuery({
     queryKey: ["fixture", groupId, fecha],
     queryFn: () =>
@@ -98,18 +101,20 @@ export function FixtureScreen() {
       .filter((group) => group.fixtures.length > 0);
   }, [filter, grouped]);
 
-  function goPrevFecha() {
-    const next = safeOptions[(periodIndex - 1 + safeOptions.length) % safeOptions.length];
-    if (next) {
-      setFecha(next.id);
+  function swipeToPreviousFecha() {
+    if (safeOptions.length === 0) {
+      return;
     }
+    const previousIndex = (resolvedOptionIndex - 1 + safeOptions.length) % safeOptions.length;
+    setFecha(safeOptions[previousIndex].id);
   }
 
-  function goNextFecha() {
-    const next = safeOptions[(periodIndex + 1) % safeOptions.length];
-    if (next) {
-      setFecha(next.id);
+  function swipeToNextFecha() {
+    if (safeOptions.length === 0) {
+      return;
     }
+    const nextIndex = (resolvedOptionIndex + 1) % safeOptions.length;
+    setFecha(safeOptions[nextIndex].id);
   }
 
   return (
@@ -119,44 +124,18 @@ export function FixtureScreen() {
       hideDataModeBadge
       containerStyle={styles.screenContainer}
       contentStyle={styles.screenContent}
+      onSwipeLeft={swipeToNextFecha}
+      onSwipeRight={swipeToPreviousFecha}
       header={
         <View style={[styles.headerCard, { paddingTop: Math.max(insets.top, 10) + 2 }]}>
-          <View style={styles.brandRow}>
-            <View style={styles.brandBadge}>
-              <BrandBadgeIcon size={16} />
-            </View>
-            <Text allowFontScaling={false} numberOfLines={1} style={styles.brandTitle}>
-              <Text style={styles.brandTitleDark}>FULBITO</Text>
-              <Text style={styles.brandTitleAccent}>PRODE</Text>
-            </Text>
-            <View style={styles.profileDot}>
-              <Text allowFontScaling={false} style={styles.profileDotText}>FC</Text>
-            </View>
-          </View>
-          <View style={styles.titleRow}>
-            <View style={styles.sectionIcon}>
-              <Text allowFontScaling={false} style={styles.sectionIconText}>▦</Text>
-            </View>
-            <Text allowFontScaling={false} style={styles.sectionTitle}>Fixture</Text>
+          <View style={styles.headerRow}>
             <HeaderGroupSelector memberships={memberships} selectedGroupId={selectedGroupId} onSelectGroup={(nextGroupId) => void setSelectedGroupId(nextGroupId)} />
+            <HeaderActionIcons />
           </View>
         </View>
       }
     >
-      <View style={styles.block}>
-        <View style={styles.fechaRow}>
-          <Pressable onPress={goPrevFecha} style={styles.fechaNavButton}>
-            <Text allowFontScaling={false} style={styles.fechaNavLabel}>‹</Text>
-          </Pressable>
-          <View style={styles.fechaCenter}>
-            <Text allowFontScaling={false} style={styles.fechaTitle}>{currentPeriod.label}</Text>
-            <Text allowFontScaling={false} style={styles.fechaStatus}>Actualizado hace instantes</Text>
-          </View>
-          <Pressable onPress={goNextFecha} style={styles.fechaNavButton}>
-            <Text allowFontScaling={false} style={styles.fechaNavLabel}>›</Text>
-          </Pressable>
-        </View>
-      </View>
+      <FechaSelector />
 
       <View style={styles.filterTabs}>
         {(Object.keys(filterLabels) as FixtureFilter[]).map((key) => {
@@ -171,7 +150,7 @@ export function FixtureScreen() {
         })}
       </View>
 
-      {fixtureQuery.isLoading ? <LoadingState message="Cargando fixture..." /> : null}
+      {fixtureQuery.isLoading ? <LoadingState message="Cargando fixture..." variant="fixtures" /> : null}
       {fixtureQuery.isError ? (
         <ErrorState
           message="No se pudo cargar el fixture."
@@ -200,7 +179,7 @@ export function FixtureScreen() {
                 <View style={styles.middleCol}>
                   <Text allowFontScaling={false} style={styles.statusLabel}>{statusLabel(fixture.status)}</Text>
                   <Text allowFontScaling={false} style={fixture.status === "final" ? styles.finalScoreText : styles.scoreText}>
-                    {score ?? (fixture.status === "final" ? "--" : "vs")}
+                    {score ?? (fixture.status === "live" ? "0-0" : fixture.status === "final" ? "--" : fixture.status === "postponed" ? "POST." : "vs")}
                   </Text>
                 </View>
 
@@ -222,7 +201,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: 0,
     paddingBottom: 0,
-    backgroundColor: "#DDE2E8"
+    backgroundColor: colors.canvas
   },
   screenContent: {
     gap: 14
@@ -230,57 +209,17 @@ const styles = StyleSheet.create({
   headerCard: {
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.surfaceSoft,
     paddingHorizontal: 16,
     paddingBottom: 14,
     borderWidth: 1,
-    borderColor: "#D7DCE3",
+    borderColor: colors.borderSubtle,
     marginHorizontal: -12
   },
-  brandRow: {
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8
-  },
-  brandBadge: {
-    height: 28,
-    width: 28,
-    borderRadius: 10,
-    backgroundColor: "#EFF4E6",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  brandTitle: {
-    flex: 1,
-    fontSize: 14,
-    fontWeight: "900",
-    letterSpacing: -0.2,
-    marginRight: 6
-  },
-  brandTitleDark: {
-    color: "#0F172A"
-  },
-  brandTitleAccent: {
-    color: "#A3C90A"
-  },
-  profileDot: {
-    height: 32,
-    width: 32,
-    borderRadius: 999,
-    backgroundColor: "#E8EDCD",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  profileDotText: {
-    color: "#374151",
-    fontWeight: "800",
-    fontSize: 12,
-    letterSpacing: 0.2
-  },
-  titleRow: {
-    marginTop: 12,
-    flexDirection: "row",
-    alignItems: "center",
+    justifyContent: "space-between",
     gap: 8
   },
   sectionIcon: {
@@ -289,103 +228,64 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#B7D70A"
+    backgroundColor: colors.primaryStrong
   },
   sectionIconText: {
     fontSize: 13,
     fontWeight: "900",
-    color: "#1F2937"
+    color: colors.textStrong
   },
   sectionTitle: {
-    color: "#0F172A",
-    fontSize: 22,
+    color: colors.textTitle,
+    fontSize: 24,
     fontWeight: "800"
   },
   sectionSubtitle: {
     marginLeft: "auto",
-    color: "#7A8698",
-    fontSize: 11,
+    color: colors.textMutedAlt,
+    fontSize: 12,
     fontWeight: "700"
   },
   block: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.surfaceSoft,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#D7DCE3",
+    borderColor: colors.borderSubtle,
     padding: 10
   },
   blockLabel: {
     fontSize: 11,
     fontWeight: "800",
-    color: "#8A94A4",
+    color: colors.textMuted,
     letterSpacing: 0.8
   },
   selectionButton: {
     marginTop: 8,
     minHeight: 44,
     borderRadius: 10,
-    backgroundColor: "#EDF1F5",
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
-    borderColor: "#DDE3EA",
+    borderColor: colors.borderMuted,
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center"
   },
   selectionText: {
     flex: 1,
-    color: "#0F172A",
+    color: colors.textTitle,
     fontWeight: "800",
-    fontSize: 10
-  },
-  selectionChevron: {
-    color: "#98A2B3",
     fontSize: 14
   },
-  fechaRow: {
-    minHeight: 56,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#DDE3EA",
-    backgroundColor: "#F8FAFC",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 8
-  },
-  fechaNavButton: {
-    height: 34,
-    width: 34,
-    borderRadius: 10,
-    backgroundColor: "#EDF1F5",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  fechaNavLabel: {
-    color: "#98A2B3",
-    fontSize: 22,
-    fontWeight: "700",
-    lineHeight: 24
-  },
-  fechaCenter: {
-    flex: 1,
-    alignItems: "center"
-  },
-  fechaTitle: {
-    color: "#A3C90A",
-    fontSize: 22,
-    fontWeight: "900"
-  },
-  fechaStatus: {
-    marginTop: 2,
-    color: "#8A94A4",
-    fontSize: 11,
-    fontWeight: "700"
+  selectionChevron: {
+    color: colors.textSoft,
+    fontSize: 14
   },
   filterTabs: {
     flexDirection: "row",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "#D7DCE3",
-    backgroundColor: "#F8FAFC",
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceSoft,
     padding: 3,
     gap: 2
   },
@@ -394,30 +294,30 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 34
+    minHeight: 44
   },
   filterTabActive: {
-    backgroundColor: "#B7D70A"
+    backgroundColor: colors.primaryStrong
   },
   filterTabLabel: {
-    color: "#7A8698",
-    fontSize: 11,
+    color: colors.textMutedAlt,
+    fontSize: 14,
     fontWeight: "800"
   },
   filterTabLabelActive: {
-    color: "#111827"
+    color: colors.textHigh
   },
   groupCard: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: colors.surfaceSoft,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#D7DCE3",
+    borderColor: colors.borderSubtle,
     overflow: "hidden"
   },
   dateLabel: {
-    color: "#111827",
+    color: colors.textHigh,
     fontWeight: "900",
-    fontSize: 13,
+    fontSize: 15,
     paddingHorizontal: 12,
     paddingVertical: 11
   },
@@ -431,7 +331,7 @@ const styles = StyleSheet.create({
   },
   rowWithBorder: {
     borderTopWidth: 1,
-    borderTopColor: "#E1E6ED"
+    borderTopColor: colors.borderLight
   },
   teamSide: {
     flex: 1,
@@ -443,15 +343,15 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end"
   },
   teamName: {
-    color: "#1F2937",
+    color: colors.textStrong,
     fontWeight: "800",
-    fontSize: 11,
+    fontSize: 14,
     flex: 1
   },
   teamNameRight: {
-    color: "#1F2937",
+    color: colors.textStrong,
     fontWeight: "800",
-    fontSize: 11,
+    fontSize: 14,
     textAlign: "right",
     flex: 1
   },
@@ -460,20 +360,20 @@ const styles = StyleSheet.create({
     alignItems: "center"
   },
   statusLabel: {
-    color: "#8A94A4",
-    fontSize: 10,
+    color: colors.textMuted,
+    fontSize: 11,
     fontWeight: "800"
   },
   scoreText: {
     marginTop: 1,
-    color: "#111827",
+    color: colors.textHigh,
     fontWeight: "900",
     fontSize: 20,
     letterSpacing: -0.4
   },
   finalScoreText: {
     marginTop: 1,
-    color: "#111827",
+    color: colors.textHigh,
     fontWeight: "900",
     fontSize: 26,
     lineHeight: 28,

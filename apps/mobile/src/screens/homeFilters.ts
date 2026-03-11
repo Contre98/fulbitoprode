@@ -7,6 +7,7 @@ export function filterHomeFixtures(fixtures: Fixture[], filter: HomeFixtureFilte
   const ordered = [...fixtures].sort(compareFixturesByStatusAndKickoff);
   const nowMs = Date.now();
   const isOpenUpcoming = (fixture: Fixture) => {
+    if (fixture.status === "postponed") return true;
     if (fixture.status !== "upcoming") return false;
     const kickoffMs = new Date(fixture.kickoffAt).getTime();
     return Number.isFinite(kickoffMs) && kickoffMs > nowMs;

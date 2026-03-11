@@ -47,8 +47,9 @@ export interface Fixture {
   homeLogoUrl?: string;
   awayLogoUrl?: string;
   kickoffAt: string;
-  status: "upcoming" | "live" | "final";
+  status: "upcoming" | "live" | "final" | "postponed";
   score?: MatchScoreValue | null;
+  newKickoffAt?: string | null;
 }
 
 export interface PredictionHistoryEntry {
@@ -245,7 +246,8 @@ export const SCORE_RULES = {
 export const FIXTURE_STATUS_ORDER: Record<Fixture["status"], number> = {
   live: 0,
   upcoming: 1,
-  final: 2
+  final: 2,
+  postponed: 3
 };
 
 function normalizeGoalValue(raw: string): number | null {
