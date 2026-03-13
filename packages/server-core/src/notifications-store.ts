@@ -114,7 +114,7 @@ export async function listNotifications(userId: string): Promise<NotificationIte
         type: row.event_type as NotificationEventType,
         title: row.title,
         body: row.body,
-        createdAt: row.created,
+        createdAt: row.created || new Date().toISOString(),
         read: row.read
       }));
     } catch (error) {
@@ -151,7 +151,7 @@ export async function addNotification(
         type: row.event_type as NotificationEventType,
         title: row.title,
         body: row.body,
-        createdAt: row.created,
+        createdAt: row.created || new Date().toISOString(),
         read: row.read
       };
     } catch (error) {
