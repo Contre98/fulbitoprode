@@ -23,6 +23,7 @@ import { GroupProvider } from "@/state/GroupContext";
 import { PendingInviteProvider } from "@/state/PendingInviteContext";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { GroupSelectorOverlayProvider, useGroupSelectorOverlay } from "@/state/GroupSelectorOverlayContext";
+import { useRegisterPushToken } from "@/lib/pushNotifications";
 
 const RootStack = createNativeStackNavigator();
 const Tabs = createBottomTabNavigator();
@@ -62,6 +63,7 @@ function TabIcon({ routeName, focused }: { routeName: string; focused: boolean }
 
 function AppTabs() {
   const overlay = useGroupSelectorOverlay();
+  useRegisterPushToken();
   return (
     <Tabs.Navigator
       screenListeners={{

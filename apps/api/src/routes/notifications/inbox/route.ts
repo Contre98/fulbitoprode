@@ -3,7 +3,6 @@ import { getApiSession, unauthorizedJson } from "@fulbito/server-core/api-sessio
 import {
   listNotifications,
   markAllNotificationsRead,
-  seedNotificationIfEmpty,
   unreadNotificationCount
 } from "@fulbito/server-core/notifications-store";
 
@@ -13,7 +12,6 @@ export async function GET(request: Request) {
     return unauthorizedJson();
   }
 
-  await seedNotificationIfEmpty(session.userId);
   const items = await listNotifications(session.userId);
   const unreadCount = await unreadNotificationCount(session.userId);
   const weeklyWinnerItem = items.find((item) => item.type === "weekly_winner");

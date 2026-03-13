@@ -245,13 +245,3 @@ export async function registerDeviceToken(
 // Seed (convenience for dev/demo)
 // ---------------------------------------------------------------------------
 
-export async function seedNotificationIfEmpty(userId: string): Promise<void> {
-  const items = await listNotifications(userId);
-  if (items.length > 0) return;
-
-  await addNotification(userId, {
-    type: "weekly_winner",
-    title: "Ganador semanal disponible",
-    body: "Ya podés ver quién ganó la última fecha en tu grupo."
-  });
-}
