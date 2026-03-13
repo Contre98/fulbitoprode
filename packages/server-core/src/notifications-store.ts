@@ -32,27 +32,20 @@ function nextId() {
 // Persistence mode detection (cached after first check)
 // ---------------------------------------------------------------------------
 
-let persistenceMode: "pocketbase" | "memory" | null = null;
 let warnedFallback = false;
 
 async function resolvePersistenceMode(): Promise<"pocketbase" | "memory"> {
-  if (persistenceMode) return persistenceMode;
-
   const envMode = process.env.FULBITO_NOTIFICATIONS_MODE?.trim().toLowerCase();
-  if (envMode === "memory") {
-    persistenceMode = "memory";
-    return "memory";
-  }
+  if (envMode === "memory") return "memory";
 
   const available = await isNotificationsPersistenceAvailable();
-  persistenceMode = available ? "pocketbase" : "memory";
 
   if (!available && !warnedFallback) {
     warnedFallback = true;
     console.warn("[notifications-store] PocketBase notification collections not available, using in-memory fallback");
   }
 
-  return persistenceMode;
+  return available ? "pocketbase" : "memory";
 }
 
 function warnPbFallback(action: string, error: unknown) {

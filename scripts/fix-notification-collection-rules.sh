@@ -46,3 +46,4 @@ patch_rules "notification_deliveries"
 
 echo ""
 echo "Done! Restart your API server and test again."
+
