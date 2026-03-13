@@ -14,6 +14,17 @@ const updateProfilePayloadSchema = z.object({
   email: z.string().nullable().optional(),
   favoriteTeam: z.string().nullable().optional()
 });
+const LPF_APERTURA_2026_LABEL = "LPF: Apertura (2026)";
+
+function membershipLeagueName(input: { competitionStage?: "apertura" | "clausura" | "general"; competitionName?: string; leagueId: number }) {
+  if (input.competitionStage === "apertura") {
+    return LPF_APERTURA_2026_LABEL;
+  }
+  if (input.competitionName) {
+    return input.competitionName;
+  }
+  return `Liga ${input.leagueId}`;
+}
 
 export async function GET(request: Request) {
   const userId = getSessionUserIdFromRequest(request);
@@ -48,9 +59,7 @@ export async function GET(request: Request) {
     joinedAt: membership.joinedAt,
     leagueId: group.leagueId,
     season: group.season,
-    leagueName:
-      leagueMap.get(group.competitionKey) ||
-      (group.competitionName ? `Liga Profesional ${group.competitionName}` : `Liga ${group.leagueId}`),
+    leagueName: leagueMap.get(group.competitionKey) || membershipLeagueName(group),
     competitionKey: group.competitionKey,
     competitionName: group.competitionName,
     competitionStage: group.competitionStage

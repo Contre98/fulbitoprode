@@ -1,0 +1,223 @@
+{
+  "version": "2.8",
+  "children": [
+    {
+      "type": "frame",
+      "id": "bi8Au",
+      "x": 0,
+      "y": 0,
+      "name": "Frame",
+      "clip": true,
+      "width": 400,
+      "fill": "#EEF2F7",
+      "layout": "vertical",
+      "padding": 20,
+      "children": [
+        {
+          "type": "frame",
+          "id": "FUd46",
+          "name": "card",
+          "width": "fill_container",
+          "fill": "#FFFFFF",
+          "cornerRadius": 16,
+          "effect": {
+            "type": "shadow",
+            "shadowType": "outer",
+            "color": "#00000014",
+            "offset": {
+              "x": 0,
+              "y": 4
+            },
+            "blur": 16
+          },
+          "layout": "vertical",
+          "gap": 14,
+          "padding": [
+            20,
+            20,
+            16,
+            20
+          ],
+          "children": [
+            {
+              "type": "text",
+              "id": "OWdtS",
+              "name": "header",
+              "fill": "#6B7280",
+              "content": "NOMBRE DE LA LIGA",
+              "fontFamily": "Inter",
+              "fontSize": 11,
+              "fontWeight": "600",
+              "letterSpacing": 1.2
+            },
+            {
+              "type": "frame",
+              "id": "t61uc",
+              "name": "statsRow",
+              "width": "fill_container",
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "90xvo",
+                  "name": "leftCol",
+                  "layout": "vertical",
+                  "gap": 4,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "EeCzE",
+                      "name": "labelPos",
+                      "fill": "#6B7280",
+                      "content": "Tu Posición",
+                      "fontFamily": "Inter",
+                      "fontSize": 12
+                    },
+                    {
+                      "type": "frame",
+                      "id": "o6pnF",
+                      "name": "posRow",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "7jvrZ",
+                          "name": "posNum",
+                          "fill": "#111827",
+                          "content": "#3",
+                          "lineHeight": 0.95,
+                          "fontFamily": "Inter",
+                          "fontSize": 40,
+                          "fontWeight": "800"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "7LIXp",
+                          "name": "badge",
+                          "fill": "#DCFCE7",
+                          "cornerRadius": 6,
+                          "gap": 2,
+                          "padding": [
+                            3,
+                            6
+                          ],
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon_font",
+                              "id": "L9h1K",
+                              "name": "arrow",
+                              "width": 12,
+                              "height": 12,
+                              "iconFontName": "trending-up",
+                              "iconFontFamily": "lucide",
+                              "fill": "#16A34A"
+                            },
+                            {
+                              "type": "text",
+                              "id": "DnhDx",
+                              "name": "badgeText",
+                              "fill": "#16A34A",
+                              "content": "+2",
+                              "fontFamily": "Inter",
+                              "fontSize": 12,
+                              "fontWeight": "600"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "sM6uu",
+                  "name": "rightCol",
+                  "layout": "vertical",
+                  "gap": 4,
+                  "alignItems": "end",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "faTFH",
+                      "name": "labelPts",
+                      "fill": "#6B7280",
+                      "content": "Puntos",
+                      "fontFamily": "Inter",
+                      "fontSize": 12
+                    },
+                    {
+                      "type": "text",
+                      "id": "BjWyP",
+                      "name": "ptsNum",
+                      "fill": "#111827",
+                      "content": "124",
+                      "lineHeight": 0.95,
+                      "fontFamily": "Inter",
+                      "fontSize": 40,
+                      "fontWeight": "800"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "rectangle",
+              "id": "s4Dep",
+              "name": "divider",
+              "fill": "#E5E7EB",
+              "width": "fill_container",
+              "height": 1
+            },
+            {
+              "type": "frame",
+              "id": "Q3jNU",
+              "name": "badgesRow",
+              "width": "fill_container",
+              "gap": 8,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "6nJYm",
+                  "name": "flameBadge",
+                  "fill": "#F3F4F6",
+                  "cornerRadius": 20,
+                  "gap": 6,
+                  "padding": [
+                    8,
+                    12
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "xnQNT",
+                      "name": "flameIcon",
+                      "width": 14,
+                      "height": 14,
+                      "iconFontName": "flame",
+                      "iconFontFamily": "lucide",
+                      "fill": "#FB923C"
+                    },
+                    {
+                      "type": "text",
+                      "id": "JRFKO",
+                      "name": "flameText",
+                      "fill": "#374151",
+                      "content": "Racha: 3 aciertos",
+                      "fontFamily": "Inter",
+                      "fontSize": 12,
+                      "fontWeight": "500"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

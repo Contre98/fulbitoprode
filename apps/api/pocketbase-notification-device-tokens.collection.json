@@ -1,0 +1,23 @@
+{
+  "name": "notification_device_tokens",
+  "type": "base",
+  "fields": [
+    { "name": "user_id", "type": "text", "required": true, "min": 1, "max": 100 },
+    { "name": "token", "type": "text", "required": true, "min": 1, "max": 500 },
+    { "name": "platform", "type": "text", "required": true, "min": 1, "max": 20 },
+    { "name": "provider", "type": "text", "required": true, "min": 1, "max": 20 },
+    { "name": "app_version", "type": "text", "required": false, "max": 50 },
+    { "name": "registered_at", "type": "date", "required": true },
+    { "name": "last_seen_at", "type": "date", "required": true },
+    { "name": "invalidated_at", "type": "date", "required": false }
+  ],
+  "indexes": [
+    "CREATE INDEX idx_ndt_user_id ON notification_device_tokens (user_id)",
+    "CREATE UNIQUE INDEX idx_ndt_user_token ON notification_device_tokens (user_id, token)"
+  ],
+  "listRule": null,
+  "viewRule": null,
+  "createRule": null,
+  "updateRule": null,
+  "deleteRule": null
+}

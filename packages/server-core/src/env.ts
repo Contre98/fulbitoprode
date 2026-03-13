@@ -39,6 +39,10 @@ export function getHealthcheckToken() {
   return readFirstNonEmpty([process.env.HEALTHCHECK_TOKEN]) || null;
 }
 
+export function getNotificationsAdminToken() {
+  return readFirstNonEmpty([process.env.NOTIFICATIONS_ADMIN_TOKEN]) || null;
+}
+
 export function getFootballProviderCoreConfig() {
   const baseUrl = readFirstNonEmpty([process.env.API_FOOTBALL_BASE_URL, process.env.FOOTBALL_API_BASE_URL]);
   const apiKey = readFirstNonEmpty([process.env.API_FOOTBALL_KEY, process.env.FOOTBALL_API_KEY]);

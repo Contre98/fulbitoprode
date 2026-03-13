@@ -1,0 +1,23 @@
+{
+  "name": "notification_inbox",
+  "type": "base",
+  "fields": [
+    { "name": "user_id", "type": "text", "required": true, "min": 1, "max": 100 },
+    { "name": "event_type", "type": "text", "required": true, "min": 1, "max": 50 },
+    { "name": "title", "type": "text", "required": true, "min": 1, "max": 500 },
+    { "name": "body", "type": "text", "required": true, "max": 2000 },
+    { "name": "read", "type": "bool", "required": false },
+    { "name": "idempotency_key", "type": "text", "required": false, "max": 300 },
+    { "name": "data_json", "type": "text", "required": false, "max": 5000 }
+  ],
+  "indexes": [
+    "CREATE INDEX idx_ni_user_id ON notification_inbox (user_id)",
+    "CREATE INDEX idx_ni_user_read ON notification_inbox (user_id, read)",
+    "CREATE INDEX idx_ni_idempotency ON notification_inbox (user_id, idempotency_key)"
+  ],
+  "listRule": null,
+  "viewRule": null,
+  "createRule": null,
+  "updateRule": null,
+  "deleteRule": null
+}

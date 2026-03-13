@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, spacing } from "@fulbito/design-tokens";
+import { formatClock24 } from "@/lib/dateTime";
 import { useAuth } from "@/state/AuthContext";
 
 export function DataModeBadge() {
@@ -19,7 +20,7 @@ export function DataModeBadge() {
         <View style={styles.historyList}>
           {recentFailures.map((entry, index) => (
             <Text key={`${entry.happenedAt}-${entry.scope}-${index}`} style={styles.historyItem}>
-              {new Date(entry.happenedAt).toLocaleTimeString()}: {entry.scope}
+              {formatClock24(entry.happenedAt, { withSeconds: true })}: {entry.scope}
             </Text>
           ))}
         </View>

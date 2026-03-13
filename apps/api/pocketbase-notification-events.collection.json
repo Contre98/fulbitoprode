@@ -1,0 +1,25 @@
+{
+  "name": "notification_events",
+  "type": "base",
+  "fields": [
+    { "name": "event_type", "type": "text", "required": true, "min": 1, "max": 50 },
+    { "name": "scope", "type": "text", "required": true, "min": 1, "max": 20 },
+    { "name": "target_ids_json", "type": "text", "required": false, "max": 5000 },
+    { "name": "title", "type": "text", "required": true, "min": 1, "max": 500 },
+    { "name": "body", "type": "text", "required": true, "max": 2000 },
+    { "name": "data_json", "type": "text", "required": false, "max": 5000 },
+    { "name": "idempotency_key", "type": "text", "required": true, "min": 1, "max": 300 },
+    { "name": "status", "type": "text", "required": true, "min": 1, "max": 20 },
+    { "name": "processed_at", "type": "date", "required": false }
+  ],
+  "indexes": [
+    "CREATE UNIQUE INDEX idx_ne_idempotency ON notification_events (idempotency_key)",
+    "CREATE INDEX idx_ne_status ON notification_events (status)",
+    "CREATE INDEX idx_ne_event_type ON notification_events (event_type)"
+  ],
+  "listRule": null,
+  "viewRule": null,
+  "createRule": null,
+  "updateRule": null,
+  "deleteRule": null
+}

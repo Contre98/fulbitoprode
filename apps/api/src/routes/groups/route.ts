@@ -10,7 +10,9 @@ const createGroupPayloadSchema = z.object({
   leagueId: z.number().optional(),
   competitionStage: z.enum(["apertura", "clausura", "general"]).optional(),
   competitionName: z.string().optional(),
-  competitionKey: z.string().optional()
+  competitionKey: z.string().optional(),
+  visibility: z.enum(["open", "closed"]).optional(),
+  startingFecha: z.string().optional()
 });
 
 export async function GET(request: Request) {
@@ -58,7 +60,9 @@ export async function POST(request: Request) {
       leagueId: typeof body.leagueId === "number" ? body.leagueId : undefined,
       competitionStage: body.competitionStage,
       competitionName: body.competitionName?.trim() || undefined,
-      competitionKey: body.competitionKey?.trim() || undefined
+      competitionKey: body.competitionKey?.trim() || undefined,
+      visibility: body.visibility,
+      startingFecha: body.startingFecha?.trim() || undefined
     }, pbToken);
 
     return jsonResponse(

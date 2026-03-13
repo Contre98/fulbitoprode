@@ -18,6 +18,7 @@ import type {
 import type {
   Fixture,
   Group,
+  GroupSearchResult,
   LeaderboardEntry,
   MatchScoreValue,
   Membership,
@@ -598,6 +599,14 @@ export const httpGroupsRepository: GroupsRepository = {
       competitionStage: membership.competitionStage
     }));
   },
+  async searchGroups(input) {
+    const params = new URLSearchParams();
+    if (input.query) params.set("q", input.query);
+    if (typeof input.leagueId === "number") params.set("leagueId", String(input.leagueId));
+    const qs = params.toString();
+    const payload = await requestJson<{ groups: GroupSearchResult[] }>(`/api/groups/search${qs ? `?${qs}` : ""}`);
+    return payload.groups ?? [];
+  },
   async createGroup(input) {
     const payload = await requestJson<GroupMutationResponse>("/api/groups", {
       method: "POST",
@@ -607,7 +616,9 @@ export const httpGroupsRepository: GroupsRepository = {
         leagueId: input.leagueId,
         competitionStage: input.competitionStage,
         competitionName: input.competitionName,
-        competitionKey: input.competitionKey
+        competitionKey: input.competitionKey,
+        visibility: input.visibility,
+        startingFecha: input.startingFecha
       })
     });
     return {

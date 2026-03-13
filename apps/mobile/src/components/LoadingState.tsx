@@ -4,6 +4,7 @@ import { colors, spacing } from "@fulbito/design-tokens";
 
 export type LoadingStateVariant =
   | "default"
+  | "home"
   | "fixtures"
   | "predictions"
   | "leaderboard"
@@ -176,8 +177,52 @@ function DefaultSkeleton() {
   );
 }
 
+function HomeSkeleton() {
+  return (
+    <View style={styles.variantStack}>
+      <View style={styles.card}>
+        <View style={styles.homeHeaderRow}>
+          <SkeletonBlock height={12} width="45%" />
+          <SkeletonBlock height={12} width={80} />
+        </View>
+        <View style={styles.homeRankRow}>
+          <SkeletonBlock height={46} width={46} radius={23} />
+          <View style={styles.homeRankMeta}>
+            <SkeletonBlock height={12} width="60%" />
+            <SkeletonBlock height={10} width="40%" />
+          </View>
+          <SkeletonBlock height={18} width={58} radius={9} />
+        </View>
+      </View>
+      <View style={styles.card}>
+        <SkeletonBlock height={12} width="74%" />
+        <SkeletonBlock height={8} width="100%" radius={999} />
+        <SkeletonBlock height={36} width={132} radius={10} />
+      </View>
+      {[0, 1].map((index) => (
+        <View key={`home-fixture-${index}`} style={styles.card}>
+          <View style={styles.fixtureRow}>
+            <View style={styles.fixtureTeam}>
+              <SkeletonBlock height={24} width={24} radius={12} />
+              <SkeletonBlock height={12} width="65%" />
+            </View>
+            <SkeletonBlock height={20} width={52} radius={8} />
+            <View style={[styles.fixtureTeam, styles.fixtureTeamRight]}>
+              <SkeletonBlock height={12} width="65%" />
+              <SkeletonBlock height={24} width={24} radius={12} />
+            </View>
+          </View>
+          <SkeletonBlock height={10} width={100} radius={8} style={styles.centeredMeta} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
 function variantContent(variant: LoadingStateVariant) {
   switch (variant) {
+    case "home":
+      return <HomeSkeleton />;
     case "fixtures":
       return <FixtureSkeleton />;
     case "predictions":
@@ -325,6 +370,20 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.borderSubtle,
     paddingTop: 8
+  },
+  homeHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
+  homeRankRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10
+  },
+  homeRankMeta: {
+    flex: 1,
+    gap: 6
   },
   preferenceRow: {
     minHeight: 44,

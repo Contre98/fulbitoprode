@@ -7,7 +7,9 @@ import { parseJsonBody, RequestBodyValidationError } from "../../../validation";
 
 const registerDeviceTokenSchema = z.object({
   token: z.string().optional(),
-  platform: z.string().optional()
+  platform: z.string().optional(),
+  provider: z.string().optional(),
+  appVersion: z.string().optional()
 });
 
 export async function POST(request: Request) {
@@ -23,9 +25,11 @@ export async function POST(request: Request) {
     if (!deviceToken) {
       return jsonResponse({ error: "token is required" }, { status: 400 });
     }
-    registerDeviceToken(session.userId, {
+    await registerDeviceToken(session.userId, {
       token: deviceToken,
-      platform
+      platform,
+      provider: body.provider?.trim() || undefined,
+      appVersion: body.appVersion?.trim() || undefined
     });
     logServerEvent("notifications.device-token.registered", {
       userId: session.userId,

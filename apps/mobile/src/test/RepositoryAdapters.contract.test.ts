@@ -262,7 +262,53 @@ describe("Repository adapters contract parity", () => {
                 { period: "Fecha 2", periodLabel: "Fecha 2", rank: 1, points: 9 }
               ]
             }
-          ]
+          ],
+          userSection: {
+            userId: "u-http-1",
+            userName: "Usuario HTTP",
+            precisionPct: 100,
+            exactPct: 75,
+            averagePointsPerRound: 9,
+            trend: {
+              accuracyPctDelta: 0,
+              pointsPerRoundDelta: 0
+            },
+            consistencyStdDev: 0,
+            nearMissRatePct: 0,
+            homeAccuracyPct: 100,
+            awayAccuracyPct: 100
+          },
+          groupSection: {
+            precisionPct: 100,
+            pointsDistribution: {
+              p25: 9,
+              median: 9,
+              p75: 9
+            },
+            parityGapTopVsMedian: 0,
+            difficultyIndexAvgPointsPerRound: 9,
+            consensusHitPct: 100,
+            advantageOpportunityCount: 0,
+            activeParticipationPct: 100,
+            bestRound: {
+              period: "Fecha 1",
+              periodLabel: "Fecha 1",
+              userId: "u-http-1",
+              userName: "Usuario HTTP",
+              points: 9
+            },
+            worstRound: {
+              period: "Fecha 2",
+              periodLabel: "Fecha 2",
+              userId: "u-http-1",
+              userName: "Usuario HTTP",
+              points: 9
+            }
+          },
+          comparatives: {
+            vsMedianAccuracyPct: 0,
+            vsMedianPointsPerRound: 0
+          }
         }
       })
     });
@@ -298,7 +344,24 @@ describe("Repository adapters contract parity", () => {
             worstRound: expect.anything()
           }),
           awards: expect.any(Array),
-          historicalSeries: expect.any(Array)
+          historicalSeries: expect.any(Array),
+          userSection: expect.objectContaining({
+            userId: expect.any(String),
+            trend: expect.objectContaining({
+              accuracyPctDelta: expect.any(Number),
+              pointsPerRoundDelta: expect.any(Number)
+            })
+          }),
+          groupSection: expect.objectContaining({
+            pointsDistribution: expect.objectContaining({
+              median: expect.any(Number)
+            }),
+            activeParticipationPct: expect.any(Number)
+          }),
+          comparatives: expect.objectContaining({
+            vsMedianAccuracyPct: expect.any(Number),
+            vsMedianPointsPerRound: expect.any(Number)
+          })
         })
       })
     );
@@ -323,7 +386,10 @@ describe("Repository adapters contract parity", () => {
         stats: expect.objectContaining({
           summary: expect.any(Object),
           awards: expect.any(Array),
-          historicalSeries: expect.any(Array)
+          historicalSeries: expect.any(Array),
+          userSection: expect.any(Object),
+          groupSection: expect.any(Object),
+          comparatives: expect.any(Object)
         })
       })
     );

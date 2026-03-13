@@ -175,6 +175,22 @@ export const groupsRepository: GroupsRepository = {
       return mockGroupsRepository.listMemberships();
     }
   },
+  async searchGroups(input) {
+    if (!canUseHttpSession()) {
+      if (!isMockFallbackEnabled()) {
+        return [];
+      }
+      return mockGroupsRepository.searchGroups(input);
+    }
+    try {
+      const result = await httpGroupsRepository.searchGroups(input);
+      clearFallbackFailure();
+      return result;
+    } catch (error) {
+      maybeFallback("groups.searchGroups", error);
+      return mockGroupsRepository.searchGroups(input);
+    }
+  },
   async createGroup(input) {
     if (!canUseHttpSession()) {
       if (!isMockFallbackEnabled()) {
