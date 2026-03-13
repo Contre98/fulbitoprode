@@ -1,7 +1,7 @@
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { HomeScreen } from "@/screens/HomeScreen";
-import { fixtureRepository, leaderboardRepository } from "@/repositories";
+import { fixtureRepository, leaderboardRepository, predictionsRepository } from "@/repositories";
 import { useAuth } from "@/state/AuthContext";
 import { useGroupSelection } from "@/state/GroupContext";
 import { usePeriod } from "@/state/PeriodContext";
@@ -10,8 +10,11 @@ jest.mock("@/repositories", () => ({
   fixtureRepository: {
     listFixture: jest.fn()
   },
+  predictionsRepository: {
+    listPredictions: jest.fn()
+  },
   leaderboardRepository: {
-    getLeaderboard: jest.fn()
+    getLeaderboardPayload: jest.fn()
   }
 }));
 
@@ -36,11 +39,13 @@ jest.mock("@/components/HeaderGroupSelector", () => ({
 }));
 
 const mockedFixtureList = fixtureRepository.listFixture as unknown as jest.Mock;
-const mockedLeaderboard = leaderboardRepository.getLeaderboard as unknown as jest.Mock;
+const mockedPredictionsList = predictionsRepository.listPredictions as unknown as jest.Mock;
+const mockedLeaderboard = leaderboardRepository.getLeaderboardPayload as unknown as jest.Mock;
 const mockedUseAuth = useAuth as unknown as jest.Mock;
 const mockedUseGroupSelection = useGroupSelection as unknown as jest.Mock;
 const mockedUsePeriod = usePeriod as unknown as jest.Mock;
 const mockedSetSelectedGroupId = jest.fn();
+const mockedSetFecha = jest.fn();
 type HomeFixtureStatus = "upcoming" | "live" | "final";
 
 function buildFixture(id: string, status: HomeFixtureStatus, homeTeam: string, awayTeam: string) {
@@ -105,7 +110,8 @@ describe("HomeScreen filters", () => {
 
     mockedUsePeriod.mockReturnValue({
       fecha: "2026-09",
-      setFecha: jest.fn(),
+      defaultFecha: "2026-08",
+      setFecha: mockedSetFecha,
       options: [
         { id: "2026-09", label: "Fecha 9" },
         { id: "2026-08", label: "Fecha 8" },
@@ -113,17 +119,29 @@ describe("HomeScreen filters", () => {
       ]
     });
 
-    mockedLeaderboard.mockResolvedValue([
-      {
-        userId: "u-1",
-        userName: "Usuario Test",
-        rank: 1,
-        points: 18,
-        exact: 9,
-        diff: 3,
-        tendency: 15
-      }
-    ]);
+    mockedLeaderboard.mockResolvedValue({
+      groupLabel: "Grupo Amigos",
+      mode: "posiciones",
+      period: "global",
+      periodLabel: "Global",
+      updatedAt: new Date().toISOString(),
+      rows: [
+        {
+          userId: "u-1",
+          userName: "Usuario Test",
+          rank: 1,
+          points: 18,
+          exact: 9,
+          diff: 3,
+          tendency: 15,
+          highlight: true
+        }
+      ],
+      groupStats: null,
+      stats: null
+    });
+
+    mockedPredictionsList.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -179,25 +197,17 @@ describe("HomeScreen filters", () => {
     expect(mockedSetSelectedGroupId).not.toHaveBeenCalled();
   });
 
-  it("falls back to other periods when selected period has no upcoming or live matches", async () => {
-    mockedFixtureList.mockImplementation(async (input: { fecha: string }) => {
-      if (input.fecha === "2026-09") {
-        return [buildFixture("f-final-only", "final", "Boca Juniors", "Racing Club")];
-      }
-      if (input.fecha === "2026-08") {
-        return [buildFixture("f-upcoming", "upcoming", "River Plate", "San Lorenzo")];
-      }
-      return [];
-    });
+  it("uses current/upcoming default fecha for Inicio cards even when another fecha is selected elsewhere", async () => {
+    mockedFixtureList.mockResolvedValue([buildFixture("f-upcoming", "upcoming", "River Plate", "San Lorenzo")]);
 
     const screen = renderScreen();
 
     await waitFor(() => {
       expect(mockedFixtureList).toHaveBeenCalledWith({
         groupId: "g-1",
-        fecha: "2026-09"
+        fecha: "2026-08"
       });
-      expect(mockedFixtureList).toHaveBeenCalledWith({
+      expect(mockedPredictionsList).toHaveBeenCalledWith({
         groupId: "g-1",
         fecha: "2026-08"
       });

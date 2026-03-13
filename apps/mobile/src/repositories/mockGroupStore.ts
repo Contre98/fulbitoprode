@@ -1,8 +1,16 @@
 import type { Group, Membership } from "@fulbito/domain";
+const LPF_APERTURA_2026_LABEL = "LPF: Apertura (2026)";
 
 const baseGroup: Group = {
   id: "grupo-1",
   name: "Grupo Amigos",
+  leagueId: 128,
+  season: "2026"
+};
+
+const asdGroup: Group = {
+  id: "grupo-asd",
+  name: "asd",
   leagueId: 128,
   season: "2026"
 };
@@ -16,12 +24,25 @@ const baseMembership: Membership = {
   role: "owner",
   joinedAt: new Date().toISOString(),
   competitionKey: "argentina-128",
-  competitionName: "Liga Profesional",
+  competitionName: LPF_APERTURA_2026_LABEL,
   competitionStage: "apertura"
 };
 
-let groupsStore: Group[] = [baseGroup];
-let membershipsStore: Membership[] = [baseMembership];
+const asdMembership: Membership = {
+  groupId: "grupo-asd",
+  groupName: "asd",
+  leagueId: 128,
+  leagueName: "Liga Profesional",
+  season: "2026",
+  role: "owner",
+  joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString(),
+  competitionKey: "argentina-128",
+  competitionName: LPF_APERTURA_2026_LABEL,
+  competitionStage: "apertura"
+};
+
+let groupsStore: Group[] = [asdGroup, baseGroup];
+let membershipsStore: Membership[] = [asdMembership, baseMembership];
 
 function slugify(input: string) {
   return input
@@ -66,7 +87,7 @@ export function createMockGroup(input: {
     role: "owner",
     joinedAt: new Date().toISOString(),
     competitionKey: input.competitionKey ?? "argentina-128",
-    competitionName: input.competitionName ?? "Liga Profesional",
+    competitionName: input.competitionName ?? (input.competitionStage === "apertura" ? LPF_APERTURA_2026_LABEL : "Liga Profesional"),
     competitionStage: input.competitionStage ?? "apertura"
   };
 
@@ -96,7 +117,7 @@ export function joinMockGroup(input: { codeOrToken: string }) {
     role: "member",
     joinedAt: new Date().toISOString(),
     competitionKey: "argentina-128",
-    competitionName: "Liga Profesional",
+    competitionName: LPF_APERTURA_2026_LABEL,
     competitionStage: "apertura"
   };
 
@@ -147,6 +168,6 @@ export function renameMockGroup(input: { groupId: string; name: string }) {
 }
 
 export function resetMockGroupStore() {
-  groupsStore = [baseGroup];
-  membershipsStore = [baseMembership];
+  groupsStore = [asdGroup, baseGroup];
+  membershipsStore = [asdMembership, baseMembership];
 }

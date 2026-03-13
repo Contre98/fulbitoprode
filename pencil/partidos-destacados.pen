@@ -1,0 +1,493 @@
+{
+  "version": "2.8",
+  "children": [
+    {
+      "type": "frame",
+      "id": "bi8Au",
+      "x": 0,
+      "y": 0,
+      "name": "Frame",
+      "clip": true,
+      "width": 800,
+      "height": 600,
+      "fill": "#FFFFFF",
+      "layout": "none"
+    },
+    {
+      "type": "frame",
+      "id": "vA7gP",
+      "x": 0,
+      "y": 0,
+      "name": "Partidos Destacados",
+      "width": 390,
+      "fill": "#F5F4F1",
+      "layout": "vertical",
+      "gap": 16,
+      "padding": [
+        0,
+        16
+      ],
+      "children": [
+        {
+          "type": "text",
+          "id": "YHkg8",
+          "name": "title",
+          "fill": "#1A1918",
+          "content": "Partidos Destacados",
+          "fontFamily": "Outfit",
+          "fontSize": 22,
+          "fontWeight": "700",
+          "letterSpacing": -0.3
+        },
+        {
+          "type": "frame",
+          "id": "nxUp0",
+          "name": "Live Match Card",
+          "width": "fill_container",
+          "fill": "#FFFFFF",
+          "cornerRadius": 16,
+          "effect": {
+            "type": "shadow",
+            "shadowType": "outer",
+            "color": "#1A191814",
+            "offset": {
+              "x": 0,
+              "y": 2
+            },
+            "blur": 12
+          },
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "wC7Q6",
+              "name": "liveHeader",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 8,
+              "padding": [
+                16,
+                18,
+                12,
+                18
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "5G273",
+                  "name": "liveLabel",
+                  "fill": "#6D6C6A",
+                  "content": "PARTIDO EN VIVO",
+                  "fontFamily": "Outfit",
+                  "fontSize": 11,
+                  "fontWeight": "600",
+                  "letterSpacing": 0.5
+                },
+                {
+                  "type": "frame",
+                  "id": "40mlT",
+                  "name": "liveStatus",
+                  "gap": 8,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "HNZ7m",
+                      "name": "liveStatusText",
+                      "fill": "#D04040",
+                      "content": "EN JUEGO - 75'",
+                      "fontFamily": "Outfit",
+                      "fontSize": 14,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "ellipse",
+                      "id": "sJFPk",
+                      "name": "liveStatusDot",
+                      "fill": "#D04040",
+                      "width": 10,
+                      "height": 10
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "ke7Eb",
+              "name": "Match Row",
+              "width": "fill_container",
+              "padding": [
+                12,
+                18
+              ],
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "V6R2a",
+                  "name": "homeTeam",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "Iqbsd",
+                      "name": "homeCrest",
+                      "metadata": {
+                        "type": "unsplash",
+                        "username": "hiestudio",
+                        "link": "https://unsplash.com/@hiestudio",
+                        "author": "HI! ESTUDIO"
+                      },
+                      "width": 40,
+                      "height": 40,
+                      "fill": {
+                        "type": "image",
+                        "enabled": true,
+                        "url": "https://images.unsplash.com/photo-1693891156257-dd6e94199a20?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w4NDM0ODN8MHwxfHJhbmRvbXx8fHx8fHx8fDE3NzMyNjE1ODN8&ixlib=rb-4.1.0&q=80&w=1080",
+                        "mode": "fill"
+                      },
+                      "cornerRadius": 20
+                    },
+                    {
+                      "type": "text",
+                      "id": "AlKip",
+                      "name": "homeName",
+                      "fill": "#1A1918",
+                      "content": "River Plate",
+                      "fontFamily": "Outfit",
+                      "fontSize": 13,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "IrPzF",
+                  "name": "scoreFrame",
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Ngj2a",
+                      "name": "scoreText",
+                      "fill": "#1A1918",
+                      "content": "2 - 1",
+                      "fontFamily": "Outfit",
+                      "fontSize": 32,
+                      "fontWeight": "700",
+                      "letterSpacing": -1
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "CkHBW",
+                  "name": "awayTeam",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "hXg9w",
+                      "name": "awayCrest",
+                      "metadata": {
+                        "type": "unsplash",
+                        "username": "mostafa_meraji",
+                        "link": "https://unsplash.com/@mostafa_meraji",
+                        "author": "mostafa meraji"
+                      },
+                      "width": 40,
+                      "height": 40,
+                      "fill": {
+                        "type": "image",
+                        "enabled": true,
+                        "url": "https://images.unsplash.com/photo-1558384361-b91c10b09443?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w4NDM0ODN8MHwxfHJhbmRvbXx8fHx8fHx8fDE3NzMyNjE1ODN8&ixlib=rb-4.1.0&q=80&w=1080",
+                        "mode": "fill"
+                      },
+                      "cornerRadius": 20
+                    },
+                    {
+                      "type": "text",
+                      "id": "bHpOS",
+                      "name": "awayName",
+                      "fill": "#1A1918",
+                      "content": "Boca Juniors",
+                      "fontFamily": "Outfit",
+                      "fontSize": 13,
+                      "fontWeight": "500"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "rectangle",
+              "id": "Al6pd",
+              "name": "divider",
+              "fill": "#E5E4E1",
+              "width": "fill_container",
+              "height": 1
+            },
+            {
+              "type": "frame",
+              "id": "ObVvt",
+              "name": "Live Footer",
+              "width": "fill_container",
+              "padding": [
+                12,
+                18
+              ],
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "4mRdU",
+                  "name": "predText",
+                  "fill": "#3D8A5A",
+                  "content": "Tu pronóstico: 1 - 1",
+                  "fontFamily": "Outfit",
+                  "fontSize": 14,
+                  "fontWeight": "500"
+                },
+                {
+                  "type": "text",
+                  "id": "rKhhm",
+                  "name": "statusText",
+                  "fill": "#D04040",
+                  "content": "Perdiendo 3 pts",
+                  "fontFamily": "Outfit",
+                  "fontSize": 14,
+                  "fontWeight": "600"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "M8Gnz",
+          "name": "Upcoming Match Card",
+          "width": "fill_container",
+          "fill": "#FFFFFF",
+          "cornerRadius": 16,
+          "effect": {
+            "type": "shadow",
+            "shadowType": "outer",
+            "color": "#1A191814",
+            "offset": {
+              "x": 0,
+              "y": 2
+            },
+            "blur": 12
+          },
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "YQWkY",
+              "name": "upHeader",
+              "width": "fill_container",
+              "layout": "vertical",
+              "padding": [
+                16,
+                18,
+                8,
+                18
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "WF8Z3",
+                  "name": "upLabel",
+                  "fill": "#6D6C6A",
+                  "content": "PRÓXIMO PARTIDO",
+                  "fontFamily": "Outfit",
+                  "fontSize": 11,
+                  "fontWeight": "600",
+                  "letterSpacing": 0.5
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "pI20E",
+              "name": "Upcoming Match Row",
+              "width": "fill_container",
+              "padding": [
+                12,
+                18
+              ],
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "FhjYs",
+                  "name": "upHome",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "1kYxQ",
+                      "name": "upHomeCrest",
+                      "metadata": {
+                        "type": "unsplash",
+                        "username": "semiotics",
+                        "link": "https://unsplash.com/@semiotics",
+                        "author": "Diego Arriaza"
+                      },
+                      "width": 40,
+                      "height": 40,
+                      "fill": {
+                        "type": "image",
+                        "enabled": true,
+                        "url": "https://images.unsplash.com/photo-1683209762045-a302b45fa49c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w4NDM0ODN8MHwxfHJhbmRvbXx8fHx8fHx8fDE3NzMyNjE2MDB8&ixlib=rb-4.1.0&q=80&w=1080",
+                        "mode": "fill"
+                      },
+                      "cornerRadius": 20
+                    },
+                    {
+                      "type": "text",
+                      "id": "6sPHB",
+                      "name": "upHomeName",
+                      "fill": "#1A1918",
+                      "content": "Racing Club",
+                      "fontFamily": "Outfit",
+                      "fontSize": 13,
+                      "fontWeight": "500"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "t64DG",
+                  "name": "upTimeFrame",
+                  "layout": "vertical",
+                  "gap": 2,
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "RVddE",
+                      "name": "upTimeLabel",
+                      "fill": "#6D6C6A",
+                      "content": "HOY",
+                      "fontFamily": "Outfit",
+                      "fontSize": 11,
+                      "fontWeight": "600",
+                      "letterSpacing": 0.5
+                    },
+                    {
+                      "type": "text",
+                      "id": "1tvmC",
+                      "name": "upTime",
+                      "fill": "#1A1918",
+                      "content": "21:00",
+                      "fontFamily": "Outfit",
+                      "fontSize": 26,
+                      "fontWeight": "700",
+                      "letterSpacing": -0.5
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "ZeTMy",
+                  "name": "upAway",
+                  "layout": "vertical",
+                  "gap": 6,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "QtCEw",
+                      "name": "upAwayCrest",
+                      "metadata": {
+                        "type": "unsplash",
+                        "username": "boliviainteligente",
+                        "link": "https://unsplash.com/@boliviainteligente",
+                        "author": "BoliviaInteligente"
+                      },
+                      "width": 40,
+                      "height": 40,
+                      "fill": {
+                        "type": "image",
+                        "enabled": true,
+                        "url": "https://images.unsplash.com/photo-1681913297906-4ad4b553d0dd?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w4NDM0ODN8MHwxfHJhbmRvbXx8fHx8fHx8fDE3NzMyNjE2MDF8&ixlib=rb-4.1.0&q=80&w=1080",
+                        "mode": "fill"
+                      },
+                      "cornerRadius": 20
+                    },
+                    {
+                      "type": "text",
+                      "id": "LWOO3",
+                      "name": "upAwayName",
+                      "fill": "#1A1918",
+                      "content": "Independiente",
+                      "fontFamily": "Outfit",
+                      "fontSize": 13,
+                      "fontWeight": "500"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "vGzQu",
+              "name": "btnWrap",
+              "width": "fill_container",
+              "padding": [
+                8,
+                18,
+                16,
+                18
+              ],
+              "justifyContent": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "w9jin",
+                  "name": "btn",
+                  "width": "fill_container",
+                  "height": 44,
+                  "cornerRadius": 12,
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1.5,
+                    "fill": "#3D8A5A"
+                  },
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "dIjY8",
+                      "name": "btnText",
+                      "fill": "#3D8A5A",
+                      "content": "Editar Pronóstico (2 - 0)",
+                      "fontFamily": "Outfit",
+                      "fontSize": 15,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

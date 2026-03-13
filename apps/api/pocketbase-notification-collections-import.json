@@ -1,0 +1,138 @@
+[
+  {
+    "name": "notification_device_tokens",
+    "type": "base",
+    "fields": [
+      { "name": "user_id", "type": "text", "required": true, "min": 1, "max": 100 },
+      { "name": "token", "type": "text", "required": true, "min": 1, "max": 500 },
+      { "name": "platform", "type": "text", "required": true, "min": 1, "max": 20 },
+      { "name": "provider", "type": "text", "required": true, "min": 1, "max": 20 },
+      { "name": "app_version", "type": "text", "required": false, "max": 50 },
+      { "name": "registered_at", "type": "date", "required": true },
+      { "name": "last_seen_at", "type": "date", "required": true },
+      { "name": "invalidated_at", "type": "date", "required": false }
+    ],
+    "indexes": [
+      "CREATE INDEX idx_ndt_user_id ON notification_device_tokens (user_id)",
+      "CREATE UNIQUE INDEX idx_ndt_user_token ON notification_device_tokens (user_id, token)"
+    ],
+    "listRule": null,
+    "viewRule": null,
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null
+  },
+  {
+    "name": "notification_preferences",
+    "type": "base",
+    "fields": [
+      { "name": "user_id", "type": "text", "required": true, "min": 1, "max": 100 },
+      { "name": "reminders", "type": "bool", "required": false },
+      { "name": "results", "type": "bool", "required": false },
+      { "name": "social", "type": "bool", "required": false }
+    ],
+    "indexes": [
+      "CREATE UNIQUE INDEX idx_np_user_id ON notification_preferences (user_id)"
+    ],
+    "listRule": null,
+    "viewRule": null,
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null
+  },
+  {
+    "name": "notification_inbox",
+    "type": "base",
+    "fields": [
+      { "name": "user_id", "type": "text", "required": true, "min": 1, "max": 100 },
+      { "name": "event_type", "type": "text", "required": true, "min": 1, "max": 50 },
+      { "name": "title", "type": "text", "required": true, "min": 1, "max": 500 },
+      { "name": "body", "type": "text", "required": true, "max": 2000 },
+      { "name": "read", "type": "bool", "required": false },
+      { "name": "idempotency_key", "type": "text", "required": false, "max": 300 },
+      { "name": "data_json", "type": "text", "required": false, "max": 5000 }
+    ],
+    "indexes": [
+      "CREATE INDEX idx_ni_user_id ON notification_inbox (user_id)",
+      "CREATE INDEX idx_ni_user_read ON notification_inbox (user_id, read)",
+      "CREATE INDEX idx_ni_idempotency ON notification_inbox (user_id, idempotency_key)"
+    ],
+    "listRule": null,
+    "viewRule": null,
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null
+  },
+  {
+    "name": "notification_events",
+    "type": "base",
+    "fields": [
+      { "name": "event_type", "type": "text", "required": true, "min": 1, "max": 50 },
+      { "name": "scope", "type": "text", "required": true, "min": 1, "max": 20 },
+      { "name": "target_ids_json", "type": "text", "required": false, "max": 5000 },
+      { "name": "title", "type": "text", "required": true, "min": 1, "max": 500 },
+      { "name": "body", "type": "text", "required": true, "max": 2000 },
+      { "name": "data_json", "type": "text", "required": false, "max": 5000 },
+      { "name": "idempotency_key", "type": "text", "required": true, "min": 1, "max": 300 },
+      { "name": "status", "type": "text", "required": true, "min": 1, "max": 20 },
+      { "name": "processed_at", "type": "date", "required": false }
+    ],
+    "indexes": [
+      "CREATE UNIQUE INDEX idx_ne_idempotency ON notification_events (idempotency_key)",
+      "CREATE INDEX idx_ne_status ON notification_events (status)",
+      "CREATE INDEX idx_ne_event_type ON notification_events (event_type)"
+    ],
+    "listRule": null,
+    "viewRule": null,
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null
+  },
+  {
+    "name": "notification_jobs",
+    "type": "base",
+    "fields": [
+      { "name": "event_id", "type": "text", "required": true, "min": 1, "max": 100 },
+      { "name": "status", "type": "text", "required": true, "min": 1, "max": 20 },
+      { "name": "total_recipients", "type": "number", "required": false, "min": 0 },
+      { "name": "sent", "type": "number", "required": false, "min": 0 },
+      { "name": "failed", "type": "number", "required": false, "min": 0 },
+      { "name": "started_at", "type": "date", "required": false },
+      { "name": "completed_at", "type": "date", "required": false },
+      { "name": "error", "type": "text", "required": false, "max": 2000 }
+    ],
+    "indexes": [
+      "CREATE INDEX idx_nj_event_id ON notification_jobs (event_id)",
+      "CREATE INDEX idx_nj_status ON notification_jobs (status)"
+    ],
+    "listRule": null,
+    "viewRule": null,
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null
+  },
+  {
+    "name": "notification_deliveries",
+    "type": "base",
+    "fields": [
+      { "name": "job_id", "type": "text", "required": true, "min": 1, "max": 100 },
+      { "name": "user_id", "type": "text", "required": true, "min": 1, "max": 100 },
+      { "name": "token_id", "type": "text", "required": true, "min": 1, "max": 100 },
+      { "name": "status", "type": "text", "required": true, "min": 1, "max": 20 },
+      { "name": "attempts", "type": "number", "required": false, "min": 0 },
+      { "name": "last_attempt_at", "type": "date", "required": false },
+      { "name": "provider_message_id", "type": "text", "required": false, "max": 200 },
+      { "name": "error", "type": "text", "required": false, "max": 2000 }
+    ],
+    "indexes": [
+      "CREATE INDEX idx_nd_job_id ON notification_deliveries (job_id)",
+      "CREATE INDEX idx_nd_user_id ON notification_deliveries (user_id)",
+      "CREATE INDEX idx_nd_status ON notification_deliveries (status)"
+    ],
+    "listRule": null,
+    "viewRule": null,
+    "createRule": null,
+    "updateRule": null,
+    "deleteRule": null
+  }
+]

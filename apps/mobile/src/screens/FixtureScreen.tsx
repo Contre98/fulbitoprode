@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
-import { useQuery } from "@tanstack/react-query";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { compareFixturesByStatusAndKickoff, groupFixturesByDate } from "@fulbito/domain";
 import { colors } from "@fulbito/design-tokens";
 import type { Fixture } from "@fulbito/domain";
@@ -9,27 +8,30 @@ import { fixtureRepository } from "@/repositories";
 import { useGroupSelection } from "@/state/GroupContext";
 import { usePeriod } from "@/state/PeriodContext";
 import { ScreenFrame } from "@/components/ScreenFrame";
-import { HeaderGroupSelector } from "@/components/HeaderGroupSelector";
-import { HeaderActionIcons } from "@/components/HeaderActionIcons";
+import { AppHeader } from "@/components/AppHeader";
 import { FechaSelector } from "@/components/FechaSelector";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { TeamCrest } from "@/components/TeamCrest";
-import { LivePulseBorder, estimateMatchMinute, useLivePulse } from "@/components/LiveMatchIndicator";
+import { estimateMatchMinute, useLivePulse } from "@/components/LiveMatchIndicator";
+import { FormDots } from "@/components/MatchCardVisuals";
+import { formatClock24 } from "@/lib/dateTime";
+import { buildTeamFormLookup } from "@/lib/matchVisuals";
 
-type FixtureFilter = "all" | "live" | "final" | "upcoming" | "postponed";
+type FixtureFilter = "all" | "live" | "final" | "upcoming";
 
 const filterLabels: Record<FixtureFilter, string> = {
   all: "Todos",
   live: "En vivo",
   final: "Finalizados",
-  upcoming: "Próximos",
-  postponed: "Postergados"
+  upcoming: "Próximos"
 };
+const LPF_APERTURA_2026_LABEL = "LPF: Apertura (2026)";
 
 function stageLabel(value: string | undefined) {
   if (!value) return "";
+  if (value.trim().toLowerCase() === "apertura") return LPF_APERTURA_2026_LABEL;
   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
 }
 
@@ -65,7 +67,7 @@ function statusLabel(status: Fixture["status"]) {
 }
 
 export function FixtureScreen() {
-  const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
   const { memberships, selectedGroupId, setSelectedGroupId } = useGroupSelection();
   const { fecha, options, setFecha } = usePeriod();
   const [filter, setFilter] = useState<FixtureFilter>("all");
@@ -86,6 +88,24 @@ export function FixtureScreen() {
         fecha
       })
   });
+  const formFixtureQuery = useQuery({
+    queryKey: ["fixture-form-history", groupId, fecha, options.map((item) => item.id).join("|")],
+    queryFn: async () => {
+      const optionIds = options.map((item) => item.id).filter(Boolean);
+      const candidatePeriods = Array.from(new Set([fecha, ...optionIds]));
+      const periodLists = await Promise.all(
+        candidatePeriods.map((period) =>
+          fixtureRepository
+            .listFixture({ groupId, fecha: period })
+            .catch(() => [])
+        )
+      );
+      const merged = periodLists.flat();
+      const deduped = new Map<string, (typeof merged)[number]>();
+      merged.forEach((fixture) => deduped.set(fixture.id, fixture));
+      return [...deduped.values()];
+    }
+  });
 
   const hasLiveFixtures = useMemo(
     () => (fixtureQuery.data ?? []).some((f) => f.status === "live"),
@@ -103,16 +123,26 @@ export function FixtureScreen() {
     const sorted = [...(fixtureQuery.data ?? [])].sort(compareFixturesByStatusAndKickoff);
     return groupFixturesByDate(sorted, { locale: "es-AR" });
   }, [fixtureQuery.data]);
+  const teamFormLookup = useMemo(
+    () => buildTeamFormLookup(formFixtureQuery.data ?? fixtureQuery.data ?? []),
+    [formFixtureQuery.data, fixtureQuery.data]
+  );
 
   const groupedByFilter = useMemo(() => {
     if (filter === "all") return grouped;
     return grouped
       .map((group) => ({
         ...group,
-        fixtures: group.fixtures.filter((fixture) => fixture.status === filter)
+        fixtures: group.fixtures.filter((fixture) =>
+          filter === "upcoming" ? fixture.status === "upcoming" || fixture.status === "postponed" : fixture.status === filter
+        )
       }))
       .filter((group) => group.fixtures.length > 0);
   }, [filter, grouped]);
+
+  const handleRefresh = useCallback(async () => {
+    await queryClient.resetQueries();
+  }, [queryClient]);
 
   function swipeToPreviousFecha() {
     if (safeOptions.length === 0) {
@@ -139,14 +169,9 @@ export function FixtureScreen() {
       contentStyle={styles.screenContent}
       onSwipeLeft={swipeToNextFecha}
       onSwipeRight={swipeToPreviousFecha}
-      header={
-        <View style={[styles.headerCard, { paddingTop: Math.max(insets.top, 10) + 2 }]}>
-          <View style={styles.headerRow}>
-            <HeaderGroupSelector memberships={memberships} selectedGroupId={selectedGroupId} onSelectGroup={(nextGroupId) => void setSelectedGroupId(nextGroupId)} />
-            <HeaderActionIcons />
-          </View>
-        </View>
-      }
+      showSwipeCue
+      onRefresh={handleRefresh}
+      header={<AppHeader />}
     >
       <FechaSelector />
 
@@ -185,37 +210,44 @@ export function FixtureScreen() {
             const awayCode = toTeamCode(fixture.awayTeam);
             const isLive = fixture.status === "live";
             const liveMinute = isLive ? estimateMatchMinute(fixture.kickoffAt) : "";
+            const kickoffHour = formatClock24(fixture.kickoffAt);
+            const rowMetaLabel = isLive && liveMinute ? `${liveMinute} · ${kickoffHour}` : `${statusLabel(fixture.status)} · ${kickoffHour}`;
+            const homeForm = teamFormLookup(fixture.homeTeam, fixture.kickoffAt);
+            const awayForm = teamFormLookup(fixture.awayTeam, fixture.kickoffAt);
 
             const row = (
               <View key={fixture.id} style={[styles.row, index > 0 && !isLive ? styles.rowWithBorder : null, isLive ? styles.rowLive : null]}>
                 <View style={styles.teamSide}>
                   <TeamCrest teamName={fixture.homeTeam} code={homeCode} logoUrl={fixture.homeLogoUrl} size={24} />
-                  <Text allowFontScaling={false} numberOfLines={1} style={styles.teamName}>{fixture.homeTeam}</Text>
+                  <View style={styles.teamInfoCol}>
+                    <Text allowFontScaling={false} numberOfLines={1} style={styles.teamName}>{fixture.homeTeam}</Text>
+                    <FormDots form={homeForm} />
+                  </View>
                 </View>
 
                 <View style={styles.middleCol}>
-                  {isLive && liveMinute ? (
-                    <Animated.Text allowFontScaling={false} style={[styles.liveMinuteLabel, { opacity: livePulseOpacity }]}>
-                      {liveMinute}
+                  {isLive ? (
+                    <Animated.Text allowFontScaling={false} style={[styles.metaLabel, styles.metaLabelLive, { opacity: livePulseOpacity }]}>
+                      {rowMetaLabel}
                     </Animated.Text>
                   ) : (
-                    <Text allowFontScaling={false} style={styles.statusLabel}>{statusLabel(fixture.status)}</Text>
+                    <Text allowFontScaling={false} style={styles.metaLabel}>{rowMetaLabel}</Text>
                   )}
-                  <Text allowFontScaling={false} style={fixture.status === "final" ? styles.finalScoreText : styles.scoreText}>
+                  <Text allowFontScaling={false} style={styles.scoreText}>
                     {score ?? (isLive ? "0-0" : fixture.status === "final" ? "--" : fixture.status === "postponed" ? "POST." : "vs")}
                   </Text>
                 </View>
 
                 <View style={[styles.teamSide, styles.teamSideRight]}>
-                  <Text allowFontScaling={false} numberOfLines={1} style={styles.teamNameRight}>{fixture.awayTeam}</Text>
+                  <View style={[styles.teamInfoCol, styles.teamInfoColRight]}>
+                    <Text allowFontScaling={false} numberOfLines={1} style={styles.teamNameRight}>{fixture.awayTeam}</Text>
+                    <FormDots form={awayForm} align="right" />
+                  </View>
                   <TeamCrest teamName={fixture.awayTeam} code={awayCode} logoUrl={fixture.awayLogoUrl} size={24} />
                 </View>
               </View>
             );
 
-            if (isLive) {
-              return <LivePulseBorder key={fixture.id} borderRadius={0}>{row}</LivePulseBorder>;
-            }
             return row;
           })}
         </View>
@@ -233,22 +265,6 @@ const styles = StyleSheet.create({
   },
   screenContent: {
     gap: 14
-  },
-  headerCard: {
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    backgroundColor: colors.surfaceSoft,
-    paddingHorizontal: 16,
-    paddingBottom: 14,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    marginHorizontal: -12
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8
   },
   sectionIcon: {
     height: 34,
@@ -343,11 +359,13 @@ const styles = StyleSheet.create({
     overflow: "hidden"
   },
   dateLabel: {
-    color: colors.textHigh,
-    fontWeight: "900",
-    fontSize: 15,
+    color: colors.textMuted,
+    fontWeight: "800",
+    fontSize: 11,
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
     paddingHorizontal: 12,
-    paddingVertical: 11
+    paddingVertical: 10
   },
   row: {
     flexDirection: "row",
@@ -355,7 +373,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 8,
     paddingHorizontal: 10,
-    minHeight: 58
+    minHeight: 74,
+    overflow: "hidden",
+    position: "relative"
   },
   rowWithBorder: {
     borderTopWidth: 1,
@@ -365,38 +385,48 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 7
+    gap: 7,
+    minWidth: 0
   },
   teamSideRight: {
     justifyContent: "flex-end"
+  },
+  teamInfoCol: {
+    flex: 1,
+    justifyContent: "center",
+    gap: 2,
+    minWidth: 0
+  },
+  teamInfoColRight: {
+    alignItems: "flex-end"
   },
   teamName: {
     color: colors.textStrong,
     fontWeight: "800",
     fontSize: 14,
-    flex: 1
+    flexShrink: 1
   },
   teamNameRight: {
     color: colors.textStrong,
     fontWeight: "800",
     fontSize: 14,
     textAlign: "right",
-    flex: 1
+    flexShrink: 1
   },
   middleCol: {
-    minWidth: 62,
+    minWidth: 86,
     alignItems: "center"
   },
   rowLive: {
     backgroundColor: colors.surfaceSoft,
     borderTopWidth: 0
   },
-  statusLabel: {
+  metaLabel: {
     color: colors.textMuted,
     fontSize: 11,
     fontWeight: "800"
   },
-  liveMinuteLabel: {
+  metaLabelLive: {
     color: colors.dangerAccent,
     fontSize: 11,
     fontWeight: "800"
@@ -406,14 +436,6 @@ const styles = StyleSheet.create({
     color: colors.textHigh,
     fontWeight: "900",
     fontSize: 20,
-    letterSpacing: -0.4
-  },
-  finalScoreText: {
-    marginTop: 1,
-    color: colors.textHigh,
-    fontWeight: "900",
-    fontSize: 26,
-    lineHeight: 28,
     letterSpacing: -0.4
   }
 });

@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     };
 
     const fallback = defaults[body.event];
-    addNotification(session.userId, {
+    await addNotification(session.userId, {
       type: body.event,
       title: body.title?.trim() || fallback.title,
       body: body.body?.trim() || fallback.body

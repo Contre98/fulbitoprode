@@ -6,6 +6,7 @@ import { useGroupSelection } from "@/state/GroupContext";
 
 interface PeriodContextValue {
   fecha: string;
+  defaultFecha: string;
   options: Array<{ id: string; label: string }>;
   setFecha: (next: string) => void;
 }
@@ -21,6 +22,7 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
   const activeMembership = memberships.find((membership) => membership.groupId === selectedGroupId) ?? memberships[0];
   const fechaStorageKey = activeMembership ? `${FECHA_STORAGE_KEY}:${activeMembership.groupId}` : FECHA_STORAGE_KEY;
   const [fecha, setFecha] = useState(DEFAULT_FECHA);
+  const [defaultFecha, setDefaultFecha] = useState(DEFAULT_FECHA);
   const [options, setOptions] = useState<Array<{ id: string; label: string }>>(DEFAULT_OPTIONS);
   const [hydrated, setHydrated] = useState(false);
 
@@ -48,6 +50,7 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!activeMembership) {
       setOptions(DEFAULT_OPTIONS);
+      setDefaultFecha(DEFAULT_OPTIONS[0]?.id ?? DEFAULT_FECHA);
       return;
     }
 
@@ -66,6 +69,7 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
         payload.defaultFecha && payload.options.some((item) => item.id === payload.defaultFecha)
           ? payload.defaultFecha
           : payload.options[0].id;
+      setDefaultFecha(defaultFecha);
       setFecha((current) => (payload.options.some((item) => item.id === current) ? current : defaultFecha));
     })();
 
@@ -81,6 +85,12 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
   }, [fecha, options]);
 
   useEffect(() => {
+    if (!options.some((item) => item.id === defaultFecha) && options.length > 0) {
+      setDefaultFecha(options[0].id);
+    }
+  }, [defaultFecha, options]);
+
+  useEffect(() => {
     if (!hydrated || !fecha) {
       return;
     }
@@ -90,10 +100,11 @@ export function PeriodProvider({ children }: { children: ReactNode }) {
   const value = useMemo(
     () => ({
       fecha,
+      defaultFecha,
       options,
       setFecha
     }),
-    [fecha, options]
+    [fecha, defaultFecha, options]
   );
 
   return <PeriodContext.Provider value={value}>{children}</PeriodContext.Provider>;

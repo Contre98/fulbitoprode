@@ -1,10 +1,19 @@
-import { useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { Pressable, View, Text, StyleSheet, ScrollView, RefreshControl, Animated } from "react-native";
 import type { NativeSyntheticEvent, NativeTouchEvent, StyleProp, ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing } from "@fulbito/design-tokens";
 import { DataModeBadge } from "@/components/DataModeBadge";
+import { useGroupSelectorOverlay } from "@/state/GroupSelectorOverlayContext";
+
+const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
+
+function GroupSelectorOverlay() {
+  const { visible, hide } = useGroupSelectorOverlay();
+  if (!visible) return null;
+  return <Pressable style={styles.groupSelectorOverlay} onPress={hide} />;
+}
 
 export function ScreenFrame({
   title,
@@ -15,6 +24,8 @@ export function ScreenFrame({
   contentStyle,
   onSwipeLeft,
   onSwipeRight,
+  showSwipeCue,
+  onRefresh,
   children
 }: {
   title: string;
@@ -25,12 +36,71 @@ export function ScreenFrame({
   contentStyle?: StyleProp<ViewStyle>;
   onSwipeLeft?: () => void;
   onSwipeRight?: () => void;
+  showSwipeCue?: boolean;
+  onRefresh?: () => Promise<void>;
   children?: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
   const touchStartRef = useRef<{ x: number; y: number; timestamp: number } | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [horizontalGestureActive, setHorizontalGestureActive] = useState(false);
+  const swipeDragX = useRef(new Animated.Value(0)).current;
+  const swipeEnabled = Boolean(onSwipeLeft || onSwipeRight);
+  const swipeCueEnabled = swipeEnabled && showSwipeCue;
+
+  const leftCueOpacity = swipeDragX.interpolate({
+    inputRange: [0, 18, 88],
+    outputRange: [0, 0.35, 0.95],
+    extrapolate: "clamp"
+  });
+  const rightCueOpacity = swipeDragX.interpolate({
+    inputRange: [-88, -18, 0],
+    outputRange: [0.95, 0.35, 0],
+    extrapolate: "clamp"
+  });
+  const leftCueTranslateX = swipeDragX.interpolate({
+    inputRange: [0, 88],
+    outputRange: [-10, 0],
+    extrapolate: "clamp"
+  });
+  const rightCueTranslateX = swipeDragX.interpolate({
+    inputRange: [-88, 0],
+    outputRange: [0, 10],
+    extrapolate: "clamp"
+  });
+
+  const resetSwipeCue = useCallback(() => {
+    if (!swipeCueEnabled) {
+      swipeDragX.setValue(0);
+      return;
+    }
+    Animated.spring(swipeDragX, {
+      toValue: 0,
+      speed: 22,
+      bounciness: 0,
+      useNativeDriver: true
+    }).start();
+  }, [swipeCueEnabled, swipeDragX]);
+
+  const handleRefresh = useCallback(async () => {
+    if (!onRefresh) return;
+    setRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [onRefresh]);
+
+  const releaseHorizontalGesture = useCallback(() => {
+    setHorizontalGestureActive(false);
+  }, []);
 
   function onTouchStart(event: NativeSyntheticEvent<NativeTouchEvent>) {
+    if (!swipeEnabled) {
+      return;
+    }
+    setHorizontalGestureActive(false);
     touchStartRef.current = {
       x: event.nativeEvent.pageX,
       y: event.nativeEvent.pageY,
@@ -38,9 +108,54 @@ export function ScreenFrame({
     };
   }
 
+  function onTouchMove(event: NativeSyntheticEvent<NativeTouchEvent>) {
+    if (!swipeEnabled) {
+      return;
+    }
+    const start = touchStartRef.current;
+    if (!start) {
+      return;
+    }
+    const deltaX = event.nativeEvent.pageX - start.x;
+    const deltaY = event.nativeEvent.pageY - start.y;
+    const meetsSwipeDelta = Math.abs(deltaX) >= 10;
+    const isHorizontalIntent = Math.abs(deltaX) > Math.abs(deltaY);
+    const canSwipeInDirection = (deltaX < 0 && onSwipeLeft) || (deltaX > 0 && onSwipeRight);
+    if (meetsSwipeDelta && isHorizontalIntent && canSwipeInDirection) {
+      if (!horizontalGestureActive) {
+        setHorizontalGestureActive(true);
+      }
+      if (swipeCueEnabled) {
+        const clampedDeltaX = Math.max(-96, Math.min(96, deltaX));
+        swipeDragX.setValue(clampedDeltaX);
+      }
+      return;
+    }
+
+    if (horizontalGestureActive) {
+      setHorizontalGestureActive(false);
+    }
+    if (!isHorizontalIntent) {
+      if (swipeCueEnabled) {
+        swipeDragX.setValue(0);
+      }
+      return;
+    }
+    if (!canSwipeInDirection) {
+      if (swipeCueEnabled) {
+        swipeDragX.setValue(0);
+      }
+    }
+  }
+
   function onTouchEnd(event: NativeSyntheticEvent<NativeTouchEvent>) {
+    if (!swipeEnabled) {
+      return;
+    }
     const start = touchStartRef.current;
     touchStartRef.current = null;
+    releaseHorizontalGesture();
+    resetSwipeCue();
     if (!start) {
       return;
     }
@@ -55,11 +170,21 @@ export function ScreenFrame({
     }
 
     if (deltaX < 0) {
-      onSwipeLeft?.();
+      if (onSwipeLeft) {
+        onSwipeLeft();
+      }
       return;
     }
 
-    onSwipeRight?.();
+    if (onSwipeRight) {
+      onSwipeRight();
+    }
+  }
+
+  function onTouchCancel() {
+    touchStartRef.current = null;
+    releaseHorizontalGesture();
+    resetSwipeCue();
   }
 
   return (
@@ -73,17 +198,46 @@ export function ScreenFrame({
         </>
       )}
       {hideDataModeBadge ? null : <DataModeBadge />}
-      <ScrollView
-        testID="screenframe-scroll"
-        style={styles.scroll}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        onTouchStart={onTouchStart}
-        onTouchEnd={onTouchEnd}
-        contentContainerStyle={[styles.content, { paddingBottom: spacing.xl + insets.bottom }, contentStyle]}
-      >
-        {children}
-      </ScrollView>
+      <View style={styles.scrollWrap}>
+        <GroupSelectorOverlay />
+        <AnimatedScrollView
+          testID="screenframe-scroll"
+          style={styles.scroll}
+          scrollEnabled={!horizontalGestureActive}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+          onTouchCancel={onTouchCancel}
+          refreshControl={
+            onRefresh ? (
+              <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.textSecondary} />
+            ) : undefined
+          }
+          contentContainerStyle={[styles.content, { paddingBottom: spacing.xl + insets.bottom }, contentStyle]}
+        >
+          {children}
+        </AnimatedScrollView>
+        {swipeCueEnabled ? (
+          <View pointerEvents="none" style={styles.swipeCueLayer}>
+            {onSwipeRight ? (
+              <Animated.View
+                style={[styles.swipeCue, styles.swipeCueLeft, { opacity: leftCueOpacity, transform: [{ translateX: leftCueTranslateX }] }]}
+              >
+                <Text allowFontScaling={false} style={styles.swipeCueText}>←</Text>
+              </Animated.View>
+            ) : null}
+            {onSwipeLeft ? (
+              <Animated.View
+                style={[styles.swipeCue, styles.swipeCueRight, { opacity: rightCueOpacity, transform: [{ translateX: rightCueTranslateX }] }]}
+              >
+                <Text allowFontScaling={false} style={styles.swipeCueText}>→</Text>
+              </Animated.View>
+            ) : null}
+          </View>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -107,8 +261,43 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1
   },
+  scrollWrap: {
+    flex: 1,
+    position: "relative"
+  },
   content: {
     marginTop: spacing.lg,
     gap: spacing.md
+  },
+  swipeCueLayer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center"
+  },
+  swipeCue: {
+    position: "absolute",
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.borderMuted
+  },
+  swipeCueLeft: {
+    left: 4
+  },
+  swipeCueRight: {
+    right: 4
+  },
+  swipeCueText: {
+    color: colors.textMuted,
+    fontSize: 18,
+    fontWeight: "800"
+  },
+  groupSelectorOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
+    backgroundColor: "rgba(0, 0, 0, 0.4)"
   }
 });

@@ -13,7 +13,7 @@ import type {
   ProfileRepository,
   PredictionsRepository
 } from "@fulbito/api-contracts";
-import type { NotificationItem, NotificationPreferences, User, WeeklyWinnerSummary } from "@fulbito/domain";
+import type { GroupSearchResult, NotificationItem, NotificationPreferences, User, WeeklyWinnerSummary } from "@fulbito/domain";
 import { createMockGroup, joinMockGroup, listMockGroups, listMockMemberships, renameMockGroup } from "@/repositories/mockGroupStore";
 
 export const mockGroupsRepository: GroupsRepository = {
@@ -22,6 +22,28 @@ export const mockGroupsRepository: GroupsRepository = {
   },
   async listMemberships() {
     return listMockMemberships();
+  },
+  async searchGroups(input) {
+    const groups = listMockGroups();
+    const results: GroupSearchResult[] = groups
+      .filter((g) => {
+        if (input.query && !g.name.toLowerCase().includes(input.query.toLowerCase())) return false;
+        if (typeof input.leagueId === "number" && g.leagueId !== input.leagueId) return false;
+        return true;
+      })
+      .map((g) => ({
+        id: g.id,
+        name: g.name,
+        leagueId: g.leagueId,
+        leagueName: "Liga Profesional",
+        season: g.season,
+        competitionName: "LPF: Apertura (2026)",
+        competitionStage: "apertura" as const,
+        visibility: "open" as const,
+        memberCount: 3,
+        maxMembers: null
+      }));
+    return results;
   },
   async createGroup(input) {
     return createMockGroup(input);
@@ -98,25 +120,67 @@ export const mockGroupsRepository: GroupsRepository = {
 const mockMembersByGroupId = new Map<string, GroupMemberRecord[]>();
 const mockInvitesByGroupId = new Map<string, { code: string; token: string; expiresAt: string }>();
 
+const asdGroupMembers: GroupMemberRecord[] = [
+  {
+    userId: "u-mock-owner",
+    name: "Usuario Fulbito",
+    role: "owner",
+    joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 60).toISOString()
+  },
+  {
+    userId: "u-mock-2",
+    name: "Gonzalo Ramirez",
+    role: "member",
+    joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 45).toISOString()
+  },
+  {
+    userId: "u-mock-3",
+    name: "Luciana Torres",
+    role: "member",
+    joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 30).toISOString()
+  },
+  {
+    userId: "u-mock-4",
+    name: "Matias Fernandez",
+    role: "member",
+    joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 20).toISOString()
+  },
+  {
+    userId: "u-mock-5",
+    name: "Sofia Diaz",
+    role: "member",
+    joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 15).toISOString()
+  },
+  {
+    userId: "u-mock-6",
+    name: "Rodrigo Perez",
+    role: "member",
+    joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString()
+  }
+];
+
 function ensureMockGroupMembers(groupId: string) {
   const existing = mockMembersByGroupId.get(groupId);
   if (existing) {
     return existing;
   }
-  const seeded: GroupMemberRecord[] = [
-    {
-      userId: "u-mock-owner",
-      name: "Usuario Fulbito",
-      role: "owner",
-      joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 45).toISOString()
-    },
-    {
-      userId: "u-mock-member",
-      name: "Amigo Fulbito",
-      role: "member",
-      joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 12).toISOString()
-    }
-  ];
+  const seeded: GroupMemberRecord[] =
+    groupId === "grupo-asd"
+      ? [...asdGroupMembers]
+      : [
+          {
+            userId: "u-mock-owner",
+            name: "Usuario Fulbito",
+            role: "owner",
+            joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 45).toISOString()
+          },
+          {
+            userId: "u-mock-member",
+            name: "Amigo Fulbito",
+            role: "member",
+            joinedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 12).toISOString()
+          }
+        ];
   mockMembersByGroupId.set(groupId, seeded);
   return seeded;
 }
@@ -140,7 +204,21 @@ function ensureMockInvite(groupId: string) {
   return seeded;
 }
 
-const predictionsByKey = new Map<string, { fixtureId: string; home: number; away: number }[]>();
+const predictionsByKey = new Map<string, { fixtureId: string; home: number; away: number }[]>([
+  // grupo-asd — Fecha 1 (2026-01): 6 finales + 1 upcoming
+  [
+    "grupo-asd:2026-01",
+    [
+      { fixtureId: "fx-def-bel-final", home: 1, away: 1 },  // exact (3 pts) — actual 1-1
+      { fixtureId: "fx-est-sar-final", home: 2, away: 0 },  // result (1 pt)  — actual 1-0
+      { fixtureId: "fx-boc-rac-final", home: 1, away: 0 },  // miss  (0 pts)  — actual 0-0
+      { fixtureId: "fx-ins-atl-final", home: 2, away: 1 },  // exact (3 pts) — actual 2-1
+      { fixtureId: "fx-ros-tal-final", home: 1, away: 1 },  // miss  (0 pts)  — actual 0-1
+      { fixtureId: "fx-gim-gimj-final", home: 0, away: 0 }, // exact (3 pts) — actual 0-0
+      { fixtureId: "fx-arg-lan-upcoming", home: 2, away: 1 } // upcoming, no result yet
+    ]
+  ]
+]);
 
 export const mockPredictionsRepository: PredictionsRepository = {
   async listPredictions(input) {
@@ -237,23 +315,40 @@ export const mockFixtureRepository: FixtureRepository = {
   }
 };
 
+const asdLeaderboardRows: LeaderboardApiPayload["rows"] = [
+  { userId: "u-mock-2", name: "Gonzalo Ramirez", rank: 1, predictions: 8, record: "5/3/0", points: 21, highlight: false, deltaRank: 0, streak: 5 },
+  { userId: "u-mock-owner", name: "Usuario Fulbito", rank: 2, predictions: 8, record: "5/2/1", points: 18, highlight: true, deltaRank: 2, streak: 3 },
+  { userId: "u-mock-3", name: "Luciana Torres", rank: 3, predictions: 7, record: "4/3/0", points: 15, highlight: false, deltaRank: -1, streak: 0 },
+  { userId: "u-mock-5", name: "Sofia Diaz", rank: 4, predictions: 8, record: "3/3/2", points: 12, highlight: false, deltaRank: 1, streak: 2 },
+  { userId: "u-mock-4", name: "Matias Fernandez", rank: 5, predictions: 6, record: "3/2/1", points: 11, highlight: false, deltaRank: -2, streak: 0 },
+  { userId: "u-mock-6", name: "Rodrigo Perez", rank: 6, predictions: 5, record: "2/2/1", points: 8, highlight: false, deltaRank: 0, streak: 1 }
+];
+
 export const mockLeaderboardRepository: LeaderboardRepository = {
   async getLeaderboardPayload(input) {
     const mode = input.mode === "stats" ? "stats" : "posiciones";
-    const rows: LeaderboardApiPayload["rows"] = [
-      {
-        userId: "user-1",
-        name: "Usuario Fulbito",
-        rank: 1,
-        predictions: 8,
-        record: "6/2/0",
-        points: mode === "stats" ? 92 : 18,
-        highlight: true
-      }
-    ];
+    const isAsd = input.groupId === "grupo-asd";
+
+    const rows: LeaderboardApiPayload["rows"] = isAsd
+      ? asdLeaderboardRows.map((r) => ({ ...r, points: mode === "stats" ? r.points * 5 : r.points }))
+      : [
+          {
+            userId: "user-1",
+            name: "Usuario Fulbito",
+            rank: 1,
+            predictions: 8,
+            record: "6/2/0",
+            points: mode === "stats" ? 92 : 18,
+            highlight: true
+          }
+        ];
+
+    const memberCount = isAsd ? 6 : 1;
+    const groupLabel = isAsd ? "asd" : "Grupo Amigos";
+    const topUser = rows[0];
 
     return {
-      groupLabel: "Grupo Amigos",
+      groupLabel,
       mode,
       period: input.fecha || "global",
       periodLabel: input.fecha || "Global acumulado",
@@ -262,28 +357,28 @@ export const mockLeaderboardRepository: LeaderboardRepository = {
       groupStats:
         mode === "stats"
           ? {
-              memberCount: 1,
-              scoredPredictions: 8,
-              correctPredictions: 8,
-              exactPredictions: 6,
-              resultPredictions: 2,
-              missPredictions: 0,
-              accuracyPct: 100,
-              totalPoints: 18,
-              averageMemberPoints: 18,
+              memberCount,
+              scoredPredictions: isAsd ? 42 : 8,
+              correctPredictions: isAsd ? 30 : 8,
+              exactPredictions: isAsd ? 22 : 6,
+              resultPredictions: isAsd ? 8 : 2,
+              missPredictions: isAsd ? 12 : 0,
+              accuracyPct: isAsd ? 71 : 100,
+              totalPoints: isAsd ? 85 : 18,
+              averageMemberPoints: isAsd ? 14 : 18,
               bestFecha: {
-                period: "Fecha 1",
-                periodLabel: "Fecha 1",
-                userId: "user-1",
-                userName: "Usuario Fulbito",
-                points: 9
+                period: "Fecha 3",
+                periodLabel: "Fecha 3",
+                userId: topUser.userId ?? "u-mock-2",
+                userName: topUser.name,
+                points: 12
               },
               worstFecha: {
-                period: "Fecha 2",
-                periodLabel: "Fecha 2",
-                userId: "user-1",
-                userName: "Usuario Fulbito",
-                points: 9
+                period: "Fecha 1",
+                periodLabel: "Fecha 1",
+                userId: "u-mock-6",
+                userName: "Rodrigo Perez",
+                points: 3
               },
               worldBenchmark: null
             }
@@ -292,28 +387,28 @@ export const mockLeaderboardRepository: LeaderboardRepository = {
         mode === "stats"
           ? {
               summary: {
-                memberCount: 1,
-                scoredPredictions: 8,
-                correctPredictions: 8,
-                exactPredictions: 6,
-                resultPredictions: 2,
-                missPredictions: 0,
-                accuracyPct: 100,
-                totalPoints: 18,
-                averageMemberPoints: 18,
+                memberCount,
+                scoredPredictions: isAsd ? 42 : 8,
+                correctPredictions: isAsd ? 30 : 8,
+                exactPredictions: isAsd ? 22 : 6,
+                resultPredictions: isAsd ? 8 : 2,
+                missPredictions: isAsd ? 12 : 0,
+                accuracyPct: isAsd ? 71 : 100,
+                totalPoints: isAsd ? 85 : 18,
+                averageMemberPoints: isAsd ? 14 : 18,
                 bestRound: {
-                  period: "Fecha 1",
-                  periodLabel: "Fecha 1",
-                  userId: "user-1",
-                  userName: "Usuario Fulbito",
-                  points: 9
+                  period: "Fecha 3",
+                  periodLabel: "Fecha 3",
+                  userId: topUser.userId ?? "u-mock-2",
+                  userName: topUser.name,
+                  points: 12
                 },
                 worstRound: {
-                  period: "Fecha 2",
-                  periodLabel: "Fecha 2",
-                  userId: "user-1",
-                  userName: "Usuario Fulbito",
-                  points: 9
+                  period: "Fecha 1",
+                  periodLabel: "Fecha 1",
+                  userId: "u-mock-6",
+                  userName: "Rodrigo Perez",
+                  points: 3
                 },
                 worldBenchmark: null
               },
@@ -321,22 +416,67 @@ export const mockLeaderboardRepository: LeaderboardRepository = {
                 {
                   id: "nostradamus",
                   title: "NOSTRADAMUS",
-                  winnerUserId: "user-1",
-                  winnerName: "Usuario Fulbito",
-                  subtitle: "Mayor cantidad de plenos (6)",
-                  metricValue: 6
+                  winnerUserId: topUser.userId ?? "u-mock-2",
+                  winnerName: topUser.name,
+                  subtitle: isAsd ? "Mayor cantidad de plenos (5)" : "Mayor cantidad de plenos (6)",
+                  metricValue: isAsd ? 5 : 6
                 }
               ],
-              historicalSeries: [
-                {
-                  userId: "user-1",
-                  userName: "Usuario Fulbito",
-                  points: [
-                    { period: "Fecha 1", periodLabel: "Fecha 1", rank: 1, points: 9 },
-                    { period: "Fecha 2", periodLabel: "Fecha 2", rank: 1, points: 9 }
+              historicalSeries: isAsd
+                ? [
+                    { userId: "u-mock-2", userName: "Gonzalo Ramirez", points: [{ period: "Fecha 1", periodLabel: "Fecha 1", rank: 2, points: 6 }, { period: "Fecha 2", periodLabel: "Fecha 2", rank: 1, points: 8 }, { period: "Fecha 3", periodLabel: "Fecha 3", rank: 1, points: 7 }] },
+                    { userId: "u-mock-owner", userName: "Usuario Fulbito", points: [{ period: "Fecha 1", periodLabel: "Fecha 1", rank: 1, points: 7 }, { period: "Fecha 2", periodLabel: "Fecha 2", rank: 2, points: 5 }, { period: "Fecha 3", periodLabel: "Fecha 3", rank: 2, points: 6 }] },
+                    { userId: "u-mock-3", userName: "Luciana Torres", points: [{ period: "Fecha 1", periodLabel: "Fecha 1", rank: 3, points: 5 }, { period: "Fecha 2", periodLabel: "Fecha 2", rank: 3, points: 5 }, { period: "Fecha 3", periodLabel: "Fecha 3", rank: 3, points: 5 }] }
                   ]
+                : [
+                    { userId: "user-1", userName: "Usuario Fulbito", points: [{ period: "Fecha 1", periodLabel: "Fecha 1", rank: 1, points: 9 }, { period: "Fecha 2", periodLabel: "Fecha 2", rank: 1, points: 9 }] }
+                  ],
+              userSection: {
+                userId: isAsd ? "u-mock-owner" : "user-1",
+                userName: "Usuario Fulbito",
+                precisionPct: isAsd ? 70 : 100,
+                exactPct: isAsd ? 45 : 75,
+                averagePointsPerRound: isAsd ? 6 : 9,
+                trend: {
+                  accuracyPctDelta: isAsd ? 4 : 0,
+                  pointsPerRoundDelta: isAsd ? 0.6 : 0
+                },
+                consistencyStdDev: isAsd ? 1.3 : 0,
+                nearMissRatePct: isAsd ? 17 : 8,
+                homeAccuracyPct: isAsd ? 68 : 100,
+                awayAccuracyPct: isAsd ? 63 : 100
+              },
+              groupSection: {
+                precisionPct: isAsd ? 71 : 100,
+                pointsDistribution: {
+                  p25: isAsd ? 4.6 : 9,
+                  median: isAsd ? 5.2 : 9,
+                  p75: isAsd ? 6.6 : 9
+                },
+                parityGapTopVsMedian: isAsd ? 1.8 : 0,
+                difficultyIndexAvgPointsPerRound: isAsd ? 5.4 : 9,
+                consensusHitPct: isAsd ? 62 : 100,
+                advantageOpportunityCount: isAsd ? 3 : 0,
+                activeParticipationPct: 100,
+                bestRound: {
+                  period: "Fecha 3",
+                  periodLabel: "Fecha 3",
+                  userId: topUser.userId ?? "u-mock-2",
+                  userName: topUser.name,
+                  points: 12
+                },
+                worstRound: {
+                  period: "Fecha 1",
+                  periodLabel: "Fecha 1",
+                  userId: "u-mock-6",
+                  userName: "Rodrigo Perez",
+                  points: 3
                 }
-              ]
+              },
+              comparatives: {
+                vsMedianAccuracyPct: isAsd ? 5 : 0,
+                vsMedianPointsPerRound: isAsd ? 0.8 : 0
+              }
             }
           : null
     };

@@ -1,0 +1,23 @@
+{
+  "name": "notification_jobs",
+  "type": "base",
+  "fields": [
+    { "name": "event_id", "type": "text", "required": true, "min": 1, "max": 100 },
+    { "name": "status", "type": "text", "required": true, "min": 1, "max": 20 },
+    { "name": "total_recipients", "type": "number", "required": false, "min": 0 },
+    { "name": "sent", "type": "number", "required": false, "min": 0 },
+    { "name": "failed", "type": "number", "required": false, "min": 0 },
+    { "name": "started_at", "type": "date", "required": false },
+    { "name": "completed_at", "type": "date", "required": false },
+    { "name": "error", "type": "text", "required": false, "max": 2000 }
+  ],
+  "indexes": [
+    "CREATE INDEX idx_nj_event_id ON notification_jobs (event_id)",
+    "CREATE INDEX idx_nj_status ON notification_jobs (status)"
+  ],
+  "listRule": null,
+  "viewRule": null,
+  "createRule": null,
+  "updateRule": null,
+  "deleteRule": null
+}

@@ -34,6 +34,21 @@ export interface Group {
   season: string;
 }
 
+export type GroupVisibility = "open" | "closed";
+
+export interface GroupSearchResult {
+  id: string;
+  name: string;
+  leagueId: number;
+  leagueName: string;
+  season: string;
+  competitionName?: string;
+  competitionStage?: CompetitionStage;
+  visibility: GroupVisibility;
+  memberCount: number;
+  maxMembers: number | null;
+}
+
 export interface Prediction {
   fixtureId: string;
   home: number;
@@ -146,6 +161,47 @@ export interface LeaderboardHistoricalSeries {
   points: LeaderboardHistoricalPoint[];
 }
 
+export interface LeaderboardStatsTrendWindow {
+  accuracyPctDelta: number;
+  pointsPerRoundDelta: number;
+}
+
+export interface LeaderboardStatsDistribution {
+  p25: number;
+  median: number;
+  p75: number;
+}
+
+export interface LeaderboardStatsComparatives {
+  vsMedianAccuracyPct: number;
+  vsMedianPointsPerRound: number;
+}
+
+export interface LeaderboardUserStatsSection {
+  userId: string;
+  userName: string;
+  precisionPct: number;
+  exactPct: number;
+  averagePointsPerRound: number;
+  trend: LeaderboardStatsTrendWindow;
+  consistencyStdDev: number;
+  nearMissRatePct: number;
+  homeAccuracyPct: number;
+  awayAccuracyPct: number;
+}
+
+export interface LeaderboardGroupStatsSection {
+  precisionPct: number;
+  pointsDistribution: LeaderboardStatsDistribution;
+  parityGapTopVsMedian: number;
+  difficultyIndexAvgPointsPerRound: number;
+  consensusHitPct: number;
+  advantageOpportunityCount: number;
+  activeParticipationPct: number;
+  bestRound: LeaderboardBestRound | null;
+  worstRound: LeaderboardBestRound | null;
+}
+
 export interface ProfileStats {
   totalPoints: number;
   accuracyPct: number;
@@ -207,13 +263,78 @@ export interface NotificationPreferences {
   social: boolean;
 }
 
+export type NotificationEventType = "prediction_lock" | "results_published" | "weekly_winner" | "social";
+
 export interface NotificationItem {
   id: string;
-  type: "prediction_lock" | "results_published" | "weekly_winner" | "social";
+  type: NotificationEventType;
   title: string;
   body: string;
   createdAt: string;
   read: boolean;
+}
+
+export type DeviceTokenProvider = "fcm" | "apns" | "expo" | "synthetic";
+export type DeviceTokenPlatform = "ios" | "android" | "web" | string;
+
+export interface DeviceTokenRecord {
+  id: string;
+  userId: string;
+  token: string;
+  platform: DeviceTokenPlatform;
+  provider: DeviceTokenProvider;
+  appVersion?: string | null;
+  registeredAt: string;
+  lastSeenAt: string;
+  invalidatedAt?: string | null;
+}
+
+export type NotificationTargetScope = "user" | "group" | "global";
+
+export type NotificationEventStatus = "pending" | "processing" | "completed" | "failed";
+
+export interface NotificationEvent {
+  id: string;
+  eventType: NotificationEventType;
+  scope: NotificationTargetScope;
+  targetIds?: string[];
+  title: string;
+  body: string;
+  data?: Record<string, unknown>;
+  idempotencyKey: string;
+  status: NotificationEventStatus;
+  createdAt: string;
+  processedAt?: string | null;
+}
+
+export type NotificationJobStatus = "queued" | "running" | "completed" | "failed";
+
+export interface NotificationJob {
+  id: string;
+  eventId: string;
+  status: NotificationJobStatus;
+  totalRecipients: number;
+  sent: number;
+  failed: number;
+  createdAt: string;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  error?: string | null;
+}
+
+export type NotificationDeliveryStatus = "pending" | "sent" | "failed" | "invalid_token";
+
+export interface NotificationDelivery {
+  id: string;
+  jobId: string;
+  userId: string;
+  tokenId: string;
+  status: NotificationDeliveryStatus;
+  attempts: number;
+  lastAttemptAt?: string | null;
+  providerMessageId?: string | null;
+  error?: string | null;
+  createdAt: string;
 }
 
 export interface PredictionInputDraft {

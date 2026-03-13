@@ -1,77 +1,66 @@
-import { Pressable, StyleSheet, View } from "react-native";
-import { NavigationContext } from "@react-navigation/native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@fulbito/design-tokens";
-import { Text } from "react-native";
-import { useContext } from "react";
 
-export function HeaderActionIcons() {
-  const navigation = useContext(NavigationContext) as { navigate?: (route: string) => void } | null;
+interface HeaderActionIconsProps {
+  notificationCount?: number;
+  onPressNotifications?: () => void;
+}
+
+export function HeaderActionIcons({
+  notificationCount = 0,
+  onPressNotifications
+}: HeaderActionIconsProps) {
+  const showBadge = notificationCount > 0;
 
   return (
-    <View style={styles.row}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Abrir ajustes"
-        onPress={() => navigation?.navigate?.("Ajustes")}
-        hitSlop={6}
-        style={styles.iconButton}
-      >
-        <Text allowFontScaling={false} style={styles.iconGlyph}>⚙</Text>
-      </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Abrir perfil"
-        onPress={() => navigation?.navigate?.("Perfil")}
-        hitSlop={6}
-        style={styles.iconButton}
-      >
-        <View style={styles.profileIcon}>
-          <View style={styles.profileHead} />
-          <View style={styles.profileBody} />
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Notificaciones"
+      onPress={onPressNotifications}
+      hitSlop={6}
+      style={styles.iconButton}
+    >
+      <Ionicons name="notifications-outline" size={20} color={colors.textSecondary} />
+      {showBadge && (
+        <View style={styles.badge}>
+          <Text allowFontScaling={false} style={styles.badgeText}>
+            {notificationCount > 9 ? "9+" : String(notificationCount)}
+          </Text>
         </View>
-      </Pressable>
-    </View>
+      )}
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10
-  },
   iconButton: {
-    height: 44,
-    width: 44,
-    borderRadius: 999,
-    backgroundColor: colors.brandTint,
+    height: 42,
+    width: 42,
+    borderRadius: 14,
+    backgroundColor: colors.surfaceMuted,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    marginTop: 3
   },
-  iconGlyph: {
-    color: colors.iconStrong,
-    fontSize: 24,
+  badge: {
+    position: "absolute",
+    top: 5,
+    right: 5,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.dangerAccent,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 3,
+    borderWidth: 1.5,
+    borderColor: colors.surface
+  },
+  badgeText: {
+    color: "#FFFFFF",
+    fontSize: 9,
     fontWeight: "800",
-    lineHeight: 24
-  },
-  profileIcon: {
-    width: 24,
-    height: 24,
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  profileHead: {
-    width: 9,
-    height: 9,
-    borderRadius: 999,
-    backgroundColor: colors.iconStrong
-  },
-  profileBody: {
-    marginTop: 2,
-    width: 14,
-    height: 8,
-    borderTopLeftRadius: 999,
-    borderTopRightRadius: 999,
-    backgroundColor: colors.iconStrong
+    lineHeight: 11
   }
 });

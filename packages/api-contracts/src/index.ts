@@ -1,12 +1,17 @@
 import type {
   Fixture,
   Group,
+  GroupSearchResult,
+  GroupVisibility,
   LeaderboardAward,
   LeaderboardEntry,
   LeaderboardHistoricalSeries,
   LeaderboardMemberStatsSummary,
+  LeaderboardStatsComparatives,
+  LeaderboardGroupStatsSection,
   LeaderboardMode,
   LeaderboardPeriod,
+  LeaderboardUserStatsSection,
   LeaderboardStatsRow,
   MatchScoreValue,
   Membership,
@@ -34,6 +39,7 @@ export interface AuthRepository {
 export interface GroupsRepository {
   listGroups(): Promise<Group[]>;
   listMemberships(): Promise<Membership[]>;
+  searchGroups(input: { query?: string; leagueId?: number }): Promise<GroupSearchResult[]>;
   createGroup(input: {
     name: string;
     season?: string;
@@ -41,6 +47,8 @@ export interface GroupsRepository {
     competitionStage?: "apertura" | "clausura" | "general";
     competitionName?: string;
     competitionKey?: string;
+    visibility?: GroupVisibility;
+    startingFecha?: string;
   }): Promise<Group>;
   joinGroup(input: { codeOrToken: string }): Promise<Group>;
   updateGroupName(input: { groupId: string; name: string }): Promise<{ ok: true; group: { id: string; name: string } }>;
@@ -190,6 +198,9 @@ export interface LeaderboardApiStatsPayload {
   summary: LeaderboardMemberStatsSummary;
   awards: LeaderboardAward[];
   historicalSeries: LeaderboardHistoricalSeries[];
+  userSection?: LeaderboardUserStatsSection;
+  groupSection?: LeaderboardGroupStatsSection;
+  comparatives?: LeaderboardStatsComparatives;
 }
 
 export interface LeaderboardApiPayload {

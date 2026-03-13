@@ -1,14 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { useQuery } from "@tanstack/react-query";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { colors } from "@fulbito/design-tokens";
 import { leaderboardRepository } from "@/repositories";
+import { useAuth } from "@/state/AuthContext";
 import { useGroupSelection } from "@/state/GroupContext";
 import { usePeriod } from "@/state/PeriodContext";
 import { ScreenFrame } from "@/components/ScreenFrame";
-import { HeaderGroupSelector } from "@/components/HeaderGroupSelector";
-import { HeaderActionIcons } from "@/components/HeaderActionIcons";
+import { AppHeader } from "@/components/AppHeader";
 import { FechaSelector } from "@/components/FechaSelector";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
@@ -16,32 +15,38 @@ import { LoadingState } from "@/components/LoadingState";
 
 type PosicionesMode = "positions" | "stats";
 
-const awardVisualById: Record<string, { icon: string; tone: string }> = {
-  nostradamus: { icon: "✣", tone: colors.primaryStrong },
-  bilardista: { icon: "◻", tone: colors.slate },
-  "la-racha": { icon: "◔", tone: colors.warning },
-  batacazo: { icon: "⚡", tone: colors.warning },
-  "robin-hood": { icon: "◎", tone: colors.successAccent },
-  "el-casi": { icon: "⌖", tone: colors.info },
-  "el-mufa": { icon: "☂", tone: colors.slateMuted }
-};
-
-function stageLabel(value: string | undefined) {
-  if (!value) return "";
-  return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+function formatPct(value: number) {
+  return `${Math.round(value)}%`;
 }
 
-function competitionLabelForPosiciones(input: {
-  competitionStage?: string;
-  competitionName?: string;
-  leagueName?: string;
-}) {
-  return stageLabel(input.competitionStage?.trim()) || input.competitionName?.trim() || input.leagueName?.trim() || "Sin competencia";
+function formatNumber(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function formatSigned(value: number, suffix = "") {
+  const rounded = Math.round(value * 10) / 10;
+  if (rounded > 0) return `+${formatNumber(rounded)}${suffix}`;
+  if (rounded < 0) return `${formatNumber(rounded)}${suffix}`;
+  return `0${suffix}`;
+}
+
+function buildAwardEmoji(title: string) {
+  const normalized = title.toLowerCase();
+  if (normalized.includes("nostradamus")) return "🔮";
+  if (normalized.includes("bilardista")) return "🧠";
+  if (normalized.includes("racha")) return "🔥";
+  if (normalized.includes("batacazo")) return "💥";
+  if (normalized.includes("robin")) return "🏹";
+  if (normalized.includes("casi")) return "🎯";
+  if (normalized.includes("mufa")) return "🧊";
+  return "🏅";
 }
 
 export function PosicionesScreen() {
-  const insets = useSafeAreaInsets();
-  const { memberships, selectedGroupId, setSelectedGroupId } = useGroupSelection();
+  const queryClient = useQueryClient();
+  const { session } = useAuth();
+  const currentUserId = session?.user.id;
+  const { memberships, selectedGroupId } = useGroupSelection();
   const { fecha, options } = usePeriod();
   const [mode, setMode] = useState<PosicionesMode>("positions");
   const [positionsPeriod, setPositionsPeriod] = useState("global");
@@ -78,48 +83,13 @@ export function PosicionesScreen() {
   });
 
   const entries = leaderboardQuery.data?.rows ?? [];
-  const summary = leaderboardQuery.data?.stats?.summary ?? null;
-  const awards = leaderboardQuery.data?.stats?.awards ?? [];
-  const historicalSeries = leaderboardQuery.data?.stats?.historicalSeries ?? [];
   const tableGroupLabel = leaderboardQuery.data?.groupLabel?.trim() || selectedMembership?.groupName || "Grupo";
   const tablePeriodLabel = leaderboardQuery.data?.periodLabel?.trim() || "Acumulado";
   const qualificationCutoff = Math.min(8, Math.max(1, entries.length));
-  const performanceMetrics = [
-    { key: "exact", label: "Aciertos exactos", value: summary?.exactPredictions ?? 0 },
-    { key: "result", label: "Resultado", value: summary?.resultPredictions ?? 0 },
-    { key: "miss", label: "Sin acierto", value: summary?.missPredictions ?? 0 },
-    { key: "accuracy", label: "Precisión", value: `${summary?.accuracyPct ?? 0}%` },
-    {
-      key: "average",
-      label: "Promedio x miembro",
-      value:
-        summary && Number.isInteger(summary.averageMemberPoints)
-          ? String(summary.averageMemberPoints)
-          : (summary?.averageMemberPoints ?? 0).toFixed(1)
-    }
-  ];
 
-  const trendRows = useMemo(
-    () =>
-      historicalSeries
-        .map((series) => {
-          const points = series.points ?? [];
-          const last = points[points.length - 1];
-          const bestRank = points.length > 0 ? Math.min(...points.map((point) => point.rank)) : 0;
-          const totalPoints = points.reduce((acc, point) => acc + point.points, 0);
-          return {
-            userId: series.userId,
-            userName: series.userName,
-            latestPeriodLabel: last?.periodLabel ?? "-",
-            latestRank: last?.rank ?? 0,
-            latestPoints: last?.points ?? 0,
-            bestRank,
-            totalPoints
-          };
-        })
-        .sort((a, b) => a.bestRank - b.bestRank || b.totalPoints - a.totalPoints || a.userName.localeCompare(b.userName, "es")),
-    [historicalSeries]
-  );
+  const handleRefresh = useCallback(async () => {
+    await queryClient.resetQueries();
+  }, [queryClient]);
 
   function swipeToPreviousPeriod() {
     if (mode !== "positions" || positionsCycleOptions.length === 0) {
@@ -146,21 +116,16 @@ export function PosicionesScreen() {
       contentStyle={styles.screenContent}
       onSwipeLeft={mode === "positions" ? swipeToNextPeriod : undefined}
       onSwipeRight={mode === "positions" ? swipeToPreviousPeriod : undefined}
-      header={
-        <View style={[styles.headerCard, { paddingTop: Math.max(insets.top, 10) + 2 }]}>
-          <View style={styles.headerRow}>
-            <HeaderGroupSelector memberships={memberships} selectedGroupId={selectedGroupId} onSelectGroup={(nextGroupId) => void setSelectedGroupId(nextGroupId)} />
-            <HeaderActionIcons />
-          </View>
-        </View>
-      }
+      showSwipeCue
+      onRefresh={handleRefresh}
+      header={<AppHeader />}
     >
       <View style={styles.filterTabs}>
         <Pressable onPress={() => setMode("positions")} style={[styles.filterTab, mode === "positions" ? styles.filterTabActive : null]}>
           <Text allowFontScaling={false} style={mode === "positions" ? styles.filterTabLabelActive : styles.filterTabLabel}>Posiciones</Text>
         </Pressable>
         <Pressable onPress={() => setMode("stats")} style={[styles.filterTab, mode === "stats" ? styles.filterTabActive : null]}>
-          <Text allowFontScaling={false} style={mode === "stats" ? styles.filterTabLabelActive : styles.filterTabLabel}>Stats</Text>
+          <Text allowFontScaling={false} style={mode === "stats" ? styles.filterTabLabelActive : styles.filterTabLabel}>Estadísticas</Text>
         </Pressable>
       </View>
 
@@ -168,10 +133,10 @@ export function PosicionesScreen() {
         <FechaSelector options={positionsCycleOptions} value={positionsPeriod} onChange={setPositionsPeriod} />
       ) : null}
 
-      {leaderboardQuery.isLoading ? <LoadingState message="Cargando posiciones..." variant={mode === "positions" ? "leaderboard" : "stats"} /> : null}
+      {leaderboardQuery.isLoading ? <LoadingState message={mode === "positions" ? "Cargando posiciones..." : "Cargando estadísticas..."} variant={mode === "positions" ? "leaderboard" : "stats"} /> : null}
       {leaderboardQuery.isError ? (
         <ErrorState
-          message="No se pudo cargar la tabla de posiciones."
+          message={mode === "positions" ? "No se pudo cargar la tabla de posiciones." : "No se pudieron cargar las estadísticas."}
           retryLabel="Reintentar"
           onRetry={() => void leaderboardQuery.refetch()}
         />
@@ -199,13 +164,15 @@ export function PosicionesScreen() {
             const isQualified = entry.rank <= qualificationCutoff;
             const isFirst = index === 0;
             const isLast = index === entries.length - 1;
+            const isMe = !!currentUserId && entry.userId === currentUserId;
             return (
               <View
                 key={entry.userId ?? `row-${entry.rank}-${entry.name}`}
                 style={[
                   styles.standingsRow,
                   isFirst ? styles.standingsRowFirst : null,
-                  isLast ? styles.standingsRowLast : null
+                  isLast ? styles.standingsRowLast : null,
+                  isMe ? styles.standingsRowMe : null
                 ]}
               >
                 <View
@@ -216,8 +183,8 @@ export function PosicionesScreen() {
                     isLast && isQualified ? styles.standingsMarkerLast : null
                   ]}
                 />
-                <Text allowFontScaling={false} style={styles.standingsRank}>{entry.rank}</Text>
-                <Text allowFontScaling={false} numberOfLines={1} style={styles.standingsName}>
+                <Text allowFontScaling={false} style={[styles.standingsRank, isMe ? styles.standingsRankMe : null]}>{entry.rank}</Text>
+                <Text allowFontScaling={false} numberOfLines={1} style={[styles.standingsName, isMe ? styles.standingsNameMe : null]}>
                   {entry.name}
                 </Text>
                 <Text allowFontScaling={false} style={styles.standingsMetric}>{entry.predictions}</Text>
@@ -239,97 +206,82 @@ export function PosicionesScreen() {
 
       {!leaderboardQuery.isLoading && !leaderboardQuery.isError && mode === "stats" ? (
         <>
-          <View style={styles.statsSummaryRow}>
-            <View style={styles.statsSummaryCard}>
-              <View style={styles.statsIconCircle}>
-                <Text allowFontScaling={false} style={styles.statsIconText}>👥</Text>
-              </View>
-              <Text allowFontScaling={false} style={styles.statsLabel}>MIEMBROS</Text>
-              <Text allowFontScaling={false} style={styles.statsValue}>{summary?.memberCount ?? 0}</Text>
-            </View>
-            <View style={styles.statsSummaryCard}>
-              <View style={styles.statsIconCircle}>
-                <Text allowFontScaling={false} style={styles.statsIconText}>⭐</Text>
-              </View>
-              <Text allowFontScaling={false} style={styles.statsLabel}>PUNTOS TOTALES</Text>
-              <Text allowFontScaling={false} style={[styles.statsValue, styles.statsValueAccent]}>{summary?.totalPoints ?? 0}</Text>
-            </View>
-            <View style={styles.statsSummaryCard}>
-              <View style={styles.statsIconCircle}>
-                <Text allowFontScaling={false} style={styles.statsIconText}>◎</Text>
-              </View>
-              <Text allowFontScaling={false} style={styles.statsLabel}>PRECISIÓN</Text>
-              <Text allowFontScaling={false} style={styles.statsValue}>{summary?.accuracyPct ?? 0}%</Text>
-            </View>
-          </View>
-
-          <Text allowFontScaling={false} style={styles.rewardsTitle}>PREMIOS Y CASTIGOS</Text>
-          {awards.length === 0 ? (
-            <EmptyState title="Sin stats disponibles" description="Todavía no hay datos suficientes para premios y castigos." />
-          ) : null}
-          {awards.map((award) => {
-            const visual = awardVisualById[award.id] || { icon: "◎", tone: colors.slate };
-            return (
-              <View key={award.id} style={styles.rewardRow}>
-                <View style={[styles.rewardIcon, { backgroundColor: `${visual.tone}22` }]}>
-                  <Text allowFontScaling={false} style={[styles.rewardIconText, { color: visual.tone }]}>{visual.icon}</Text>
+          {!leaderboardQuery.data?.stats?.userSection || !leaderboardQuery.data?.stats?.groupSection ? (
+            <EmptyState title="Sin estadísticas disponibles" description="Necesitamos más resultados cerrados para construir tus métricas." />
+          ) : (
+            <>
+              <View style={styles.block}>
+                <View style={styles.sectionHeaderRow}>
+                  <Text allowFontScaling={false} style={styles.sectionTitleSmall}>Tus estadísticas</Text>
+                  <Text allowFontScaling={false} style={styles.sectionSubtitleSmall}>{leaderboardQuery.data.stats.userSection.userName}</Text>
                 </View>
-                <View style={styles.rewardTextCol}>
-                  <Text allowFontScaling={false} style={styles.rewardLabel}>{award.title}</Text>
-                  <Text allowFontScaling={false} style={styles.rewardWinner}>{award.winnerName}</Text>
-                  <Text allowFontScaling={false} style={styles.rewardHint}>{award.subtitle}</Text>
+                <View style={styles.performanceCard}>
+                  {[
+                    { label: "Precisión total", value: formatPct(leaderboardQuery.data.stats.userSection.precisionPct) },
+                    { label: "Plenos", value: formatPct(leaderboardQuery.data.stats.userSection.exactPct) },
+                    { label: "Puntos por fecha", value: formatNumber(leaderboardQuery.data.stats.userSection.averagePointsPerRound) },
+                    { label: "Tendencia", value: `${formatSigned(leaderboardQuery.data.stats.userSection.trend.pointsPerRoundDelta)} pts · ${formatSigned(leaderboardQuery.data.stats.userSection.trend.accuracyPctDelta, " pp")}` },
+                    { label: "Consistencia (desvío)", value: formatNumber(leaderboardQuery.data.stats.userSection.consistencyStdDev) },
+                    { label: "Brecha vs mediana", value: `${formatSigned(leaderboardQuery.data.stats.comparatives?.vsMedianPointsPerRound ?? 0)} pts · ${formatSigned(leaderboardQuery.data.stats.comparatives?.vsMedianAccuracyPct ?? 0, " pp")}` },
+                    { label: "Errores evitables", value: formatPct(leaderboardQuery.data.stats.userSection.nearMissRatePct) },
+                    { label: "Split local / visitante", value: `${formatPct(leaderboardQuery.data.stats.userSection.homeAccuracyPct)} / ${formatPct(leaderboardQuery.data.stats.userSection.awayAccuracyPct)}` }
+                  ].map((row, index) => (
+                    <View key={row.label} style={[styles.performanceRow, index > 0 ? styles.performanceRowBorder : null]}>
+                      <Text allowFontScaling={false} style={styles.performanceLabel}>{row.label}</Text>
+                      <Text allowFontScaling={false} style={styles.performanceValue}>{row.value}</Text>
+                    </View>
+                  ))}
                 </View>
-                <Text allowFontScaling={false} style={styles.rewardChevron}>⌄</Text>
               </View>
-            );
-          })}
 
-          <Text allowFontScaling={false} style={styles.rewardsTitle}>RENDIMIENTO GENERAL</Text>
-          <View style={styles.performanceCard}>
-            {performanceMetrics.map((metric, index) => (
-              <View key={metric.key} style={[styles.performanceRow, index > 0 ? styles.performanceRowBorder : null]}>
-                <Text allowFontScaling={false} style={styles.performanceLabel}>{metric.label}</Text>
-                <Text allowFontScaling={false} style={styles.performanceValue}>{metric.value}</Text>
+              <View style={styles.block}>
+                <Text allowFontScaling={false} style={styles.sectionTitleSmall}>Estadísticas del grupo</Text>
+                <View style={styles.performanceCard}>
+                  {[
+                    { label: "Precisión grupal", value: formatPct(leaderboardQuery.data.stats.groupSection.precisionPct) },
+                    {
+                      label: "Distribución (P25 / Mediana / P75)",
+                      value: `${formatNumber(leaderboardQuery.data.stats.groupSection.pointsDistribution.p25)} / ${formatNumber(leaderboardQuery.data.stats.groupSection.pointsDistribution.median)} / ${formatNumber(leaderboardQuery.data.stats.groupSection.pointsDistribution.p75)}`
+                    },
+                    { label: "Paridad competitiva", value: `${formatNumber(leaderboardQuery.data.stats.groupSection.parityGapTopVsMedian)} pts` },
+                    { label: "Índice de dificultad", value: `${formatNumber(leaderboardQuery.data.stats.groupSection.difficultyIndexAvgPointsPerRound)} pts/fecha` },
+                    { label: "Acierto de consenso", value: formatPct(leaderboardQuery.data.stats.groupSection.consensusHitPct) },
+                    { label: "Oportunidades de ventaja", value: String(leaderboardQuery.data.stats.groupSection.advantageOpportunityCount) },
+                    { label: "Participación activa", value: formatPct(leaderboardQuery.data.stats.groupSection.activeParticipationPct) },
+                    {
+                      label: "Racha colectiva",
+                      value: `${leaderboardQuery.data.stats.groupSection.bestRound?.periodLabel ?? "-"} / ${leaderboardQuery.data.stats.groupSection.worstRound?.periodLabel ?? "-"}`
+                    }
+                  ].map((row, index) => (
+                    <View key={row.label} style={[styles.performanceRow, index > 0 ? styles.performanceRowBorder : null]}>
+                      <Text allowFontScaling={false} style={styles.performanceLabel}>{row.label}</Text>
+                      <Text allowFontScaling={false} style={styles.performanceValue}>{row.value}</Text>
+                    </View>
+                  ))}
+                </View>
               </View>
-            ))}
-          </View>
 
-          <Text allowFontScaling={false} style={styles.rewardsTitle}>MEJOR Y PEOR FECHA</Text>
-          <View style={styles.roundSummaryRow}>
-            <View style={styles.roundSummaryCard}>
-              <Text allowFontScaling={false} style={styles.roundSummaryTag}>MEJOR</Text>
-              <Text allowFontScaling={false} style={styles.roundSummaryName}>{summary?.bestRound?.userName ?? "Sin datos"}</Text>
-              <Text allowFontScaling={false} style={styles.roundSummaryMeta}>
-                {(summary?.bestRound?.periodLabel ?? "-")} · {summary?.bestRound?.points ?? 0} pts
-              </Text>
-            </View>
-            <View style={styles.roundSummaryCard}>
-              <Text allowFontScaling={false} style={styles.roundSummaryTag}>PEOR</Text>
-              <Text allowFontScaling={false} style={styles.roundSummaryName}>{summary?.worstRound?.userName ?? "Sin datos"}</Text>
-              <Text allowFontScaling={false} style={styles.roundSummaryMeta}>
-                {(summary?.worstRound?.periodLabel ?? "-")} · {summary?.worstRound?.points ?? 0} pts
-              </Text>
-            </View>
-          </View>
-
-          <Text allowFontScaling={false} style={styles.rewardsTitle}>EVOLUCIÓN POR MIEMBRO</Text>
-          {trendRows.length === 0 ? (
-            <EmptyState title="Sin historial disponible" description="Todavía no hay serie histórica para comparar evolución." />
-          ) : null}
-          {trendRows.map((row) => (
-            <View key={row.userId} style={styles.trendRow}>
-              <View style={styles.trendMain}>
-                <Text allowFontScaling={false} style={styles.trendName}>{row.userName}</Text>
-                <Text allowFontScaling={false} style={styles.trendMeta}>
-                  Mejor rank #{row.bestRank || "-"} · Última {row.latestPeriodLabel}
-                </Text>
-              </View>
-              <View style={styles.trendStats}>
-                <Text allowFontScaling={false} style={styles.trendStatPrimary}>#{row.latestRank || "-"}</Text>
-                <Text allowFontScaling={false} style={styles.trendStatSecondary}>{row.latestPoints} pts</Text>
-              </View>
-            </View>
-          ))}
+              {leaderboardQuery.data.stats.awards?.length ? (
+                <View style={styles.block}>
+                  <Text allowFontScaling={false} style={styles.rewardsTitle}>PREMIOS Y CASTIGOS</Text>
+                  <View style={styles.rewardsList}>
+                    {leaderboardQuery.data.stats.awards.map((award) => (
+                      <View key={award.id} style={styles.rewardRow}>
+                        <View style={styles.rewardIcon}>
+                          <Text allowFontScaling={false} style={styles.rewardIconText}>{buildAwardEmoji(award.title)}</Text>
+                        </View>
+                        <View style={styles.rewardTextCol}>
+                          <Text allowFontScaling={false} style={styles.rewardLabel}>{award.title}</Text>
+                          <Text allowFontScaling={false} style={styles.rewardWinner}>{award.winnerName}</Text>
+                          <Text allowFontScaling={false} style={styles.rewardHint}>{award.subtitle}</Text>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+            </>
+          )}
         </>
       ) : null}
     </ScreenFrame>
@@ -345,22 +297,6 @@ const styles = StyleSheet.create({
   },
   screenContent: {
     gap: 14
-  },
-  headerCard: {
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    backgroundColor: colors.surfaceSoft,
-    paddingHorizontal: 16,
-    paddingBottom: 14,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    marginHorizontal: -12
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8
   },
   sectionIcon: {
     height: 34,
@@ -511,6 +447,9 @@ const styles = StyleSheet.create({
   standingsRowLast: {
     paddingBottom: 4
   },
+  standingsRowMe: {
+    backgroundColor: colors.primaryStrong + "1A"
+  },
   standingsMarker: {
     width: 3,
     alignSelf: "stretch",
@@ -535,12 +474,20 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontSize: 15
   },
+  standingsRankMe: {
+    color: colors.primaryStrong,
+    fontWeight: "800"
+  },
   standingsName: {
     flex: 1,
     color: colors.textStrong,
     fontWeight: "600",
     fontSize: 14,
     marginLeft: 4
+  },
+  standingsNameMe: {
+    color: colors.textTitle,
+    fontWeight: "800"
   },
   standingsMetric: {
     width: 36,
@@ -606,6 +553,26 @@ standingsLegend: {
     color: colors.textHigh,
     fontSize: 18,
     fontWeight: "900"
+  },
+  rewardsList: {
+    marginTop: 8,
+    gap: 8
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8
+  },
+  sectionTitleSmall: {
+    color: colors.textHigh,
+    fontSize: 16,
+    fontWeight: "900"
+  },
+  sectionSubtitleSmall: {
+    marginLeft: "auto",
+    color: colors.textMutedAlt,
+    fontSize: 12,
+    fontWeight: "700"
   },
   rewardRow: {
     borderRadius: 12,

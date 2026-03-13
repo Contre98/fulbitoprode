@@ -13,13 +13,14 @@ export async function GET(request: Request) {
     return unauthorizedJson();
   }
 
-  seedNotificationIfEmpty(session.userId);
-  const items = listNotifications(session.userId);
+  await seedNotificationIfEmpty(session.userId);
+  const items = await listNotifications(session.userId);
+  const unreadCount = await unreadNotificationCount(session.userId);
   const weeklyWinnerItem = items.find((item) => item.type === "weekly_winner");
   return jsonResponse(
     {
       items,
-      unreadCount: unreadNotificationCount(session.userId),
+      unreadCount,
       weeklyWinner: weeklyWinnerItem
         ? {
             period: "latest",
@@ -39,6 +40,6 @@ export async function POST(request: Request) {
     return unauthorizedJson();
   }
 
-  markAllNotificationsRead(session.userId);
+  await markAllNotificationsRead(session.userId);
   return jsonResponse({ ok: true }, { status: 200 });
 }

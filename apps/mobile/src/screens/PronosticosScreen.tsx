@@ -1,19 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { Fixture, Prediction, PredictionHistoryEntry } from "@fulbito/domain";
 import { colors, spacing } from "@fulbito/design-tokens";
 import { calculatePredictionPoints, isPredictionInputComplete, normalizePredictionInput } from "@fulbito/domain";
 import { ScreenFrame } from "@/components/ScreenFrame";
-import { HeaderGroupSelector } from "@/components/HeaderGroupSelector";
-import { HeaderActionIcons } from "@/components/HeaderActionIcons";
+import { AppHeader } from "@/components/AppHeader";
 import { FechaSelector } from "@/components/FechaSelector";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
+import { FormDots, MatchSideGradient } from "@/components/MatchCardVisuals";
 import { TeamCrest } from "@/components/TeamCrest";
 import { LivePulseBorder, estimateMatchMinute, useLivePulse } from "@/components/LiveMatchIndicator";
+import { ScorePickerModal } from "@/components/ScorePickerModal";
+import { formatShortDateTime24 } from "@/lib/dateTime";
+import { buildTeamFormLookup, teamPredominantColor } from "@/lib/matchVisuals";
 import { fixtureRepository, predictionsRepository } from "@/repositories";
 import { useGroupSelection } from "@/state/GroupContext";
 import { usePeriod } from "@/state/PeriodContext";
@@ -21,6 +23,7 @@ import { usePeriod } from "@/state/PeriodContext";
 type DraftByFixture = Record<string, { home: string; away: string }>;
 type PronosticosMode = "upcoming" | "history";
 type FixtureSaveStatus = "idle" | "saving" | "error";
+const LPF_APERTURA_2026_LABEL = "LPF: Apertura (2026)";
 
 function toTeamCode(name: string) {
   const clean = name.trim();
@@ -36,6 +39,7 @@ function toTeamCode(name: string) {
 
 function stageLabel(value: string | undefined) {
   if (!value) return "";
+  if (value.trim().toLowerCase() === "apertura") return LPF_APERTURA_2026_LABEL;
   return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
 }
 
@@ -44,6 +48,9 @@ function competitionLabelForPronosticos(input: {
   competitionName?: string;
   competitionStage?: string;
 }) {
+  if (input.competitionStage?.trim().toLowerCase() === "apertura") {
+    return LPF_APERTURA_2026_LABEL;
+  }
   const leagueOrCompetition = input.competitionName?.trim() || input.leagueName?.trim() || "";
   const stage = stageLabel(input.competitionStage?.trim());
   if (leagueOrCompetition && stage && !leagueOrCompetition.toLowerCase().includes(stage.toLowerCase())) {
@@ -69,7 +76,6 @@ function isOpenUpcomingFixture(fixture: Fixture) {
 
 export function PronosticosScreen() {
   const queryClient = useQueryClient();
-  const insets = useSafeAreaInsets();
   const { memberships, selectedGroupId, setSelectedGroupId } = useGroupSelection();
   const { fecha, options, setFecha } = usePeriod();
   const groupId = memberships.find((membership) => membership.groupId === selectedGroupId)?.groupId ?? memberships[0]?.groupId ?? "grupo-1";
@@ -79,6 +85,7 @@ export function PronosticosScreen() {
   const [draftByFixture, setDraftByFixture] = useState<DraftByFixture>({});
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [mode, setMode] = useState<PronosticosMode>("upcoming");
+  const [scoreModalFixtureId, setScoreModalFixtureId] = useState<string | null>(null);
   const [saveStatusByFixture, setSaveStatusByFixture] = useState<Record<string, FixtureSaveStatus>>({});
   const [saveErrorByFixture, setSaveErrorByFixture] = useState<Record<string, string>>({});
   const draftByFixtureRef = useRef<DraftByFixture>({});
@@ -95,6 +102,24 @@ export function PronosticosScreen() {
         groupId,
         fecha
       })
+  });
+  const formFixtureQuery = useQuery({
+    queryKey: ["fixture-form-history", groupId, fecha, options.map((item) => item.id).join("|")],
+    queryFn: async () => {
+      const optionIds = options.map((item) => item.id).filter(Boolean);
+      const candidatePeriods = Array.from(new Set([fecha, ...optionIds]));
+      const periodLists = await Promise.all(
+        candidatePeriods.map((period) =>
+          fixtureRepository
+            .listFixture({ groupId, fecha: period })
+            .catch(() => [])
+        )
+      );
+      const merged = periodLists.flat();
+      const deduped = new Map<string, (typeof merged)[number]>();
+      merged.forEach((fixture) => deduped.set(fixture.id, fixture));
+      return [...deduped.values()];
+    }
   });
 
   const historyFixtureQuery = useQuery({
@@ -268,6 +293,10 @@ export function PronosticosScreen() {
     () => new Map((fixtureQuery.data ?? []).map((fixture) => [fixture.id, fixture])),
     [fixtureQuery.data]
   );
+  const teamFormLookup = useMemo(
+    () => buildTeamFormLookup(formFixtureQuery.data ?? fixtureQuery.data ?? []),
+    [formFixtureQuery.data, fixtureQuery.data]
+  );
   const completionSummary = useMemo(() => {
     const total = (fixtureQuery.data ?? []).length;
     const completed = (fixtureQuery.data ?? []).filter((fixture) => {
@@ -373,6 +402,10 @@ export function PronosticosScreen() {
     autoSaveTimersRef.current.set(prediction.fixtureId, timer);
   };
 
+  const handleRefresh = useCallback(async () => {
+    await queryClient.resetQueries();
+  }, [queryClient]);
+
   function swipeToPreviousFecha() {
     if (safePeriodOptions.length === 0) {
       return;
@@ -431,6 +464,14 @@ export function PronosticosScreen() {
     });
   }
 
+  function openScorePicker(fixtureId: string) {
+    setScoreModalFixtureId(fixtureId);
+  }
+
+  function closeScorePicker() {
+    setScoreModalFixtureId(null);
+  }
+
   function renderFixtureCard(fixture: Fixture) {
     const draft = draftByFixture[fixture.id] ?? { home: "", away: "" };
     const isEditable = mode === "upcoming" && isOpenUpcomingFixture(fixture);
@@ -445,14 +486,13 @@ export function PronosticosScreen() {
           : isLive
             ? "En vivo"
             : "Finalizado";
-    const kickoffLabel = new Date(fixture.kickoffAt).toLocaleString("es-AR", {
-      day: "2-digit",
-      month: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit"
-    });
+    const kickoffLabel = formatShortDateTime24(fixture.kickoffAt);
     const homeCode = toTeamCode(fixture.homeTeam);
     const awayCode = toTeamCode(fixture.awayTeam);
+    const homeForm = teamFormLookup(fixture.homeTeam, fixture.kickoffAt);
+    const awayForm = teamFormLookup(fixture.awayTeam, fixture.kickoffAt);
+    const homeColor = teamPredominantColor(fixture.homeTeam);
+    const awayColor = teamPredominantColor(fixture.awayTeam);
     const hasDraft = draft.home.length > 0 || draft.away.length > 0;
     const isSavingThisFixture = saveStatusByFixture[fixture.id] === "saving";
     const fixtureSaveError = saveErrorByFixture[fixture.id];
@@ -499,76 +539,75 @@ export function PronosticosScreen() {
     const cardContent = (
       <View key={fixture.id} style={styles.cardWrap}>
         <View style={[styles.card, isLive ? styles.cardLive : null]}>
-          <View style={styles.matchRow}>
-            <View style={styles.teamBlock}>
-              <TeamCrest teamName={fixture.homeTeam} code={homeCode} logoUrl={fixture.homeLogoUrl} />
-              <Text allowFontScaling={false} numberOfLines={1} style={styles.teamCode}>
-                {homeCode}
-              </Text>
-            </View>
-
-            {isEditable ? (
-              <View style={[styles.inputsPill, hasDraft ? styles.inputsPillActive : null]}>
-                <TextInput
-                  style={styles.scoreInput}
-                  value={draft.home}
-                  onChangeText={(value) => updateDraft(fixture.id, "home", value)}
-                  keyboardType="number-pad"
-                  maxLength={2}
-                  placeholder="-"
-                  placeholderTextColor={colors.textSecondary}
-                  editable={isEditable}
-                />
-                <Text allowFontScaling={false} style={styles.separator}>:</Text>
-                <TextInput
-                  style={styles.scoreInput}
-                  value={draft.away}
-                  onChangeText={(value) => updateDraft(fixture.id, "away", value)}
-                  keyboardType="number-pad"
-                  maxLength={2}
-                  placeholder="-"
-                  placeholderTextColor={colors.textSecondary}
-                  editable={isEditable}
-                />
+          <MatchSideGradient homeColor={homeColor} awayColor={awayColor} intensity={0.09} />
+          <View style={styles.cardContent}>
+            <View style={styles.matchRow}>
+              <View style={styles.teamBlock}>
+                <TeamCrest teamName={fixture.homeTeam} code={homeCode} logoUrl={fixture.homeLogoUrl} />
+                <View style={styles.teamInfoCol}>
+                  <Text allowFontScaling={false} numberOfLines={1} style={styles.teamCode}>
+                    {homeCode}
+                  </Text>
+                  <FormDots form={homeForm} />
+                </View>
               </View>
-            ) : (
-              <View style={styles.resultPill}>
-                <Text allowFontScaling={false} style={styles.resultText}>
-                  {readOnlyHome} - {readOnlyAway}
-                </Text>
-                {isLive && liveMinuteLabel ? (
-                  <Animated.Text allowFontScaling={false} style={[styles.resultSub, styles.resultSubLive, { opacity: livePulseOpacity }]}>
-                    {liveMinuteLabel}
-                  </Animated.Text>
-                ) : (
-                  <Text allowFontScaling={false} style={styles.resultSub}>{statusBadgeLabel.toUpperCase()}</Text>
-                )}
+
+              {isEditable ? (
+                <Pressable
+                  testID={`score-open-${fixture.id}-home`}
+                  onPress={() => openScorePicker(fixture.id)}
+                  style={[styles.inputsPill, hasDraft ? styles.inputsPillActive : null]}
+                >
+                  <Text allowFontScaling={false} style={styles.scoreInput}>
+                    {draft.home.length > 0 ? draft.home : "-"}
+                  </Text>
+                  <Text allowFontScaling={false} style={styles.separator}>:</Text>
+                  <Text allowFontScaling={false} style={styles.scoreInput}>
+                    {draft.away.length > 0 ? draft.away : "-"}
+                  </Text>
+                </Pressable>
+              ) : (
+                <View style={styles.resultPill}>
+                  <Text allowFontScaling={false} style={styles.resultText}>
+                    {readOnlyHome} - {readOnlyAway}
+                  </Text>
+                  {isLive && liveMinuteLabel ? (
+                    <Animated.Text allowFontScaling={false} style={[styles.resultSub, styles.resultSubLive, { opacity: livePulseOpacity }]}>
+                      {liveMinuteLabel}
+                    </Animated.Text>
+                  ) : (
+                    <Text allowFontScaling={false} style={styles.resultSub}>{statusBadgeLabel.toUpperCase()}</Text>
+                  )}
+                </View>
+              )}
+
+              <View style={[styles.teamBlock, styles.teamBlockRight]}>
+                <View style={[styles.teamInfoCol, styles.teamInfoColRight]}>
+                  <Text allowFontScaling={false} numberOfLines={1} style={styles.teamCode}>
+                    {awayCode}
+                  </Text>
+                  <FormDots form={awayForm} align="right" />
+                </View>
+                <TeamCrest teamName={fixture.awayTeam} code={awayCode} logoUrl={fixture.awayLogoUrl} />
               </View>
-            )}
+            </View>
 
-            <View style={[styles.teamBlock, styles.teamBlockRight]}>
-              <Text allowFontScaling={false} numberOfLines={1} style={styles.teamCode}>
-                {awayCode}
-              </Text>
-              <TeamCrest teamName={fixture.awayTeam} code={awayCode} logoUrl={fixture.awayLogoUrl} />
+            <View style={styles.timeRow}>
+              <Text allowFontScaling={false} style={styles.kickoffBadge}>{kickoffLabel}</Text>
             </View>
+            {isLive && committed ? (
+              <View style={styles.livePredictionRow}>
+                <Text allowFontScaling={false} style={styles.livePredictionLabel}>Tu pronóstico:</Text>
+                <Text allowFontScaling={false} style={styles.livePredictionValue}>{committed.home} - {committed.away}</Text>
+              </View>
+            ) : null}
+            {mode === "history" ? (
+              <View style={styles.historySummary}>
+                <Text allowFontScaling={false} style={styles.historySummaryText}>Tu pronóstico: {userPredictionLabel}</Text>
+                <Text allowFontScaling={false} style={styles.historySummaryText}>Puntos: {earnedPointsLabel}</Text>
+              </View>
+            ) : null}
           </View>
-
-          <View style={styles.timeRow}>
-            <Text allowFontScaling={false} style={styles.kickoffBadge}>{kickoffLabel}</Text>
-          </View>
-          {isLive && committed ? (
-            <View style={styles.livePredictionRow}>
-              <Text allowFontScaling={false} style={styles.livePredictionLabel}>Tu pronóstico:</Text>
-              <Text allowFontScaling={false} style={styles.livePredictionValue}>{committed.home} - {committed.away}</Text>
-            </View>
-          ) : null}
-          {mode === "history" ? (
-            <View style={styles.historySummary}>
-              <Text allowFontScaling={false} style={styles.historySummaryText}>Tu pronóstico: {userPredictionLabel}</Text>
-              <Text allowFontScaling={false} style={styles.historySummaryText}>Puntos: {earnedPointsLabel}</Text>
-            </View>
-          ) : null}
         </View>
 
         {mode === "upcoming" && !isEditable && !isLive ? <Text allowFontScaling={false} style={styles.lockedChip}>Partido bloqueado: no se pueden editar pronósticos.</Text> : null}
@@ -587,68 +626,100 @@ export function PronosticosScreen() {
   const historyHasFallbackError = mode === "history" && historyFixtures.length === 0 && historyFixtureQuery.isError;
   const isLoading = fixtureQuery.isLoading || predictionsQuery.isLoading || historyIsLoadingFallback;
   const hasError = fixtureQuery.isError || predictionsQuery.isError || historyHasFallbackError;
+  const scoreModalFixture = scoreModalFixtureId ? fixtureById.get(scoreModalFixtureId) ?? null : null;
+  const scoreModalDraft = scoreModalFixtureId ? draftByFixture[scoreModalFixtureId] ?? { home: "", away: "" } : { home: "", away: "" };
+  const modalHomeValue = Number.parseInt(scoreModalDraft.home, 10);
+  const modalAwayValue = Number.parseInt(scoreModalDraft.away, 10);
+  const scoreModalHome = Number.isFinite(modalHomeValue) ? modalHomeValue : 0;
+  const scoreModalAway = Number.isFinite(modalAwayValue) ? modalAwayValue : 0;
+
+  async function saveScoreFromModal(value: { home: number; away: number }) {
+    if (!scoreModalFixtureId) {
+      return;
+    }
+    updateDraft(scoreModalFixtureId, "home", String(value.home));
+    updateDraft(scoreModalFixtureId, "away", String(value.away));
+
+    const fixture = fixtureById.get(scoreModalFixtureId);
+    if (fixture && isOpenUpcomingFixture(fixture)) {
+      const prediction: Prediction = {
+        fixtureId: scoreModalFixtureId,
+        home: value.home,
+        away: value.away
+      };
+      await savePredictionMutation.mutateAsync(prediction);
+    }
+  }
 
   return (
-    <ScreenFrame
-      title="Pronósticos"
-      subtitle="Ingresa y guarda tus predicciones"
-      hideDataModeBadge
-      containerStyle={styles.screenContainer}
-      contentStyle={styles.screenContent}
-      onSwipeLeft={swipeToNextFecha}
-      onSwipeRight={swipeToPreviousFecha}
-      header={
-        <View style={[styles.headerCard, { paddingTop: Math.max(insets.top, 10) + 2 }]}>
-          <View style={styles.headerRow}>
-            <HeaderGroupSelector memberships={memberships} selectedGroupId={selectedGroupId} onSelectGroup={(nextGroupId) => void setSelectedGroupId(nextGroupId)} />
-            <HeaderActionIcons />
-          </View>
-        </View>
-      }
-    >
-      <FechaSelector />
-      {isLoading ? <LoadingState message="Cargando partidos..." variant="predictions" /> : null}
-      {hasError ? (
-        <ErrorState
-          message="No se pudo cargar la información de pronósticos."
-          retryLabel="Reintentar"
-          onRetry={() => {
-            void fixtureQuery.refetch();
-            void predictionsQuery.refetch();
-            void historyFixtureQuery.refetch();
-          }}
-        />
-      ) : null}
-      {!isLoading && !hasError ? (
-        <>
-          <View style={styles.progressCard}>
-            <Text allowFontScaling={false} style={styles.progressLabel}>
-              {completionSummary.completed}/{completionSummary.total}
-            </Text>
-            <View style={styles.progressTrack}>
-              <View style={[styles.progressFill, { width: `${completionSummary.pct}%` }]} />
+    <>
+      <ScreenFrame
+        title="Pronósticos"
+        subtitle="Ingresa y guarda tus predicciones"
+        hideDataModeBadge
+        containerStyle={styles.screenContainer}
+        contentStyle={styles.screenContent}
+        onSwipeLeft={swipeToNextFecha}
+        onSwipeRight={swipeToPreviousFecha}
+        showSwipeCue
+        onRefresh={handleRefresh}
+        header={<AppHeader />}
+      >
+        <FechaSelector />
+        {isLoading ? <LoadingState message="Cargando partidos..." variant="predictions" /> : null}
+        {hasError ? (
+          <ErrorState
+            message="No se pudo cargar la información de pronósticos."
+            retryLabel="Reintentar"
+            onRetry={() => {
+              void fixtureQuery.refetch();
+              void predictionsQuery.refetch();
+              void historyFixtureQuery.refetch();
+            }}
+          />
+        ) : null}
+        {!isLoading && !hasError ? (
+          <>
+            <View style={styles.progressCard}>
+              <Text allowFontScaling={false} style={styles.progressLabel}>
+                {completionSummary.completed}/{completionSummary.total}
+              </Text>
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${completionSummary.pct}%` }]} />
+              </View>
             </View>
-          </View>
 
-          <View style={styles.filterTabs}>
-            <Pressable onPress={() => setMode("upcoming")} style={[styles.filterTab, mode === "upcoming" ? styles.filterTabActive : null]}>
-              <Text allowFontScaling={false} style={mode === "upcoming" ? styles.filterTabLabelActive : styles.filterTabLabel}>Por Jugar</Text>
-            </Pressable>
-            <Pressable onPress={() => setMode("history")} style={[styles.filterTab, mode === "history" ? styles.filterTabActive : null]}>
-              <Text allowFontScaling={false} style={mode === "history" ? styles.filterTabLabelActive : styles.filterTabLabel}>Jugados</Text>
-            </Pressable>
-          </View>
-          {visibleFixtures.length === 0 ? (
-            <EmptyState
-              title={mode === "upcoming" ? "Sin partidos próximos" : "Sin partidos finalizados"}
-              description={mode === "upcoming" ? "Volvé más tarde para cargar tus próximos pronósticos." : "Todavía no hay partidos en historial para esta fecha."}
-            />
-          ) : null}
-          {visibleFixtures.map((fixture) => renderFixtureCard(fixture))}
-          {statusMessage ? <Text allowFontScaling={false} style={styles.statusText}>{statusMessage}</Text> : null}
-        </>
-      ) : null}
-    </ScreenFrame>
+            <View style={styles.filterTabs}>
+              <Pressable onPress={() => setMode("upcoming")} style={[styles.filterTab, mode === "upcoming" ? styles.filterTabActive : null]}>
+                <Text allowFontScaling={false} style={mode === "upcoming" ? styles.filterTabLabelActive : styles.filterTabLabel}>Por Jugar</Text>
+              </Pressable>
+              <Pressable onPress={() => setMode("history")} style={[styles.filterTab, mode === "history" ? styles.filterTabActive : null]}>
+                <Text allowFontScaling={false} style={mode === "history" ? styles.filterTabLabelActive : styles.filterTabLabel}>Jugados</Text>
+              </Pressable>
+            </View>
+            {visibleFixtures.length === 0 ? (
+              <EmptyState
+                title={mode === "upcoming" ? "Sin partidos próximos" : "Sin partidos finalizados"}
+                description={mode === "upcoming" ? "Volvé más tarde para cargar tus próximos pronósticos." : "Todavía no hay partidos en historial para esta fecha."}
+              />
+            ) : null}
+            {visibleFixtures.map((fixture) => renderFixtureCard(fixture))}
+            {statusMessage ? <Text allowFontScaling={false} style={styles.statusText}>{statusMessage}</Text> : null}
+          </>
+        ) : null}
+      </ScreenFrame>
+      <ScorePickerModal
+        visible={Boolean(scoreModalFixture)}
+        homeLabel={toTeamCode(scoreModalFixture?.homeTeam ?? "LOC")}
+        awayLabel={toTeamCode(scoreModalFixture?.awayTeam ?? "VIS")}
+        homeLogoUrl={scoreModalFixture?.homeLogoUrl}
+        awayLogoUrl={scoreModalFixture?.awayLogoUrl}
+        initialHome={scoreModalHome}
+        initialAway={scoreModalAway}
+        onSave={saveScoreFromModal}
+        onClose={closeScorePicker}
+      />
+    </>
   );
 }
 
@@ -661,22 +732,6 @@ const styles = StyleSheet.create({
   },
   screenContent: {
     gap: 12
-  },
-  headerCard: {
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    backgroundColor: colors.surfaceSoft,
-    paddingHorizontal: 16,
-    paddingBottom: 14,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    marginHorizontal: -12
-  },
-  headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8
   },
   sectionIcon: {
     height: 34,
@@ -746,6 +801,11 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSubtle,
     paddingHorizontal: 14,
     paddingVertical: 12,
+    gap: 8,
+    overflow: "hidden",
+    position: "relative"
+  },
+  cardContent: {
     gap: 8
   },
   cardLive: {
@@ -762,6 +822,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 7
+  },
+  teamInfoCol: {
+    flexShrink: 1
+  },
+  teamInfoColRight: {
+    alignItems: "flex-end"
   },
   teamBlockRight: {
     justifyContent: "flex-end"
@@ -812,7 +878,7 @@ const styles = StyleSheet.create({
     color: colors.dangerAccent
   },
   scoreInput: {
-    width: 28,
+    width: 34,
     height: 28,
     color: colors.textBodyStrong,
     textAlign: "center",

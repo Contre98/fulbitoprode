@@ -134,6 +134,7 @@ const PROVIDER_CACHE_TTL_MS = {
   leagues: 60_000,
   standings: 60_000
 } as const;
+const LPF_APERTURA_2026_LABEL = "LPF: Apertura (2026)";
 
 const providerCache = new Map<string, { expiresAt: number; value: unknown }>();
 const providerInFlightCache = new Map<string, Promise<unknown>>();
@@ -266,7 +267,7 @@ function detectCompetitionStage(name: string): CompetitionStage {
 }
 
 function competitionLabel(stage: CompetitionStage) {
-  if (stage === "apertura") return "Apertura";
+  if (stage === "apertura") return LPF_APERTURA_2026_LABEL;
   if (stage === "clausura") return "Clausura";
   return "General";
 }
@@ -871,7 +872,7 @@ export async function fetchProviderLeagues(input?: { season?: string }): Promise
 
         const parsedStatus = parseLeagueStatus(matchingSeasonNode);
         const stage = detectCompetitionStage(name);
-        const competitionName = stage === "general" ? name : `Liga Profesional ${competitionLabel(stage)}`;
+        const competitionName = stage === "general" ? name : competitionLabel(stage);
         const competitionKey = `${id}-${normalizedSeason}-${stage}`;
 
         const option: LeagueOption = {
@@ -891,8 +892,8 @@ export async function fetchProviderLeagues(input?: { season?: string }): Promise
           const stageOptions: LeagueOption[] = [
             {
               ...option,
-              name: "Liga Profesional Apertura",
-              competitionName: "Apertura",
+              name: LPF_APERTURA_2026_LABEL,
+              competitionName: LPF_APERTURA_2026_LABEL,
               competitionStage: "apertura",
               competitionKey: `${id}-${normalizedSeason}-apertura`,
               status: "ongoing"

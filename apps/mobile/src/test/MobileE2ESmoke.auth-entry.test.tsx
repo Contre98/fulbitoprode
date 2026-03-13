@@ -92,7 +92,6 @@ describe("Mobile E2E smoke auth-entry", () => {
 
     await waitFor(() => {
       expect(screen.getAllByText("Inicio").length).toBeGreaterThan(0);
-      expect(screen.getByText("Próximos Partidos")).toBeTruthy();
     });
   });
 });

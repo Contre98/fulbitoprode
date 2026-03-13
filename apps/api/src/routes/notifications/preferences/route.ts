@@ -16,7 +16,8 @@ export async function GET(request: Request) {
     return unauthorizedJson();
   }
 
-  return jsonResponse(getNotificationPreferences(session.userId), { status: 200 });
+  const preferences = await getNotificationPreferences(session.userId);
+  return jsonResponse(preferences, { status: 200 });
 }
 
 export async function PATCH(request: Request) {
@@ -27,7 +28,7 @@ export async function PATCH(request: Request) {
 
   try {
     const body = await parseJsonBody(request, updatePreferencesPayloadSchema);
-    const next = setNotificationPreferences(session.userId, {
+    const next = await setNotificationPreferences(session.userId, {
       ...(typeof body.reminders === "boolean" ? { reminders: body.reminders } : {}),
       ...(typeof body.results === "boolean" ? { results: body.results } : {}),
       ...(typeof body.social === "boolean" ? { social: body.social } : {})

@@ -60,4 +60,44 @@ describe("ScreenFrame swipe handlers", () => {
     expect(onSwipeLeft).not.toHaveBeenCalled();
     expect(onSwipeRight).not.toHaveBeenCalled();
   });
+
+  it("renders swipe cue arrows only when enabled", () => {
+    const screen = render(
+      <ScreenFrame title="Test" onSwipeLeft={jest.fn()} onSwipeRight={jest.fn()} showSwipeCue>
+        {null}
+      </ScreenFrame>
+    );
+
+    expect(screen.getByText("←")).toBeTruthy();
+    expect(screen.getByText("→")).toBeTruthy();
+  });
+
+  it("does not render swipe cue arrows by default", () => {
+    const screen = render(
+      <ScreenFrame title="Test" onSwipeLeft={jest.fn()} onSwipeRight={jest.fn()}>
+        {null}
+      </ScreenFrame>
+    );
+
+    expect(screen.queryByText("←")).toBeNull();
+    expect(screen.queryByText("→")).toBeNull();
+  });
+
+  it("blocks vertical scrolling while a horizontal swipe is active", () => {
+    const screen = render(
+      <ScreenFrame title="Test" onSwipeLeft={jest.fn()} onSwipeRight={jest.fn()}>
+        {null}
+      </ScreenFrame>
+    );
+
+    const scroll = screen.getByTestId("screenframe-scroll");
+    expect(scroll.props.scrollEnabled).toBe(true);
+
+    fireEvent(scroll, "touchStart", { nativeEvent: { pageX: 220, pageY: 120, timestamp: 100 } });
+    fireEvent(scroll, "touchMove", { nativeEvent: { pageX: 150, pageY: 124, timestamp: 140 } });
+    expect(screen.getByTestId("screenframe-scroll").props.scrollEnabled).toBe(false);
+
+    fireEvent(scroll, "touchEnd", { nativeEvent: { pageX: 120, pageY: 126, timestamp: 230 } });
+    expect(screen.getByTestId("screenframe-scroll").props.scrollEnabled).toBe(true);
+  });
 });

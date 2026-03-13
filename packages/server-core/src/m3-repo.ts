@@ -80,6 +80,8 @@ interface GroupMembershipRecord {
   joined_at?: string;
 }
 
+const LPF_APERTURA_2026_LABEL = "LPF: Apertura (2026)";
+
 function requirePbUrl() {
   const config = getPocketBaseConfig();
   if (!config.configured) {
@@ -263,7 +265,7 @@ async function getGroupMembershipRecord(input: { userId: string; groupId: string
 }
 
 function normalizeCompetitionName(stage: "apertura" | "clausura" | "general") {
-  if (stage === "apertura") return "Apertura";
+  if (stage === "apertura") return LPF_APERTURA_2026_LABEL;
   if (stage === "clausura") return "Clausura";
   return "General";
 }
@@ -462,6 +464,67 @@ export async function listGroupsForUser(userId: string, authToken: string) {
       };
     })
     .filter((row): row is { group: M3MembershipGroup; membership: { role: "owner" | "admin" | "member"; joinedAt: string } } => row !== null);
+}
+
+export async function searchGroups(
+  input: { query?: string; leagueId?: number },
+  authToken: string
+) {
+  const filters: string[] = ["is_active=true"];
+  if (input.query && input.query.trim().length > 0) {
+    filters.push(`name~${q(input.query.trim())}`);
+  }
+  if (typeof input.leagueId === "number") {
+    filters.push(`league_id=${input.leagueId}`);
+  }
+
+  const filter = encodeURIComponent(filters.join(" && "));
+  const groups = await pbRequest<
+    PbListResult<{
+      id: string;
+      name: string;
+      slug: string;
+      season?: string;
+      league_id?: number;
+      visibility?: string;
+      max_members?: number | null;
+    }>
+  >(`/api/collections/groups/records?perPage=50&filter=${filter}&sort=-created`, { method: "GET" }, authToken);
+
+  const groupIds = groups.items.map((g) => g.id);
+  const memberCounts: Record<string, number> = {};
+
+  if (groupIds.length > 0) {
+    for (const gId of groupIds) {
+      const countFilter = encodeURIComponent(`group_id=${q(gId)} && status='active'`);
+      const countResult = await pbRequest<PbListResult<{ id: string }>>(
+        `/api/collections/group_members/records?perPage=1&filter=${countFilter}`,
+        { method: "GET" },
+        authToken
+      );
+      memberCounts[gId] = countResult.totalItems;
+    }
+  }
+
+  return groups.items.map((group) => {
+    const decoded = decodeSeasonWithStage(
+      group.season || process.env.API_FOOTBALL_DEFAULT_SEASON || String(new Date().getFullYear()),
+      group.league_id ?? 128
+    );
+
+    return {
+      id: group.id,
+      name: group.name,
+      leagueId: group.league_id ?? 128,
+      leagueName: "Liga Profesional",
+      season: decoded.season,
+      competitionName: decoded.competitionName,
+      competitionStage: decoded.competitionStage as "apertura" | "clausura" | "general",
+      visibility: (group.visibility === "closed" ? "closed" : "open") as "open" | "closed",
+      memberCount: memberCounts[group.id] ?? 0,
+      maxMembers: group.max_members ?? null
+    };
+  });
 }
 
 export async function isActiveGroupMember(userId: string, groupId: string, authToken: string) {
@@ -772,6 +835,8 @@ export async function createGroup(
     competitionStage?: "apertura" | "clausura" | "general";
     competitionName?: string;
     competitionKey?: string;
+    visibility?: "open" | "closed";
+    startingFecha?: string;
   },
   authToken: string
 ) {
@@ -792,7 +857,9 @@ export async function createGroup(
         owner_user_id: input.userId,
         is_active: true,
         season: encodedSeason,
-        league_id: input.leagueId ?? 128
+        league_id: input.leagueId ?? 128,
+        visibility: input.visibility ?? "open",
+        starting_fecha: input.startingFecha ?? null
       })
     },
     authToken
@@ -1032,20 +1099,42 @@ export async function leaveGroup(input: { userId: string; groupId: string }, aut
     return { ok: false as const, error: "No active membership found." };
   }
 
-  if (currentMembership.role === "owner") {
-    const ownersFilter = encodeURIComponent(`group_id=${q(input.groupId)} && status='active' && role='owner'`);
-    const owners = await pbRequest<PbListResult<{ id: string }>>(
-      `/api/collections/group_members/records?perPage=2&filter=${ownersFilter}`,
+  const isAdminOrOwner = currentMembership.role === "owner" || currentMembership.role === "admin";
+
+  if (isAdminOrOwner) {
+    // Count all active members
+    const allMembersFilter = encodeURIComponent(`group_id=${q(input.groupId)} && status='active'`);
+    const allMembers = await pbRequest<PbListResult<{ id: string; user_id: string; role: string }>>(
+      `/api/collections/group_members/records?perPage=200&filter=${allMembersFilter}`,
       { method: "GET" },
       authToken
     );
 
-    if (owners.totalItems <= 1) {
-      const deleted = await deleteGroupSoft(input, authToken);
-      if (!deleted.ok) {
-        return { ok: false as const, error: deleted.error };
+    // Sole member: must delete instead of leaving
+    if (allMembers.totalItems <= 1) {
+      return { ok: false as const, error: "Sos el único miembro. Eliminá el grupo en vez de salir." };
+    }
+
+    // Count admins/owners
+    const admins = allMembers.items.filter((m) => m.role === "owner" || m.role === "admin");
+    const isSoleAdmin = admins.length <= 1;
+
+    if (isSoleAdmin) {
+      // Transfer admin to a random non-admin member
+      const nonAdmins = allMembers.items.filter(
+        (m) => m.role !== "owner" && m.role !== "admin" && m.user_id !== input.userId
+      );
+      if (nonAdmins.length > 0) {
+        const target = nonAdmins[Math.floor(Math.random() * nonAdmins.length)];
+        await pbRequest(
+          `/api/collections/group_members/records/${target.id}`,
+          {
+            method: "PATCH",
+            body: JSON.stringify({ role: "admin" })
+          },
+          authToken
+        );
       }
-      return { ok: true as const, deletedGroup: true };
     }
   }
 

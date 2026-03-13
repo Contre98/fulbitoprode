@@ -1,0 +1,174 @@
+{
+  "version": "2.8",
+  "children": [
+    {
+      "type": "frame",
+      "id": "bi8Au",
+      "x": 0,
+      "y": 0,
+      "name": "Frame",
+      "clip": true,
+      "width": 800,
+      "height": 600,
+      "fill": "#FFFFFF",
+      "layout": "none",
+      "children": [
+        {
+          "type": "frame",
+          "id": "v4fEM",
+          "x": 148,
+          "y": 211,
+          "name": "Aviso Urgente Card",
+          "clip": true,
+          "width": 420,
+          "fill": "#EBEBEB",
+          "cornerRadius": 16,
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "KkclE",
+              "name": "Header",
+              "width": "fill_container",
+              "height": 60,
+              "fill": "#A8D400",
+              "padding": [
+                0,
+                16,
+                0,
+                20
+              ],
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "2cqEw",
+                  "name": "Title",
+                  "fill": "#FFFFFF",
+                  "content": "AVISO DE ACCIÓN URGENTE",
+                  "fontFamily": "Inter",
+                  "fontSize": 15,
+                  "fontWeight": "800",
+                  "letterSpacing": 0.2
+                },
+                {
+                  "type": "frame",
+                  "id": "jNj1g",
+                  "name": "Completar Button",
+                  "height": 38,
+                  "fill": "#6B7C00",
+                  "cornerRadius": 10,
+                  "padding": [
+                    0,
+                    18
+                  ],
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "igXyz",
+                      "name": "btnLabel",
+                      "fill": "#FFFFFF",
+                      "content": "Completar",
+                      "fontFamily": "Inter",
+                      "fontSize": 15,
+                      "fontWeight": "700"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "kPXzh",
+              "name": "Body",
+              "width": "fill_container",
+              "fill": "#EBEBEB",
+              "layout": "vertical",
+              "gap": 14,
+              "padding": 20,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "Fm7sJ",
+                  "name": "Icon Row",
+                  "width": "fill_container",
+                  "gap": 14,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "UNavE",
+                      "name": "clockIcon",
+                      "width": 30,
+                      "height": 30,
+                      "iconFontName": "clock",
+                      "iconFontFamily": "feather",
+                      "fill": "#1A1A1A"
+                    },
+                    {
+                      "type": "text",
+                      "id": "zPQrX",
+                      "name": "Message",
+                      "fill": "#1A1A1A",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "¡Faltan 2 horas! Carga tus pronósticos para la Fecha 8",
+                      "lineHeight": 1.4,
+                      "fontFamily": "Inter",
+                      "fontSize": 16,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "mNNd1",
+                  "name": "Progress Row",
+                  "width": "fill_container",
+                  "gap": 12,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "GB9Ji",
+                      "name": "progressLabel",
+                      "fill": "#555555",
+                      "content": "15/15",
+                      "fontFamily": "Inter",
+                      "fontSize": 16,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "frame",
+                      "id": "uO6SG",
+                      "name": "Progress Track",
+                      "clip": true,
+                      "width": "fill_container",
+                      "height": 20,
+                      "fill": "#FFFFFF",
+                      "cornerRadius": 10,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "dLv7R",
+                          "name": "Progress Fill",
+                          "width": "fill_container",
+                          "height": "fill_container",
+                          "fill": "#A8D400",
+                          "cornerRadius": 10
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

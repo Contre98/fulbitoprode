@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, spacing } from "@fulbito/design-tokens";
 import { usePeriod } from "@/state/PeriodContext";
@@ -12,7 +12,9 @@ interface FechaSelectorProps {
 
 export function FechaSelector({ labelOverride, value, options, onChange }: FechaSelectorProps) {
   const { fecha, options: periodOptions, setFecha } = usePeriod();
+  const triggerRef = useRef<View | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const selectedValue = value ?? fecha;
   const setSelectedValue = onChange ?? setFecha;
   const sourceOptions = options ?? periodOptions;
@@ -42,11 +44,25 @@ export function FechaSelector({ labelOverride, value, options, onChange }: Fecha
     setMenuOpen(false);
   }
 
+  function openMenu() {
+    const node = triggerRef.current;
+    setMenuOpen(true);
+    if (!node || typeof node.measureInWindow !== "function") {
+      return;
+    }
+    node.measureInWindow((x, y, width, height) => {
+      setMenuAnchor({ x, y, width, height });
+    });
+  }
+
   const displayLabel = (labelOverride ?? current.label).toUpperCase();
+  const menuTop = (menuAnchor?.y ?? 80) + (menuAnchor?.height ?? 0) + spacing.xs;
+  const menuLeft = menuAnchor?.x ?? spacing.md;
+  const menuWidth = menuAnchor?.width ?? 320;
 
   return (
     <>
-      <View style={styles.fechaBlock}>
+      <View ref={triggerRef} collapsable={false} style={styles.fechaBlock}>
         <Pressable
           testID="fecha-prev"
           onPress={selectPrevious}
@@ -60,7 +76,7 @@ export function FechaSelector({ labelOverride, value, options, onChange }: Fecha
           testID="fecha-dropdown-trigger"
           accessibilityRole="button"
           accessibilityLabel="Seleccionar fecha"
-          onPress={() => setMenuOpen(true)}
+          onPress={openMenu}
           style={styles.fechaCenterTrigger}
         >
           <Text allowFontScaling={false} numberOfLines={1} style={styles.fechaTitle}>{displayLabel}</Text>
@@ -80,7 +96,7 @@ export function FechaSelector({ labelOverride, value, options, onChange }: Fecha
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
         <View style={styles.modalRoot}>
           <Pressable style={styles.modalBackdrop} onPress={() => setMenuOpen(false)} />
-          <View style={styles.menuCard}>
+          <View style={[styles.menuCard, { top: menuTop, left: menuLeft, width: menuWidth }]}>
             <ScrollView style={styles.menuScroll} contentContainerStyle={styles.menuContent}>
               {safeOptions.map((option, index) => {
                 const active = option.id === current.id;
@@ -160,23 +176,26 @@ const styles = StyleSheet.create({
   },
   modalRoot: {
     flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: spacing.md
+    justifyContent: "flex-start",
+    alignItems: "flex-start"
   },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: colors.overlaySubtle
   },
   menuCard: {
-    width: "100%",
-    maxWidth: 320,
+    position: "absolute",
     maxHeight: "60%",
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    borderColor: colors.borderMuted,
     backgroundColor: colors.surface,
-    overflow: "hidden"
+    overflow: "hidden",
+    shadowColor: colors.textPrimary,
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6
   },
   menuScroll: {
     width: "100%"
@@ -186,14 +205,17 @@ const styles = StyleSheet.create({
   },
   menuRow: {
     minHeight: 44,
-    borderRadius: 10,
+    borderRadius: 8,
     paddingHorizontal: spacing.sm,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between"
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderColor: "transparent"
   },
   menuRowActive: {
-    backgroundColor: colors.primaryAlpha16
+    backgroundColor: colors.primaryAlpha16,
+    borderColor: colors.borderInfo
   },
   menuLabel: {
     flex: 1,

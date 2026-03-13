@@ -1,0 +1,24 @@
+{
+  "name": "notification_deliveries",
+  "type": "base",
+  "fields": [
+    { "name": "job_id", "type": "text", "required": true, "min": 1, "max": 100 },
+    { "name": "user_id", "type": "text", "required": true, "min": 1, "max": 100 },
+    { "name": "token_id", "type": "text", "required": true, "min": 1, "max": 100 },
+    { "name": "status", "type": "text", "required": true, "min": 1, "max": 20 },
+    { "name": "attempts", "type": "number", "required": false, "min": 0 },
+    { "name": "last_attempt_at", "type": "date", "required": false },
+    { "name": "provider_message_id", "type": "text", "required": false, "max": 200 },
+    { "name": "error", "type": "text", "required": false, "max": 2000 }
+  ],
+  "indexes": [
+    "CREATE INDEX idx_nd_job_id ON notification_deliveries (job_id)",
+    "CREATE INDEX idx_nd_user_id ON notification_deliveries (user_id)",
+    "CREATE INDEX idx_nd_status ON notification_deliveries (status)"
+  ],
+  "listRule": null,
+  "viewRule": null,
+  "createRule": null,
+  "updateRule": null,
+  "deleteRule": null
+}

@@ -34,9 +34,10 @@ describe("Mobile E2E smoke tab-flow", () => {
 
     mockedUsePeriod.mockReturnValue(
       mockPeriodState({
+        fecha: "1",
         options: [
-          { id: 1, label: "Fecha 1" },
-          { id: 2, label: "Fecha 2" }
+          { id: "1", label: "Fecha 1" },
+          { id: "2", label: "Fecha 2" }
         ]
       })
     );
@@ -90,6 +91,40 @@ describe("Mobile E2E smoke tab-flow", () => {
           worstRound: null,
           worldBenchmark: null
         },
+        userSection: {
+          userId: "u-1",
+          userName: "Usuario Fulbito",
+          precisionPct: 100,
+          exactPct: 75,
+          averagePointsPerRound: 9,
+          trend: {
+            accuracyPctDelta: 0,
+            pointsPerRoundDelta: 0
+          },
+          consistencyStdDev: 0,
+          nearMissRatePct: 12,
+          homeAccuracyPct: 100,
+          awayAccuracyPct: 100
+        },
+        groupSection: {
+          precisionPct: 100,
+          pointsDistribution: {
+            p25: 9,
+            median: 9,
+            p75: 9
+          },
+          parityGapTopVsMedian: 0,
+          difficultyIndexAvgPointsPerRound: 9,
+          consensusHitPct: 100,
+          advantageOpportunityCount: 0,
+          activeParticipationPct: 100,
+          bestRound: null,
+          worstRound: null
+        },
+        comparatives: {
+          vsMedianAccuracyPct: 0,
+          vsMedianPointsPerRound: 0
+        },
         awards: [
           {
             id: "nostradamus",
@@ -106,17 +141,16 @@ describe("Mobile E2E smoke tab-flow", () => {
 
     await waitFor(() => {
       expect(screen.getAllByText("Inicio").length).toBeGreaterThan(0);
-      expect(screen.getByText("Próximos Partidos")).toBeTruthy();
     });
 
     fireEvent.press(screen.getAllByText("Posiciones")[0]);
 
     await waitFor(() => {
       expect(screen.getAllByText("Posiciones").length).toBeGreaterThan(0);
-      expect(screen.getByText("Stats")).toBeTruthy();
+      expect(screen.getByText("Estadísticas")).toBeTruthy();
     });
 
-    fireEvent.press(screen.getByText("Stats"));
+    fireEvent.press(screen.getByText("Estadísticas"));
 
     await waitFor(() => {
       expect(screen.getAllByText("PREMIOS Y CASTIGOS").length).toBeGreaterThan(0);
@@ -125,7 +159,7 @@ describe("Mobile E2E smoke tab-flow", () => {
     fireEvent.press(screen.getAllByText("Posiciones")[0]);
 
     await waitFor(() => {
-      expect(screen.getByText("PRED")).toBeTruthy();
+      expect(screen.getByText("P: pronósticos · E: exactos · R: resultado · N: sin acierto")).toBeTruthy();
     });
 
     fireEvent.press(screen.getAllByText("Pronósticos")[0]);
@@ -135,14 +169,16 @@ describe("Mobile E2E smoke tab-flow", () => {
       expect(screen.getByText("Jugados")).toBeTruthy();
     });
 
-    const scoreInputs = screen.getAllByPlaceholderText("-");
-    fireEvent.changeText(scoreInputs[0], "2");
-    fireEvent.changeText(scoreInputs[1], "1");
+    fireEvent.press(screen.getByTestId("score-open-fx-arg-lan-upcoming-home"));
+    fireEvent.press(screen.getByTestId("score-wheel-home-inc"));
+    fireEvent.press(screen.getByTestId("score-wheel-home-inc"));
+    fireEvent.press(screen.getByTestId("score-wheel-away-inc"));
+    fireEvent.press(screen.getByTestId("score-picker-apply"));
 
     await waitFor(() => {
       expect(mockedPredictionsSave).toHaveBeenCalledWith({
         groupId: "g-1",
-        fecha: 1,
+        fecha: "1",
         prediction: {
           fixtureId: "fx-arg-lan-upcoming",
           home: 2,
