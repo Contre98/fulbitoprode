@@ -7,9 +7,9 @@
     "#http": "./src/http.ts"
   },
   "scripts": {
-    "dev": "node --env-file=.env --import tsx --watch src/index.ts",
+    "dev": "node --env-file-if-exists=.env --import tsx --watch src/index.ts",
     "build": "tsc -p tsconfig.json",
-    "start": "node --env-file=.env --import tsx src/index.ts",
+    "start": "node --env-file-if-exists=.env --import tsx src/index.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "test:watch": "vitest",
