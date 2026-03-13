@@ -267,7 +267,7 @@ export async function upsertPreferences(
 export async function listInboxItems(userId: string, limit = 50) {
   const filter = `user_id=${q(userId)}`;
   const result = await pbRequest<PbListResult<PbInboxRow>>(
-    `/api/collections/notification_inbox/records?filter=${encodeURIComponent(filter)}&perPage=${limit}`
+    `/api/collections/notification_inbox/records?filter=${encodeURIComponent(filter)}&perPage=${limit}&sort=-created`
   );
   return result.items;
 }

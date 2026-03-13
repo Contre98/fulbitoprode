@@ -76,7 +76,7 @@ export function NotificacionesScreen() {
   const navigation = useNavigation<any>();
   const queryClient = useQueryClient();
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["notifications-inbox"],
     queryFn: () => notificationsRepository.listInbox()
   });
