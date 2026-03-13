@@ -121,14 +121,6 @@ export function NotificacionesScreen() {
         <View style={styles.centered}>
           <ActivityIndicator color={colors.primary} />
         </View>
-      ) : items.length === 0 ? (
-        <View style={styles.centered}>
-          <Ionicons name="notifications-off-outline" size={44} color={colors.textSoft} />
-          <Text allowFontScaling={false} style={styles.emptyTitle}>Sin notificaciones</Text>
-          <Text allowFontScaling={false} style={styles.emptyBody}>
-            Te avisaremos cuando haya novedades.
-          </Text>
-        </View>
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
@@ -137,7 +129,15 @@ export function NotificacionesScreen() {
             <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} tintColor={colors.primary} />
           }
         >
-          {items.map((item, idx) => (
+          {items.length === 0 ? (
+            <View style={styles.centered}>
+              <Ionicons name="notifications-off-outline" size={44} color={colors.textSoft} />
+              <Text allowFontScaling={false} style={styles.emptyTitle}>Sin notificaciones</Text>
+              <Text allowFontScaling={false} style={styles.emptyBody}>
+                Te avisaremos cuando haya novedades.
+              </Text>
+            </View>
+          ) : items.map((item, idx) => (
             <View key={item.id}>
               <NotificationRow item={item} />
               {idx < items.length - 1 && <View style={styles.separator} />}
