@@ -470,26 +470,55 @@ export async function searchGroups(
   input: { query?: string; leagueId?: number },
   authToken: string
 ) {
-  const filters: string[] = ["is_active=true"];
+  const commonFilters: string[] = [];
   if (input.query && input.query.trim().length > 0) {
-    filters.push(`name~${q(input.query.trim())}`);
+    commonFilters.push(`name~${q(input.query.trim())}`);
   }
   if (typeof input.leagueId === "number") {
-    filters.push(`league_id=${input.leagueId}`);
+    commonFilters.push(`league_id=${input.leagueId}`);
   }
 
-  const filter = encodeURIComponent(filters.join(" && "));
-  const groups = await pbRequest<
-    PbListResult<{
-      id: string;
-      name: string;
-      slug: string;
-      season?: string;
-      league_id?: number;
-      visibility?: string;
-      max_members?: number | null;
-    }>
-  >(`/api/collections/groups/records?perPage=50&filter=${filter}&sort=-created`, { method: "GET" }, authToken);
+  async function fetchGroups(includeIsActiveFilter: boolean) {
+    const filters = includeIsActiveFilter ? ["is_active=true", ...commonFilters] : [...commonFilters];
+    const filter = encodeURIComponent(filters.join(" && "));
+    return pbRequest<
+      PbListResult<{
+        id: string;
+        name: string;
+        slug: string;
+        season?: string;
+        league_id?: number;
+        visibility?: string;
+        max_members?: number | null;
+      }>
+    >(`/api/collections/groups/records?perPage=50&filter=${filter}&sort=-created`, { method: "GET" }, authToken);
+  }
+
+  let groups: PbListResult<{
+    id: string;
+    name: string;
+    slug: string;
+    season?: string;
+    league_id?: number;
+    visibility?: string;
+    max_members?: number | null;
+  }>;
+
+  try {
+    groups = await fetchGroups(true);
+  } catch (error) {
+    const message = extractPocketBaseErrorMessage(error).toLowerCase();
+    const isActiveFilterUnsupported =
+      message.includes("is_active") &&
+      (message.includes("failed to parse filter") || message.includes("unknown field") || message.includes("invalid filter"));
+
+    if (!isActiveFilterUnsupported) {
+      throw error;
+    }
+
+    // Compatibility fallback for environments where `groups.is_active` is not part of the schema.
+    groups = await fetchGroups(false);
+  }
 
   const groupIds = groups.items.map((g) => g.id);
   const memberCounts: Record<string, number> = {};
@@ -933,7 +962,22 @@ export async function joinGroupByCodeOrToken(input: { userId: string; codeOrToke
     authToken
   );
 
-  const invite = inviteList.items[0];
+  let invite = inviteList.items[0];
+
+  if (!invite) {
+    // Fallback: treat codeOrToken as a group ID and find the group's active invite.
+    // This handles the "join from search results" flow where only the group ID is available.
+    const groupInviteFilter = encodeURIComponent(`group_id=${q(input.codeOrToken)}`);
+    const groupInviteList = await pbRequest<
+      PbListResult<{ id: string; group_id: string; uses?: number; max_uses?: number; expires_at?: string }>
+    >(
+      `/api/collections/group_invites/records?perPage=1&filter=${groupInviteFilter}&sort=-created`,
+      { method: "GET" },
+      authToken
+    );
+    invite = groupInviteList.items[0];
+  }
+
   if (!invite) {
     return { ok: false as const, error: "Invite not found" };
   }
@@ -1193,7 +1237,7 @@ export async function renameGroup(
 }
 
 export async function deleteGroupSoft(input: { userId: string; groupId: string }, authToken: string) {
-  const groupRecord = await pbRequest<{
+  let groupRecord: {
     id: string;
     name: string;
     slug: string;
@@ -1201,7 +1245,34 @@ export async function deleteGroupSoft(input: { userId: string; groupId: string }
     is_active: boolean;
     season?: string;
     league_id?: number;
-  }>(`/api/collections/groups/records/${input.groupId}`, { method: "GET" }, authToken);
+  } | null = null;
+
+  try {
+    groupRecord = await pbRequest<{
+      id: string;
+      name: string;
+      slug: string;
+      owner_user_id?: string;
+      is_active: boolean;
+      season?: string;
+      league_id?: number;
+    }>(`/api/collections/groups/records/${input.groupId}`, { method: "GET" }, authToken);
+  } catch (error) {
+    const message = extractPocketBaseErrorMessage(error).toLowerCase();
+    const rawMessage = error instanceof Error ? error.message.toLowerCase() : "";
+    const isNotFoundError =
+      message.includes("requested resource wasn't found") ||
+      message.includes("not found") ||
+      rawMessage.includes("pocketbase 404");
+
+    if (!isNotFoundError) {
+      throw error;
+    }
+
+    // Group can already be physically deleted in some environments.
+    // Continue with membership/invite cleanup to keep operation idempotent.
+    groupRecord = null;
+  }
 
   const membersFilter = encodeURIComponent(`group_id=${q(input.groupId)} && status='active'`);
   const members = await pbRequest<
@@ -1244,34 +1315,72 @@ export async function deleteGroupSoft(input: { userId: string; groupId: string }
     }>
   >(`/api/collections/group_invites/records?perPage=500&filter=${invitesFilter}`, { method: "GET" }, authToken);
 
-  try {
-    await pbRequest(
-      `/api/collections/groups/records/${input.groupId}`,
-      {
-        method: "PATCH",
-        body: JSON.stringify({
-          name: groupRecord.name || "Grupo",
-          slug: groupRecord.slug || toSlug(groupRecord.name || "grupo"),
-          owner_user_id: groupRecord.owner_user_id || input.userId,
-          is_active: false,
-          season: groupRecord.season || String(new Date().getFullYear()),
-          league_id: groupRecord.league_id ?? 128
-        })
-      },
-      authToken
-    );
-  } catch (error) {
-    const message = extractPocketBaseErrorMessage(error);
-    const rawMessage = error instanceof Error ? error.message.toLowerCase() : "";
-    const isIsActiveRequiredError =
-      (message.toLowerCase().includes("is_active") && message.toLowerCase().includes("missing required value")) ||
-      (rawMessage.includes("is_active") && rawMessage.includes("missing required value"));
-    if (!isIsActiveRequiredError) {
-      throw error;
-    }
+  const patchBodyBase = {
+    name: groupRecord?.name || "Grupo",
+    slug: groupRecord?.slug || toSlug(groupRecord?.name || "grupo"),
+    owner_user_id: groupRecord?.owner_user_id || input.userId,
+    season: groupRecord?.season || String(new Date().getFullYear()),
+    league_id: groupRecord?.league_id ?? 128
+  };
 
-    // Some PocketBase setups reject is_active=false when the bool is required.
-    // Continue by removing members/invites so the group becomes inaccessible.
+  if (groupRecord) {
+    try {
+      await pbRequest(
+        `/api/collections/groups/records/${input.groupId}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            ...patchBodyBase,
+            is_active: false,
+          })
+        },
+        authToken
+      );
+    } catch (error) {
+      const message = extractPocketBaseErrorMessage(error).toLowerCase();
+      const rawMessage = error instanceof Error ? error.message.toLowerCase() : "";
+      const isIsActiveCompatibilityError =
+        (message.includes("is_active") &&
+          (message.includes("missing required value") ||
+            message.includes("cannot be blank") ||
+            message.includes("unknown field") ||
+            message.includes("invalid field") ||
+            message.includes("failed to parse"))) ||
+        (rawMessage.includes("is_active") &&
+          (rawMessage.includes("missing required value") || rawMessage.includes("cannot be blank")));
+      if (!isIsActiveCompatibilityError) {
+        throw error;
+      }
+
+      try {
+        await pbRequest(
+          `/api/collections/groups/records/${input.groupId}`,
+          {
+            method: "PATCH",
+            body: JSON.stringify(patchBodyBase)
+          },
+          authToken
+        );
+      } catch (fallbackError) {
+        const fallbackMessage = extractPocketBaseErrorMessage(fallbackError).toLowerCase();
+        const fallbackRawMessage = fallbackError instanceof Error ? fallbackError.message.toLowerCase() : "";
+        const fallbackIsIsActiveCompatibilityError =
+          (fallbackMessage.includes("is_active") &&
+            (fallbackMessage.includes("missing required value") ||
+              fallbackMessage.includes("cannot be blank") ||
+              fallbackMessage.includes("unknown field") ||
+              fallbackMessage.includes("invalid field") ||
+              fallbackMessage.includes("failed to parse"))) ||
+          (fallbackRawMessage.includes("is_active") &&
+            (fallbackRawMessage.includes("missing required value") || fallbackRawMessage.includes("cannot be blank")));
+        if (!fallbackIsIsActiveCompatibilityError) {
+          throw fallbackError;
+        }
+
+        // Compatibility fallback for environments with different `groups.is_active` behavior.
+        // Continue by removing members/invites so the group becomes inaccessible.
+      }
+    }
   }
 
   await Promise.all(

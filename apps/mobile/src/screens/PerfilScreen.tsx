@@ -64,42 +64,6 @@ function SectionHeader({ title }: { title: string }) {
   );
 }
 
-// ─── ThemeRow ────────────────────────────────────────────────────────────────
-
-type ThemeChoice = "system" | "light" | "dark";
-const THEME_OPTIONS: { value: ThemeChoice; label: string }[] = [
-  { value: "system", label: "Sistema" },
-  { value: "light", label: "Claro" },
-  { value: "dark", label: "Oscuro" }
-];
-
-function ThemeRow({ theme, onSelect }: { theme: ThemeChoice; onSelect: (t: ThemeChoice) => void }) {
-  return (
-    <View style={styles.row}>
-      <View style={styles.rowIconWrap}>
-        <Ionicons name="color-palette-outline" size={18} color={colors.textSecondary} />
-      </View>
-      <Text allowFontScaling={false} style={styles.rowLabel}>Tema</Text>
-      <View style={styles.themeSegment}>
-        {THEME_OPTIONS.map((opt) => (
-          <Pressable
-            key={opt.value}
-            onPress={() => onSelect(opt.value)}
-            style={[styles.themeSegmentOption, theme === opt.value && styles.themeSegmentOptionActive]}
-          >
-            <Text
-              allowFontScaling={false}
-              style={[styles.themeSegmentLabel, theme === opt.value && styles.themeSegmentLabelActive]}
-            >
-              {opt.label}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-    </View>
-  );
-}
-
 // ─── InlineEditField ─────────────────────────────────────────────────────────
 
 interface InlineEditFieldProps {
@@ -231,7 +195,6 @@ export function PerfilScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const { session, logout } = useAuth();
-  const [theme, setTheme] = useState<ThemeChoice>("system");
   const [expanded, setExpanded] = useState<ExpandedSection>(null);
 
   function handleToggle(section: ExpandedSection) {
@@ -351,8 +314,6 @@ export function PerfilScreen() {
         {/* Preferencias */}
         <SectionHeader title="Preferencias" />
         <View style={styles.card}>
-          <ThemeRow theme={theme} onSelect={setTheme} />
-          <View style={styles.separator} />
           <SettingsRow icon="notifications-outline" label="Notificaciones" onPress={() => navigation.navigate("Notificaciones")} />
         </View>
 
@@ -481,34 +442,6 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: colors.borderLight,
     marginLeft: 56
-  },
-  themeSegment: {
-    flexDirection: "row",
-    backgroundColor: colors.surfaceMuted,
-    borderRadius: 10,
-    padding: 3,
-    gap: 2
-  },
-  themeSegmentOption: {
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8
-  },
-  themeSegmentOptionActive: {
-    backgroundColor: colors.surface,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 2
-  },
-  themeSegmentLabel: {
-    color: colors.textMuted,
-    fontSize: 13,
-    fontWeight: "700"
-  },
-  themeSegmentLabelActive: {
-    color: colors.textPrimary
   },
   logoutButton: {
     marginTop: 28,

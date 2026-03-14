@@ -47,8 +47,14 @@ function TabIcon({ routeName, focused }: { routeName: string; focused: boolean }
 
   if (isCenter) {
     return (
-      <View style={styles.centerTabButton}>
-        <Ionicons name={icons.active} size={28} color={colors.textInverse} />
+      <View style={[styles.centerTabButton, focused ? styles.centerTabButtonActive : styles.centerTabButtonIdle]}>
+        <View style={[styles.centerTabInner, focused ? styles.centerTabInnerActive : styles.centerTabInnerIdle]}>
+          <Ionicons
+            name={focused ? icons.active : icons.inactive}
+            size={24}
+            color={focused ? colors.textInverse : colors.textSecondary}
+          />
+        </View>
       </View>
     );
   }
@@ -102,7 +108,7 @@ function AppTabs() {
         tabBarLabelStyle: styles.tabLabel,
         tabBarItemStyle: route.name === "Pronosticos" ? styles.centerTabItem : styles.tabItem,
         tabBarIcon: ({ focused }) => <TabIcon routeName={route.name} focused={focused} />,
-        tabBarActiveTintColor: colors.primary,
+        tabBarActiveTintColor: colors.primaryDeep,
         tabBarInactiveTintColor: colors.textSecondary
       })}
     >
@@ -192,50 +198,84 @@ export function AppNavigation() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    height: 88,
+    height: 90,
     paddingTop: 8,
     paddingBottom: 10,
     borderTopWidth: 1,
-    borderTopColor: colors.surfaceMuted,
-    backgroundColor: colors.surface
+    borderTopColor: colors.borderLight,
+    backgroundColor: colors.surface,
+    shadowColor: colors.textPrimary,
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 4
   },
   tabItem: {
-    paddingVertical: 2
+    paddingVertical: 2,
+    paddingHorizontal: 2
   },
   centerTabItem: {
     paddingVertical: 2
   },
   tabLabel: {
     fontSize: 11,
-    fontWeight: "700"
+    lineHeight: 14,
+    fontWeight: "700",
+    marginTop: 1
   },
   centerTabLabel: {
     fontSize: 11,
     fontWeight: "700",
-    marginTop: 4
+    lineHeight: 14,
+    marginTop: 1
   },
   tabIconWrap: {
-    height: 30,
-    width: 30,
-    borderRadius: 10,
+    height: 34,
+    width: 34,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "transparent",
     alignItems: "center",
     justifyContent: "center"
   },
   tabIconWrapActive: {
-    backgroundColor: colors.primaryAlpha16
+    backgroundColor: colors.primaryHighlight,
+    borderColor: colors.primaryLime
   },
   centerTabButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    marginTop: -26,
-    backgroundColor: colors.primary,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginTop: -34,
+    borderWidth: 3,
+    borderColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000",
+    shadowColor: colors.textPrimary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 6
+    shadowRadius: 10,
+    elevation: 8
+  },
+  centerTabButtonActive: {
+    backgroundColor: colors.primaryStrong,
+    borderColor: colors.surface
+  },
+  centerTabButtonIdle: {
+    backgroundColor: colors.surface,
+    borderColor: colors.borderSubtle
+  },
+  centerTabInner: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  centerTabInnerActive: {
+    backgroundColor: "rgba(0,0,0,0.08)"
+  },
+  centerTabInnerIdle: {
+    backgroundColor: "transparent"
   }
 });

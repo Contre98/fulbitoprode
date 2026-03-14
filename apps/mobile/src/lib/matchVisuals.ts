@@ -160,7 +160,10 @@ export function buildTeamFormLookup(fixtures: Fixture[]) {
     const list = resultsByTeam.get(key) ?? [];
     const referenceMs = new Date(beforeKickoffAt).getTime();
     const maxMs = Number.isFinite(referenceMs) ? referenceMs : Number.POSITIVE_INFINITY;
-    const recent = list.filter((entry) => entry.kickoffMs < maxMs).slice(0, count).map((entry) => entry.outcome);
+    const recent: MatchFormState[] = list
+      .filter((entry) => entry.kickoffMs < maxMs)
+      .slice(0, count)
+      .map((entry) => entry.outcome);
     while (recent.length < count) {
       recent.push("none");
     }

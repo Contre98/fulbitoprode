@@ -141,7 +141,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
         Alert.alert("Error", "No se pudo obtener el link de invitación.");
         return;
       }
-      const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL || "https://fulbitoprode.onrender.com";
+      const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL || "https://api.fulbitoprode.com";
       const link = `${apiBase}/join?invite=${encodeURIComponent(invite.token)}`;
       await Share.share({
         message: `Unite a mi grupo "${actionsMembership.groupName}" en Fulbito Prode:\n${link}`

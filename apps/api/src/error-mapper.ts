@@ -24,11 +24,38 @@ function readErrorMessage(error: unknown, status: number) {
   return "Request failed";
 }
 
+function toErrorPayload(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    };
+  }
+  return {
+    message: String(error)
+  };
+}
+
 export function mapApiError(error: unknown, c: Context) {
   const context = getRequestContext(c);
   const status = readErrorStatus(error);
   const message = readErrorMessage(error, status);
   const durationMs = Date.now() - context.startedAtMs;
+
+  console.error(
+    JSON.stringify({
+      ts: new Date().toISOString(),
+      event: "api.error",
+      requestId: context.requestId,
+      traceId: context.traceId,
+      method: context.method,
+      path: context.path,
+      status,
+      durationMs,
+      error: toErrorPayload(error)
+    })
+  );
 
   return jsonResponse(
     {

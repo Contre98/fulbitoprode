@@ -140,6 +140,7 @@ function StatusScorePill({ fixture }: { fixture: Fixture }) {
   const livePulseOpacity = useLivePulse();
   const isLive = fixture.status === "live";
   const statusText = statusTextForFixture(fixture);
+  const scoreText = fixture.score ? `${fixture.score.home} : ${fixture.score.away}` : "- : -";
 
   return (
     <View style={[styles.resultPill, !isLive ? styles.resultPillUpcoming : null]}>
@@ -151,7 +152,7 @@ function StatusScorePill({ fixture }: { fixture: Fixture }) {
         <Text allowFontScaling={false} style={styles.resultSub}>{statusText}</Text>
       )}
       <Text allowFontScaling={false} style={styles.resultText}>
-        - : -
+        {scoreText}
       </Text>
     </View>
   );

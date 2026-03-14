@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "207801935389",
+    "project_id": "fulbito-prode",
+    "storage_bucket": "fulbito-prode.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:207801935389:android:8b82bc07723496eb9b88f4",
+        "android_client_info": {
+          "package_name": "com.wano.fulbitoprode"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAxWdxC-SYPmzmZkjtAP5Ywf-gEkOIpq6o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
