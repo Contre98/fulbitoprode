@@ -30,6 +30,7 @@ import * as notificationsDeviceTokenRoute from "./routes/notifications/device-to
 import * as notificationsDispatchRoute from "./routes/notifications/dispatch/route";
 import * as notificationsInboxRoute from "./routes/notifications/inbox/route";
 import * as notificationsPreferencesRoute from "./routes/notifications/preferences/route";
+import * as joinRoute from "./routes/join/route";
 import * as profileRoute from "./routes/profile/route";
 import * as pronosticosRoute from "./routes/pronosticos/route";
 import { mapApiError } from "./error-mapper";
@@ -157,6 +158,7 @@ registerRoute("/api/notifications/device-token", notificationsDeviceTokenRoute);
 registerRoute("/api/notifications/dispatch", notificationsDispatchRoute);
 registerRoute("/api/notifications/inbox", notificationsInboxRoute);
 registerRoute("/api/notifications/preferences", notificationsPreferencesRoute);
+registerRoute("/join", joinRoute);
 registerRoute("/api/profile", profileRoute);
 registerRoute("/api/pronosticos", pronosticosRoute);
 registerRoute("/api/admin/notifications/manual/dry-run", adminNotificationsDryRunRoute);

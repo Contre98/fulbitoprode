@@ -141,7 +141,8 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
         Alert.alert("Error", "No se pudo obtener el link de invitación.");
         return;
       }
-      const link = `fulbito://?invite=${encodeURIComponent(invite.token)}`;
+      const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL || "https://fulbitoprode.onrender.com";
+      const link = `${apiBase}/join?invite=${encodeURIComponent(invite.token)}`;
       await Share.share({
         message: `Unite a mi grupo "${actionsMembership.groupName}" en Fulbito Prode:\n${link}`
       });
@@ -503,7 +504,7 @@ function MembershipRow({ membership, active, isLast, onSelect, onMore }: Members
         onPress={() => onMore(moreRef.current)}
         style={[styles.moreButton, active && styles.moreButtonActive]}
       >
-        <Ionicons name="ellipsis-horizontal" size={18} color={active ? colors.textPrimary : colors.textMuted} />
+        <Ionicons name="ellipsis-horizontal" size={18} color={colors.textMuted} />
       </Pressable>
     </Pressable>
   );
@@ -678,7 +679,9 @@ const styles = StyleSheet.create({
     justifyContent: "center"
   },
   moreButtonActive: {
-    backgroundColor: colors.surface
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderMuted
   },
   footerDivider: {
     marginTop: 6,
