@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { jsonResponse } from "#http";
-import { joinGroupByCodeOrToken } from "@fulbito/server-core/m3-repo";
+import { getUserById, joinGroupByCodeOrToken, listGroupMembers } from "@fulbito/server-core/m3-repo";
 import { getSessionPocketBaseTokenFromRequest, getSessionUserIdFromRequest } from "@fulbito/server-core/request-auth";
+import { dispatch } from "@fulbito/server-core/notification-dispatcher";
 import { parseJsonBody, RequestBodyValidationError } from "../../../validation";
 
 const joinGroupPayloadSchema = z.object({
@@ -27,6 +28,26 @@ export async function POST(request: Request) {
     if (!joined.ok) {
       return jsonResponse({ error: joined.error }, { status: 400 });
     }
+
+    // Fire-and-forget: notify existing group members about the new joiner
+    void (async () => {
+      try {
+        const [user, members] = await Promise.all([getUserById(userId, pbToken), listGroupMembers(joined.group.id, pbToken)]);
+        const displayName = user.name || user.username || "Un nuevo jugador";
+        const otherMemberIds = members.filter((m) => m.userId !== userId).map((m) => m.userId);
+        if (otherMemberIds.length === 0) return;
+        await dispatch({
+          eventType: "social",
+          title: joined.group.name,
+          body: `${displayName} se unió al grupo. ¡Ya pueden competir!`,
+          target: { scope: "user", targetIds: otherMemberIds },
+          idempotencyKey: `social:join:${joined.group.id}:${userId}`,
+          recipientUserIds: otherMemberIds
+        });
+      } catch {
+        // Notification failure must never block the join response
+      }
+    })();
 
     return jsonResponse(
       {

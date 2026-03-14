@@ -1,0 +1,46 @@
+name: Notify - Prediction Reminder
+
+on:
+  schedule:
+    # 12:00 UTC = 09:00 Buenos Aires (UTC-3)
+    - cron: "0 12 * * *"
+    # 20:00 UTC = 17:00 Buenos Aires (UTC-3)
+    - cron: "0 20 * * *"
+  # Allow manual trigger from GitHub Actions UI
+  workflow_dispatch:
+    inputs:
+      window:
+        description: "Idempotency window (am / pm / manual)"
+        required: false
+        default: "manual"
+
+jobs:
+  send-reminder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine window
+        id: window
+        run: |
+          HOUR=$(date -u +%H)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "value=${{ github.event.inputs.window }}" >> "$GITHUB_OUTPUT"
+          elif [ "$HOUR" -lt 16 ]; then
+            echo "value=am" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=pm" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Send prediction reminder
+        run: |
+          RESPONSE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            -X POST \
+            -H "x-admin-token: ${{ secrets.NOTIFICATIONS_ADMIN_TOKEN }}" \
+            "https://api.fulbitoprode.com/api/admin/cron/prediction-reminder?window=${{ steps.window.outputs.value }}")
+
+          echo "HTTP status: $RESPONSE"
+          cat /tmp/response.json
+
+          if [ "$RESPONSE" != "200" ]; then
+            echo "Request failed with status $RESPONSE"
+            exit 1
+          fi
