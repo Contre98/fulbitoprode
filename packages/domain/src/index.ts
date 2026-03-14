@@ -1,4 +1,5 @@
 export type MembershipRole = "owner" | "admin" | "member";
+export type MembershipStatus = "active" | "pending" | "removed";
 export type CompetitionStage = "apertura" | "clausura" | "general";
 
 export interface User {
@@ -263,7 +264,7 @@ export interface NotificationPreferences {
   social: boolean;
 }
 
-export type NotificationEventType = "prediction_lock" | "results_published" | "weekly_winner" | "social";
+export type NotificationEventType = "prediction_lock" | "results_published" | "weekly_winner" | "social" | "join_request" | "join_request_approved" | "join_request_rejected";
 
 export interface NotificationItem {
   id: string;
@@ -568,6 +569,15 @@ export function translateBackendErrorMessage(rawMessage: string) {
   }
   if (normalized.includes("invite reached max uses")) {
     return "La invitación alcanzó el límite de usos.";
+  }
+  if (normalized.includes("join request already pending")) {
+    return "Ya tenés una solicitud pendiente para este grupo.";
+  }
+  if (normalized.includes("join request not found")) {
+    return "La solicitud no fue encontrada.";
+  }
+  if (normalized.includes("join request sent")) {
+    return "Tu solicitud fue enviada. El admin del grupo la revisará.";
   }
   if (normalized.includes("invalid credentials") || normalized.includes("failed to authenticate")) {
     return "Email o contraseña incorrectos.";

@@ -178,7 +178,16 @@ export const groupsRepository: GroupsRepository = {
   async searchGroups(input) {
     if (!canUseHttpSession()) {
       if (!isMockFallbackEnabled()) {
-        return [];
+        const page = typeof input.page === "number" ? input.page : 1;
+        const perPage = typeof input.perPage === "number" ? input.perPage : 20;
+        return {
+          groups: [],
+          page,
+          perPage,
+          totalItems: 0,
+          totalPages: 0,
+          hasMore: false
+        };
       }
       return mockGroupsRepository.searchGroups(input);
     }
@@ -356,6 +365,38 @@ export const groupsRepository: GroupsRepository = {
     } catch (error) {
       maybeFallback("groups.refreshInvite", error);
       return mockGroupsRepository.refreshInvite(input);
+    }
+  },
+  async listJoinRequests(input) {
+    if (!canUseHttpSession()) {
+      if (!isMockFallbackEnabled()) {
+        return { requests: [] };
+      }
+      return mockGroupsRepository.listJoinRequests(input);
+    }
+    try {
+      const result = await httpGroupsRepository.listJoinRequests(input);
+      clearFallbackFailure();
+      return result;
+    } catch (error) {
+      maybeFallback("groups.listJoinRequests", error);
+      return mockGroupsRepository.listJoinRequests(input);
+    }
+  },
+  async respondToJoinRequest(input) {
+    if (!canUseHttpSession()) {
+      if (!isMockFallbackEnabled()) {
+        throw new Error("HTTP session unavailable for respondToJoinRequest");
+      }
+      return mockGroupsRepository.respondToJoinRequest(input);
+    }
+    try {
+      const result = await httpGroupsRepository.respondToJoinRequest(input);
+      clearFallbackFailure();
+      return result;
+    } catch (error) {
+      maybeFallback("groups.respondToJoinRequest", error);
+      return mockGroupsRepository.respondToJoinRequest(input);
     }
   }
 };

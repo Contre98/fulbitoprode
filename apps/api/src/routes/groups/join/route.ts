@@ -29,6 +29,45 @@ export async function POST(request: Request) {
       return jsonResponse({ error: joined.error }, { status: 400 });
     }
 
+    if (joined.status === "pending") {
+      // Fire-and-forget: notify admins/owner about the join request.
+      void (async () => {
+        try {
+          const [user, members] = await Promise.all([getUserById(userId, pbToken), listGroupMembers(joined.group.id, pbToken)]);
+          const displayName = user.name || user.username || "Un usuario";
+          const adminIds = members
+            .filter((m) => (m.role === "owner" || m.role === "admin") && m.userId !== userId)
+            .map((m) => m.userId);
+          if (adminIds.length === 0) return;
+          await dispatch({
+            eventType: "join_request",
+            title: joined.group.name,
+            body: `${displayName} quiere unirse al grupo. Revisá las solicitudes.`,
+            target: { scope: "user", targetIds: adminIds },
+            idempotencyKey: `join_request:new:${joined.group.id}:${userId}`,
+            recipientUserIds: adminIds
+          });
+        } catch {
+          // Notification failure must never block the join response.
+        }
+      })();
+
+      return jsonResponse(
+        {
+          ok: true,
+          status: "pending",
+          group: {
+            id: joined.group.id,
+            name: joined.group.name,
+            slug: joined.group.slug,
+            season: joined.group.season,
+            leagueId: joined.group.leagueId
+          }
+        },
+        { status: 200 }
+      );
+    }
+
     // Fire-and-forget: notify existing group members about the new joiner
     void (async () => {
       try {
@@ -52,6 +91,7 @@ export async function POST(request: Request) {
     return jsonResponse(
       {
         ok: true,
+        status: "joined",
         group: {
           id: joined.group.id,
           name: joined.group.name,

@@ -6,6 +6,7 @@ import type {
   GroupMemberRecord,
   GroupMemberUpdatePayload,
   GroupMembersPayload,
+  GroupSearchPage,
   GroupsRepository,
   LeaderboardApiPayload,
   LeaderboardRepository,
@@ -43,13 +44,28 @@ export const mockGroupsRepository: GroupsRepository = {
         memberCount: 3,
         maxMembers: null
       }));
-    return results;
+    const page = Number.isFinite(input.page) ? Math.max(1, Math.floor(input.page as number)) : 1;
+    const perPage = Number.isFinite(input.perPage) ? Math.max(1, Math.floor(input.perPage as number)) : 20;
+    const totalItems = results.length;
+    const totalPages = Math.max(1, Math.ceil(totalItems / perPage));
+    const startIndex = (page - 1) * perPage;
+    const groupsPage = results.slice(startIndex, startIndex + perPage);
+
+    return {
+      groups: groupsPage,
+      page,
+      perPage,
+      totalItems,
+      totalPages,
+      hasMore: page < totalPages
+    } satisfies GroupSearchPage;
   },
   async createGroup(input) {
     return createMockGroup(input);
   },
   async joinGroup(input) {
-    return joinMockGroup(input);
+    const group = await joinMockGroup(input);
+    return { group, status: "joined" as const };
   },
   async updateGroupName(input) {
     return renameMockGroup(input);
@@ -104,7 +120,7 @@ export const mockGroupsRepository: GroupsRepository = {
     return {
       invite,
       canRefresh: true,
-      inviteUrl: `https://fulbito.local/configuracion?invite=${encodeURIComponent(invite.token)}`
+      inviteUrl: `https://fulbito.local/join?invite=${encodeURIComponent(invite.token)}`
     } satisfies GroupInvitePayload;
   },
   async refreshInvite(input) {
@@ -114,6 +130,12 @@ export const mockGroupsRepository: GroupsRepository = {
       ok: true,
       invite
     } satisfies GroupInviteRefreshPayload;
+  },
+  async listJoinRequests() {
+    return { requests: [] };
+  },
+  async respondToJoinRequest() {
+    return { ok: true as const };
   }
 };
 

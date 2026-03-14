@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Platform,
   Pressable,
   ScrollView,
@@ -23,6 +25,8 @@ import { useAuth } from "@/state/AuthContext";
 import { usePeriod } from "@/state/PeriodContext";
 
 type Tab = "buscar" | "crear";
+const SEARCH_PAGE_SIZE = 5;
+const AUTO_LOAD_THRESHOLD_PX = 96;
 
 export function UnirseCrearGrupoScreen() {
   const insets = useSafeAreaInsets();
@@ -98,24 +102,96 @@ function SearchTab() {
   const [leagueFilter, setLeagueFilter] = useState<number | null>(null);
   const [results, setResults] = useState<GroupSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [resultsScrollStarted, setResultsScrollStarted] = useState(false);
   const [joining, setJoining] = useState<string | null>(null);
+  const loadingMoreRef = useRef(false);
+  const canTriggerLoadMoreRef = useRef(true);
 
   const doSearch = useCallback(async () => {
     setLoading(true);
+    setLoadingMore(false);
+    setResultsScrollStarted(false);
+    canTriggerLoadMoreRef.current = true;
     setSearched(true);
     try {
-      const groups = await groupsRepository.searchGroups({
+      const response = await groupsRepository.searchGroups({
         query: query.trim() || undefined,
-        leagueId: leagueFilter ?? undefined
+        leagueId: leagueFilter ?? undefined,
+        page: 1,
+        perPage: SEARCH_PAGE_SIZE
       });
-      setResults(groups);
+      setResults(response.groups);
+      setPage(response.page);
+      setHasMore(response.hasMore);
     } catch {
       Alert.alert("Error", "No se pudieron buscar grupos. Intentá de nuevo.");
     } finally {
       setLoading(false);
     }
   }, [query, leagueFilter]);
+
+  const loadMore = useCallback(async () => {
+    if (loading || loadingMoreRef.current || !hasMore) {
+      return;
+    }
+
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const response = await groupsRepository.searchGroups({
+        query: query.trim() || undefined,
+        leagueId: leagueFilter ?? undefined,
+        page: nextPage,
+        perPage: SEARCH_PAGE_SIZE
+      });
+
+      setResults((current) => {
+        const seen = new Set(current.map((item) => item.id));
+        const newItems = response.groups.filter((item) => !seen.has(item.id));
+        return [...current, ...newItems];
+      });
+      setPage(response.page);
+      setHasMore(response.hasMore);
+    } catch {
+      Alert.alert("Error", "No se pudieron cargar más grupos. Intentá de nuevo.");
+    } finally {
+      loadingMoreRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [hasMore, leagueFilter, loading, page, query]);
+
+  const handleResultsEndReached = useCallback(() => {
+    if (!resultsScrollStarted || !hasMore || loading || loadingMoreRef.current) {
+      return;
+    }
+    void loadMore();
+  }, [hasMore, loadMore, loading, resultsScrollStarted]);
+
+  const handleResultsScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (!resultsScrollStarted || !hasMore || loading || loadingMoreRef.current) {
+      return;
+    }
+
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    const distanceToBottom = contentSize.height - (layoutMeasurement.height + contentOffset.y);
+
+    if (distanceToBottom > AUTO_LOAD_THRESHOLD_PX) {
+      canTriggerLoadMoreRef.current = true;
+      return;
+    }
+
+    if (!canTriggerLoadMoreRef.current) {
+      return;
+    }
+
+    canTriggerLoadMoreRef.current = false;
+    void handleResultsEndReached();
+  }, [handleResultsEndReached, hasMore, loading, resultsScrollStarted]);
 
   useEffect(() => {
     void doSearch();
@@ -142,11 +218,19 @@ function SearchTab() {
   async function performJoin(group: GroupSearchResult) {
     setJoining(group.id);
     try {
-      await groupsRepository.joinGroup({ codeOrToken: group.id });
-      await refresh();
-      Alert.alert("Listo", `Te uniste a "${group.name}"`, [
-        { text: "OK" }
-      ]);
+      const result = await groupsRepository.joinGroup({ codeOrToken: group.id });
+      if (result.status === "pending") {
+        Alert.alert(
+          "Solicitud enviada",
+          `Tu solicitud para unirte a "${group.name}" fue enviada. El admin del grupo la revisará.`,
+          [{ text: "OK" }]
+        );
+      } else {
+        await refresh();
+        Alert.alert("Listo", `Te uniste a "${group.name}"`, [
+          { text: "OK" }
+        ]);
+      }
       await doSearch();
     } catch (error) {
       Alert.alert("Error", error instanceof Error ? error.message : "No se pudo unir al grupo.");
@@ -203,13 +287,17 @@ function SearchTab() {
           <ActivityIndicator color={colors.primary} />
         </View>
       ) : results.length === 0 && searched ? (
-        <View style={styles.centered}>
+        <View style={styles.emptyState}>
           <Ionicons name="search-outline" size={40} color={colors.textSoft} />
           <Text allowFontScaling={false} style={styles.emptyText}>No se encontraron grupos</Text>
         </View>
       ) : (
         <ScrollView
+          onScrollBeginDrag={() => setResultsScrollStarted(true)}
+          onScroll={handleResultsScroll}
+          scrollEventThrottle={16}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.resultsList}
         >
           {results.map((group) => (
@@ -220,6 +308,11 @@ function SearchTab() {
               onJoin={() => handleJoin(group)}
             />
           ))}
+          {loadingMore ? (
+            <View style={styles.loadMoreSpinner}>
+              <ActivityIndicator size="small" color={colors.primaryDeep} />
+            </View>
+          ) : null}
         </ScrollView>
       )}
     </View>
@@ -641,6 +734,18 @@ const styles = StyleSheet.create({
   resultsList: {
     gap: 8,
     paddingBottom: 20
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+    gap: 8
+  },
+  loadMoreSpinner: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10
   },
   resultCard: {
     backgroundColor: colors.surface,

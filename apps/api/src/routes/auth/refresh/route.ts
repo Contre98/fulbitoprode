@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { jsonResponse } from "#http";
 import { rotateRefreshSession } from "@fulbito/server-core/auth-sessions";
+import { refreshPocketBaseToken } from "@fulbito/server-core/m3-repo";
 import { createAccessToken, createRefreshToken, getRefreshTokenMaxAgeSeconds, verifyRefreshToken } from "@fulbito/server-core/session";
 import { parseJsonBody, RequestBodyValidationError } from "../../../validation";
 
@@ -27,10 +28,14 @@ export async function POST(request: Request) {
     return jsonResponse({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Try to refresh the PocketBase token so it doesn't expire while the API session is still valid.
+  // If PB refresh fails (token already expired), fall back to the existing token.
+  const freshPbToken = await refreshPocketBaseToken(refreshPayload.pbt) || refreshPayload.pbt;
+
   const nextSessionId = randomUUID();
   const nextRefreshToken = createRefreshToken({
     userId: refreshPayload.uid,
-    pbToken: refreshPayload.pbt,
+    pbToken: freshPbToken,
     sessionId: nextSessionId
   });
 
@@ -41,7 +46,7 @@ export async function POST(request: Request) {
     nextSessionId,
     nextRefreshToken,
     nextExpiresAt: new Date(Date.now() + getRefreshTokenMaxAgeSeconds() * 1000),
-    authToken: refreshPayload.pbt
+    authToken: freshPbToken
   });
 
   if (!rotateResult.ok) {
@@ -50,7 +55,7 @@ export async function POST(request: Request) {
 
   const accessToken = createAccessToken({
     userId: refreshPayload.uid,
-    pbToken: refreshPayload.pbt,
+    pbToken: freshPbToken,
     sessionId: nextSessionId
   });
 

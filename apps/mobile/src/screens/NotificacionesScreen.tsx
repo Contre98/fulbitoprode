@@ -12,11 +12,14 @@ import { notificationsRepository } from "@/repositories";
 
 type IoniconsName = keyof typeof Ionicons.glyphMap;
 
-const EVENT_META: Record<NotificationEventType, { icon: IoniconsName; color: string; bg: string }> = {
+const EVENT_META: Partial<Record<NotificationEventType, { icon: IoniconsName; color: string; bg: string }>> = {
   prediction_lock: { icon: "lock-closed", color: "#F59E0B", bg: "#FEF3C7" },
   results_published: { icon: "trophy", color: "#10B981", bg: "#D1FAE5" },
   weekly_winner: { icon: "star", color: "#8B5CF6", bg: "#EDE9FE" },
-  social: { icon: "people", color: colors.primary, bg: colors.primarySoftAlt }
+  social: { icon: "people", color: colors.primary, bg: colors.primarySoftAlt },
+  join_request: { icon: "person-add", color: "#F59E0B", bg: "#FEF3C7" },
+  join_request_approved: { icon: "checkmark-circle", color: "#10B981", bg: "#D1FAE5" },
+  join_request_rejected: { icon: "close-circle", color: "#EF4444", bg: "#FEE2E2" }
 };
 
 function getEventMeta(type: NotificationEventType) {

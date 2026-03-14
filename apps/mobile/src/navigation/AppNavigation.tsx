@@ -1,9 +1,9 @@
 import { NavigationContainer, createNavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { StyleSheet, View } from "react-native";
+import { Alert, StyleSheet, View } from "react-native";
 import { Linking } from "react-native";
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@fulbito/design-tokens";
 import { AuthProvider, useAuth } from "@/state/AuthContext";
@@ -27,6 +27,7 @@ import { GroupSelectorOverlayProvider, useGroupSelectorOverlay } from "@/state/G
 import { useRegisterPushToken } from "@/lib/pushNotifications";
 import { usePendingInvite } from "@/state/PendingInviteContext";
 import { parseInviteTokenFromUrl } from "@/lib/inviteDeepLink";
+import { groupsRepository } from "@/repositories";
 
 const RootStack = createNativeStackNavigator();
 const Tabs = createBottomTabNavigator();
@@ -86,6 +87,48 @@ function InviteLinkHandler() {
 
     return () => sub.remove();
   }, []);
+
+  return null;
+}
+
+function InviteAutoJoinHandler() {
+  const { loading, isAuthenticated, refresh } = useAuth();
+  const { pendingInviteToken, clearPendingInviteToken } = usePendingInvite();
+  const joiningRef = useRef(false);
+
+  useEffect(() => {
+    const token = pendingInviteToken?.trim() || "";
+    if (!token || loading || !isAuthenticated || joiningRef.current) {
+      return;
+    }
+
+    joiningRef.current = true;
+    void (async () => {
+      try {
+        const result = await groupsRepository.joinGroup({ codeOrToken: token });
+        if (result.status === "joined") {
+          await refresh();
+        }
+        await clearPendingInviteToken();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "No se pudo procesar la invitación.";
+        const normalized = message.toLowerCase();
+        const shouldClearToken =
+          normalized.includes("invitación") ||
+          normalized.includes("invite") ||
+          normalized.includes("grupo") ||
+          normalized.includes("member") ||
+          normalized.includes("membres");
+
+        if (shouldClearToken) {
+          await clearPendingInviteToken();
+        }
+        Alert.alert("Invitación", message);
+      } finally {
+        joiningRef.current = false;
+      }
+    })();
+  }, [pendingInviteToken, loading, isAuthenticated, refresh, clearPendingInviteToken]);
 
   return null;
 }
@@ -180,6 +223,7 @@ export function AppNavigation() {
     <AuthProvider>
       <PendingInviteProvider>
         <InviteLinkHandler />
+        <InviteAutoJoinHandler />
         <GroupProvider>
           <GroupSelectorOverlayProvider>
             <PeriodProvider>

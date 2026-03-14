@@ -64,6 +64,7 @@ describe("Repository adapters contract parity (groups + predictions)", () => {
         ok: true,
         status: 200,
         json: async () => ({
+          status: "joined",
           group: {
             id: "g-http-join",
             name: "Grupo Join HTTP",
@@ -95,13 +96,27 @@ describe("Repository adapters contract parity (groups + predictions)", () => {
     const httpJoined = await httpGroupsRepository.joinGroup({ codeOrToken: "INV-HTTP-001" });
     const mockJoined = await mockGroupsRepository.joinGroup({ codeOrToken: "INV-MOCK-001" });
 
-    [httpCreated, mockCreated, httpJoined, mockJoined].forEach((group) => {
+    [httpCreated, mockCreated].forEach((group) => {
       expect(group).toEqual(
         expect.objectContaining({
           id: expect.any(String),
           name: expect.any(String),
           season: expect.any(String),
           leagueId: expect.any(Number)
+        })
+      );
+    });
+
+    [httpJoined, mockJoined].forEach((result) => {
+      expect(result).toEqual(
+        expect.objectContaining({
+          group: expect.objectContaining({
+            id: expect.any(String),
+            name: expect.any(String),
+            season: expect.any(String),
+            leagueId: expect.any(Number)
+          }),
+          status: expect.stringMatching(/^(joined|pending)$/)
         })
       );
     });
@@ -344,7 +359,7 @@ describe("Repository adapters contract parity (groups + predictions)", () => {
         json: async () => ({
           invite: { code: "INV-ABC123", token: "token-abc123", expiresAt: "2026-03-15T00:00:00.000Z" },
           canRefresh: true,
-          inviteUrl: "http://localhost:3000/configuracion?invite=token-abc123"
+          inviteUrl: "http://localhost:3000/join?invite=token-abc123"
         })
       })
       .mockResolvedValueOnce({

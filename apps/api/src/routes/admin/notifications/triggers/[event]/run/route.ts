@@ -11,7 +11,7 @@ const SUPPORTED_EVENTS: NotificationEventType[] = [
   "social"
 ];
 
-const EVENT_DEFAULTS: Record<NotificationEventType, { title: string; body: string }> = {
+const EVENT_DEFAULTS: Partial<Record<NotificationEventType, { title: string; body: string }>> = {
   prediction_lock: {
     title: "Cierre de pronósticos",
     body: "Queda poco para que cierre la fecha. ¡Revisá tus pronósticos!"
@@ -44,7 +44,7 @@ export async function POST(request: Request, context?: { params: Promise<{ event
   }
 
   const eventType = event as NotificationEventType;
-  const defaults = EVENT_DEFAULTS[eventType];
+  const defaults = EVENT_DEFAULTS[eventType] ?? { title: eventType, body: "" };
 
   // Scheduled triggers always go global
   const recipientUserIds = await resolveRecipientUserIds({ scope: "global" });

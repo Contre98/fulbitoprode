@@ -1,8 +1,9 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, LayoutAnimation, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, UIManager, View } from "react-native";
+import { ActivityIndicator, Alert, LayoutAnimation, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, UIManager, View } from "react-native";
 import { NavigationContext } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import type { Membership, MembershipRole } from "@fulbito/domain";
+import type { JoinRequestRecord } from "@fulbito/api-contracts";
 import { colors, spacing } from "@fulbito/design-tokens";
 import { groupsRepository } from "@/repositories";
 
@@ -53,6 +54,10 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
   const [popoverPos, setPopoverPos] = useState({ top: 0, right: 0 });
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
+  const [joinRequestsGroupId, setJoinRequestsGroupId] = useState<string | null>(null);
+  const [joinRequests, setJoinRequests] = useState<JoinRequestRecord[]>([]);
+  const [loadingRequests, setLoadingRequests] = useState(false);
+  const [respondingUserId, setRespondingUserId] = useState<string | null>(null);
 
   const activeMembership = useMemo(
     () => memberships.find((m) => m.groupId === selectedGroupId) || memberships[0] || null,
@@ -71,6 +76,8 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
 
   const triggerLabel = activeMembership?.groupName || "Sin grupo";
   const showEditName = editingGroupId !== null;
+  const showJoinRequests = joinRequestsGroupId !== null;
+  const showSubPanel = showEditName || showJoinRequests;
 
   function toggleOpen() {
     if (memberships.length === 0) return;
@@ -91,6 +98,8 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
     setActionsGroupId(null);
     setEditingGroupId(null);
     setEditingName("");
+    setJoinRequestsGroupId(null);
+    setJoinRequests([]);
     onOpenChange?.(false);
   }
 
@@ -136,18 +145,26 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
     if (!actionsMembership) return;
     dismissPopover();
     try {
-      const { invite } = await groupsRepository.getInvite({ groupId: actionsMembership.groupId });
-      if (!invite) {
-        Alert.alert("Error", "No se pudo obtener el link de invitación.");
+      const { invite, canRefresh, inviteUrl } = await groupsRepository.getInvite({ groupId: actionsMembership.groupId });
+      let inviteToken = invite?.token ?? null;
+
+      if (!inviteToken && canRefresh) {
+        const refreshed = await groupsRepository.refreshInvite({ groupId: actionsMembership.groupId });
+        inviteToken = refreshed.invite.token;
+      }
+
+      if (!inviteToken) {
+        Alert.alert("Error", "No hay un link de invitación activo. Pedile a un admin que genere uno nuevo.");
         return;
       }
+
       const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL || "https://api.fulbitoprode.com";
-      const link = `${apiBase}/join?invite=${encodeURIComponent(invite.token)}`;
+      const link = inviteUrl || `${apiBase}/join?invite=${encodeURIComponent(inviteToken)}`;
       await Share.share({
         message: `Unite a mi grupo "${actionsMembership.groupName}" en Fulbito Prode:\n${link}`
       });
-    } catch {
-      Alert.alert("Error", "No se pudo generar el link de invitación.");
+    } catch (error) {
+      Alert.alert("Error", error instanceof Error ? error.message : "No se pudo generar el link de invitación.");
     }
   }
 
@@ -183,6 +200,73 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
     animate();
     setEditingGroupId(null);
     setEditingName("");
+  }
+
+  function handleViewJoinRequests() {
+    if (!actionsMembership) return;
+    const groupId = actionsMembership.groupId;
+    dismissPopover();
+    animate();
+    setJoinRequestsGroupId(groupId);
+    setLoadingRequests(true);
+    void (async () => {
+      try {
+        const result = await groupsRepository.listJoinRequests({ groupId });
+        setJoinRequests(result.requests);
+      } catch {
+        Alert.alert("Error", "No se pudieron cargar las solicitudes.");
+      } finally {
+        setLoadingRequests(false);
+      }
+    })();
+  }
+
+  function cancelJoinRequests() {
+    animate();
+    setJoinRequestsGroupId(null);
+    setJoinRequests([]);
+  }
+
+  function handleRespondToRequest(targetUserId: string, action: "approve" | "reject") {
+    if (!joinRequestsGroupId || respondingUserId) return;
+    const label = action === "approve" ? "aprobar" : "rechazar";
+    const request = joinRequests.find((r) => r.userId === targetUserId);
+    const userName = request?.userName || "este usuario";
+
+    Alert.alert(
+      action === "approve" ? "Aprobar solicitud" : "Rechazar solicitud",
+      `¿Querés ${label} la solicitud de ${userName}?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: action === "approve" ? "Aprobar" : "Rechazar",
+          style: action === "reject" ? "destructive" : "default",
+          onPress: () => {
+            setRespondingUserId(targetUserId);
+            void (async () => {
+              try {
+                await groupsRepository.respondToJoinRequest({
+                  groupId: joinRequestsGroupId,
+                  userId: targetUserId,
+                  action
+                });
+                setJoinRequests((prev) => prev.filter((r) => r.userId !== targetUserId));
+                Alert.alert(
+                  "Listo",
+                  action === "approve"
+                    ? `${userName} fue aceptado en el grupo.`
+                    : `La solicitud de ${userName} fue rechazada.`
+                );
+              } catch (error) {
+                Alert.alert("Error", error instanceof Error ? error.message : "No se pudo procesar la solicitud.");
+              } finally {
+                setRespondingUserId(null);
+              }
+            })();
+          }
+        }
+      ]
+    );
   }
 
   function handleLeave() {
@@ -342,7 +426,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
       {open ? (
         <View ref={panelRef} style={styles.panel}>
           {/* Panel header */}
-          {!showEditName ? (
+          {!showSubPanel ? (
             <View style={styles.panelHeader}>
               <Text allowFontScaling={false} style={styles.panelTitle}>Mis Grupos</Text>
               <Text allowFontScaling={false} style={styles.panelCount}>{memberships.length}</Text>
@@ -351,7 +435,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                 <Ionicons name="close" size={14} color={colors.textMuted} />
               </Pressable>
             </View>
-          ) : (
+          ) : showEditName ? (
             <View style={styles.panelHeader}>
               <Pressable accessibilityRole="button" accessibilityLabel="Volver" onPress={cancelEditName} style={styles.backButton}>
                 <Ionicons name="chevron-back" size={16} color={colors.textSecondary} />
@@ -363,10 +447,22 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                 <Ionicons name="close" size={14} color={colors.textMuted} />
               </Pressable>
             </View>
+          ) : (
+            <View style={styles.panelHeader}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Volver" onPress={cancelJoinRequests} style={styles.backButton}>
+                <Ionicons name="chevron-back" size={16} color={colors.textSecondary} />
+              </Pressable>
+              <Text allowFontScaling={false} numberOfLines={1} style={styles.panelTitleFlex}>
+                Solicitudes
+              </Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="Cerrar" onPress={closePanel} hitSlop={6} style={styles.closeButton}>
+                <Ionicons name="close" size={14} color={colors.textMuted} />
+              </Pressable>
+            </View>
           )}
 
           {/* Group list */}
-          {!showEditName ? (
+          {!showSubPanel ? (
             <>
               <ScrollView
                 showsVerticalScrollIndicator={false}
@@ -408,10 +504,16 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                     </Pressable>
 
                     {actionsIsAdmin ? (
-                      <Pressable onPress={handleEditName} style={styles.popoverRow}>
-                        <Ionicons name="pencil-outline" size={17} color={colors.textSecondary} />
-                        <Text allowFontScaling={false} style={styles.popoverLabel}>Editar nombre</Text>
-                      </Pressable>
+                      <>
+                        <Pressable onPress={handleEditName} style={styles.popoverRow}>
+                          <Ionicons name="pencil-outline" size={17} color={colors.textSecondary} />
+                          <Text allowFontScaling={false} style={styles.popoverLabel}>Editar nombre</Text>
+                        </Pressable>
+                        <Pressable onPress={handleViewJoinRequests} style={styles.popoverRow}>
+                          <Ionicons name="person-add-outline" size={17} color={colors.textSecondary} />
+                          <Text allowFontScaling={false} style={styles.popoverLabel}>Solicitudes</Text>
+                        </Pressable>
+                      </>
                     ) : null}
 
                     <View style={styles.popoverDivider} />
@@ -453,6 +555,57 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                   <Text allowFontScaling={false} style={styles.editNameSaveText}>{saving ? "Guardando..." : "Guardar"}</Text>
                 </Pressable>
               </View>
+            </View>
+          ) : null}
+
+          {/* Join requests view */}
+          {showJoinRequests ? (
+            <View style={styles.joinRequestsWrap}>
+              {loadingRequests ? (
+                <View style={styles.joinRequestsCentered}>
+                  <ActivityIndicator color={colors.primary} />
+                </View>
+              ) : joinRequests.length === 0 ? (
+                <View style={styles.joinRequestsCentered}>
+                  <Ionicons name="checkmark-circle-outline" size={32} color={colors.textSoft} />
+                  <Text allowFontScaling={false} style={styles.joinRequestsEmpty}>No hay solicitudes pendientes</Text>
+                </View>
+              ) : (
+                <ScrollView showsVerticalScrollIndicator={false} style={styles.joinRequestsList} nestedScrollEnabled>
+                  {joinRequests.map((request) => (
+                    <View key={request.userId} style={styles.joinRequestRow}>
+                      <View style={styles.joinRequestAvatar}>
+                        <Text allowFontScaling={false} style={styles.joinRequestAvatarText}>
+                          {(request.userName.trim()[0] ?? "U").toUpperCase()}
+                        </Text>
+                      </View>
+                      <View style={styles.joinRequestInfo}>
+                        <Text allowFontScaling={false} numberOfLines={1} style={styles.joinRequestName}>
+                          {request.userName}
+                        </Text>
+                      </View>
+                      {respondingUserId === request.userId ? (
+                        <ActivityIndicator size="small" color={colors.primaryDeep} />
+                      ) : (
+                        <View style={styles.joinRequestActions}>
+                          <Pressable
+                            onPress={() => handleRespondToRequest(request.userId, "approve")}
+                            style={styles.joinRequestApproveBtn}
+                          >
+                            <Ionicons name="checkmark" size={18} color={colors.successDeep} />
+                          </Pressable>
+                          <Pressable
+                            onPress={() => handleRespondToRequest(request.userId, "reject")}
+                            style={styles.joinRequestRejectBtn}
+                          >
+                            <Ionicons name="close" size={18} color={colors.dangerAccent} />
+                          </Pressable>
+                        </View>
+                      )}
+                    </View>
+                  ))}
+                </ScrollView>
+              )}
             </View>
           ) : null}
         </View>
@@ -811,5 +964,73 @@ const styles = StyleSheet.create({
     color: colors.textTitle,
     fontSize: 13,
     fontWeight: "800"
+  },
+
+  // ─── Join requests ──────────────────────────────────────────────────────
+  joinRequestsWrap: {
+    gap: 8
+  },
+  joinRequestsCentered: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 24,
+    gap: 8
+  },
+  joinRequestsEmpty: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: "700"
+  },
+  joinRequestsList: {
+    maxHeight: 240
+  },
+  joinRequestRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 4
+  },
+  joinRequestAvatar: {
+    height: 34,
+    width: 34,
+    borderRadius: 10,
+    backgroundColor: colors.surfaceMuted,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  joinRequestAvatarText: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: "900"
+  },
+  joinRequestInfo: {
+    flex: 1,
+    gap: 2
+  },
+  joinRequestName: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: "700"
+  },
+  joinRequestActions: {
+    flexDirection: "row",
+    gap: 6
+  },
+  joinRequestApproveBtn: {
+    height: 32,
+    width: 32,
+    borderRadius: 8,
+    backgroundColor: "#ECFDF5",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  joinRequestRejectBtn: {
+    height: 32,
+    width: 32,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceTintWarning,
+    alignItems: "center",
+    justifyContent: "center"
   }
 });

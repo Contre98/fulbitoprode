@@ -34,7 +34,9 @@ jest.mock("@/repositories", () => ({
     leaveGroup: jest.fn(),
     deleteGroup: jest.fn(),
     getInvite: jest.fn(),
-    refreshInvite: jest.fn()
+    refreshInvite: jest.fn(),
+    listJoinRequests: jest.fn(),
+    respondToJoinRequest: jest.fn()
   }
 }));
 

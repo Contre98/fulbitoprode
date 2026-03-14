@@ -6,6 +6,20 @@ interface Params {
   params: Promise<{ groupId: string }>;
 }
 
+function normalizePublicBaseUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    return new URL(withProtocol).origin;
+  } catch {
+    return "";
+  }
+}
+
 export async function GET(request: Request, context: Params) {
   const userId = getSessionUserIdFromRequest(request);
   const pbToken = getSessionPocketBaseTokenFromRequest(request);
@@ -23,10 +37,12 @@ export async function GET(request: Request, context: Params) {
     return jsonResponse({ error: result.error }, { status: 403 });
   }
 
-  const configuredBase = process.env.PUBLIC_APP_URL?.trim() || process.env.NEXT_PUBLIC_APP_URL?.trim() || "";
+  const configuredBase = normalizePublicBaseUrl(
+    process.env.PUBLIC_APP_URL?.trim() || process.env.NEXT_PUBLIC_APP_URL?.trim() || ""
+  );
   const requestBase = new URL(request.url).origin;
   const base = (configuredBase || requestBase).replace(/\/$/, "");
-  const inviteUrl = result.invite ? `${base}/configuracion?invite=${encodeURIComponent(result.invite.token)}` : undefined;
+  const inviteUrl = result.invite ? `${base}/join?invite=${encodeURIComponent(result.invite.token)}` : undefined;
 
   return jsonResponse(
     {

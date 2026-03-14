@@ -2,10 +2,13 @@ import type {
   FixtureApiMatch,
   GroupDeletePayload,
   GroupInvitePayload,
+  GroupSearchPage,
   GroupInviteRefreshPayload,
   GroupLeavePayload,
   GroupMemberUpdatePayload,
   GroupMembersPayload,
+  JoinGroupResult,
+  JoinRequestsPayload,
   LeaderboardApiPayload,
   FixtureApiPayload,
   FixtureRepository,
@@ -18,7 +21,6 @@ import type {
 import type {
   Fixture,
   Group,
-  GroupSearchResult,
   LeaderboardEntry,
   MatchScoreValue,
   Membership,
@@ -465,6 +467,7 @@ interface GroupMutationResponse {
     season: string;
     leagueId: number;
   };
+  status?: "joined" | "pending";
 }
 
 export const httpPredictionsRepository: PredictionsRepository = {
@@ -603,9 +606,18 @@ export const httpGroupsRepository: GroupsRepository = {
     const params = new URLSearchParams();
     if (input.query) params.set("q", input.query);
     if (typeof input.leagueId === "number") params.set("leagueId", String(input.leagueId));
+    if (typeof input.page === "number") params.set("page", String(input.page));
+    if (typeof input.perPage === "number") params.set("perPage", String(input.perPage));
     const qs = params.toString();
-    const payload = await requestJson<{ groups: GroupSearchResult[] }>(`/api/groups/search${qs ? `?${qs}` : ""}`);
-    return payload.groups ?? [];
+    const payload = await requestJson<GroupSearchPage>(`/api/groups/search${qs ? `?${qs}` : ""}`);
+    return {
+      groups: payload.groups ?? [],
+      page: payload.page ?? (typeof input.page === "number" ? input.page : 1),
+      perPage: payload.perPage ?? (typeof input.perPage === "number" ? input.perPage : 20),
+      totalItems: payload.totalItems ?? 0,
+      totalPages: payload.totalPages ?? 0,
+      hasMore: payload.hasMore ?? false
+    };
   },
   async createGroup(input) {
     const payload = await requestJson<GroupMutationResponse>("/api/groups", {
@@ -636,11 +648,14 @@ export const httpGroupsRepository: GroupsRepository = {
       })
     });
     return {
-      id: payload.group.id,
-      name: payload.group.name,
-      season: payload.group.season,
-      leagueId: payload.group.leagueId
-    };
+      group: {
+        id: payload.group.id,
+        name: payload.group.name,
+        season: payload.group.season,
+        leagueId: payload.group.leagueId
+      },
+      status: payload.status ?? "joined"
+    } satisfies JoinGroupResult;
   },
   async updateGroupName(input) {
     return requestJson<{ ok: true; group: { id: string; name: string } }>(`/api/groups/${encodeURIComponent(input.groupId)}`, {
@@ -689,6 +704,18 @@ export const httpGroupsRepository: GroupsRepository = {
   async refreshInvite(input) {
     return requestJson<GroupInviteRefreshPayload>(`/api/groups/${encodeURIComponent(input.groupId)}/invite/refresh`, {
       method: "POST"
+    });
+  },
+  async listJoinRequests(input) {
+    return requestJson<JoinRequestsPayload>(`/api/groups/${encodeURIComponent(input.groupId)}/join-requests`);
+  },
+  async respondToJoinRequest(input) {
+    return requestJson<{ ok: true }>(`/api/groups/${encodeURIComponent(input.groupId)}/join-requests`, {
+      method: "POST",
+      body: JSON.stringify({
+        userId: input.userId,
+        action: input.action
+      })
     });
   }
 };

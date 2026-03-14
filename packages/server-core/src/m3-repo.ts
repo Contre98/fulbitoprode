@@ -331,6 +331,24 @@ async function getGoogleTokenInfo(idToken: string): Promise<GoogleTokenInfoRespo
   return (await response.json()) as GoogleTokenInfoResponse;
 }
 
+/**
+ * Refresh an existing PocketBase user token. Returns a fresh token if the current one
+ * is still valid enough for PB to accept a refresh, or null if refresh fails (e.g. token
+ * already fully expired). Callers should fall back to the old token when null is returned.
+ */
+export async function refreshPocketBaseToken(currentPbToken: string): Promise<string | null> {
+  try {
+    const result = await pbRequest<{ token: string }>(
+      "/api/collections/users/auth-refresh",
+      { method: "POST" },
+      currentPbToken
+    );
+    return result.token || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function loginWithPassword(email: string, password: string): Promise<{ user: M3User; token: string }> {
   const attempts: Array<Record<string, string>> = [
     { identity: email, password },
@@ -547,9 +565,11 @@ export async function listGroupsForUser(userId: string, authToken: string) {
 }
 
 export async function searchGroups(
-  input: { query?: string; leagueId?: number },
+  input: { query?: string; leagueId?: number; page?: number; perPage?: number },
   authToken: string
 ) {
+  const page = Number.isFinite(input.page) ? Math.max(1, Math.floor(input.page as number)) : 1;
+  const perPage = Number.isFinite(input.perPage) ? Math.min(50, Math.max(1, Math.floor(input.perPage as number))) : 20;
   const commonFilters: string[] = [];
   if (input.query && input.query.trim().length > 0) {
     commonFilters.push(`name~${q(input.query.trim())}`);
@@ -560,7 +580,8 @@ export async function searchGroups(
 
   async function fetchGroups(includeIsActiveFilter: boolean) {
     const filters = includeIsActiveFilter ? ["is_active=true", ...commonFilters] : [...commonFilters];
-    const filter = encodeURIComponent(filters.join(" && "));
+    const filterExpression = filters.join(" && ");
+    const filterQuery = filterExpression ? `&filter=${encodeURIComponent(filterExpression)}` : "";
     return pbRequest<
       PbListResult<{
         id: string;
@@ -571,7 +592,7 @@ export async function searchGroups(
         visibility?: string;
         max_members?: number | null;
       }>
-    >(`/api/collections/groups/records?perPage=50&filter=${filter}&sort=-created`, { method: "GET" }, authToken);
+    >(`/api/collections/groups/records?page=${page}&perPage=${perPage}${filterQuery}&sort=-created`, { method: "GET" }, authToken);
   }
 
   let groups: PbListResult<{
@@ -601,39 +622,45 @@ export async function searchGroups(
   }
 
   const groupIds = groups.items.map((g) => g.id);
-  const memberCounts: Record<string, number> = {};
-
-  if (groupIds.length > 0) {
-    for (const gId of groupIds) {
-      const countFilter = encodeURIComponent(`group_id=${q(gId)} && status='active'`);
+  const memberCountEntries = await Promise.all(
+    groupIds.map(async (groupId) => {
+      const countFilter = encodeURIComponent(`group_id=${q(groupId)} && status='active'`);
       const countResult = await pbRequest<PbListResult<{ id: string }>>(
         `/api/collections/group_members/records?perPage=1&filter=${countFilter}`,
         { method: "GET" },
         authToken
       );
-      memberCounts[gId] = countResult.totalItems;
-    }
-  }
+      return [groupId, countResult.totalItems] as const;
+    })
+  );
+  const memberCounts = Object.fromEntries(memberCountEntries);
 
-  return groups.items.map((group) => {
-    const decoded = decodeSeasonWithStage(
-      group.season || process.env.API_FOOTBALL_DEFAULT_SEASON || String(new Date().getFullYear()),
-      group.league_id ?? 128
-    );
+  return {
+    groups: groups.items.map((group) => {
+      const decoded = decodeSeasonWithStage(
+        group.season || process.env.API_FOOTBALL_DEFAULT_SEASON || String(new Date().getFullYear()),
+        group.league_id ?? 128
+      );
 
-    return {
-      id: group.id,
-      name: group.name,
-      leagueId: group.league_id ?? 128,
-      leagueName: "Liga Profesional",
-      season: decoded.season,
-      competitionName: decoded.competitionName,
-      competitionStage: decoded.competitionStage as "apertura" | "clausura" | "general",
-      visibility: (group.visibility === "closed" ? "closed" : "open") as "open" | "closed",
-      memberCount: memberCounts[group.id] ?? 0,
-      maxMembers: group.max_members ?? null
-    };
-  });
+      return {
+        id: group.id,
+        name: group.name,
+        leagueId: group.league_id ?? 128,
+        leagueName: "Liga Profesional",
+        season: decoded.season,
+        competitionName: decoded.competitionName,
+        competitionStage: decoded.competitionStage as "apertura" | "clausura" | "general",
+        visibility: (group.visibility === "closed" ? "closed" : "open") as "open" | "closed",
+        memberCount: memberCounts[group.id] ?? 0,
+        maxMembers: group.max_members ?? null
+      };
+    }),
+    page: groups.page,
+    perPage: groups.perPage,
+    totalItems: groups.totalItems,
+    totalPages: groups.totalPages,
+    hasMore: groups.page < groups.totalPages
+  };
 }
 
 export async function isActiveGroupMember(userId: string, groupId: string, authToken: string) {
@@ -1034,44 +1061,90 @@ export async function createGroup(
 
 export async function joinGroupByCodeOrToken(input: { userId: string; codeOrToken: string }, authToken: string) {
   const filter = encodeURIComponent(`code=${q(input.codeOrToken)} || token=${q(input.codeOrToken)}`);
-  const inviteList = await pbRequest<
-    PbListResult<{ id: string; group_id: string; uses?: number; max_uses?: number; expires_at?: string }>
-  >(
-    `/api/collections/group_invites/records?perPage=1&filter=${filter}&code=${encodeURIComponent(input.codeOrToken)}&token=${encodeURIComponent(input.codeOrToken)}`,
-    { method: "GET" },
-    authToken
-  );
-
-  let invite = inviteList.items[0];
-
-  if (!invite) {
-    // Fallback: treat codeOrToken as a group ID and find the group's active invite.
-    // This handles the "join from search results" flow where only the group ID is available.
-    const groupInviteFilter = encodeURIComponent(`group_id=${q(input.codeOrToken)}`);
-    const groupInviteList = await pbRequest<
+  let inviteList: PbListResult<{ id: string; group_id: string; uses?: number; max_uses?: number; expires_at?: string }>;
+  try {
+    inviteList = await pbRequest<
       PbListResult<{ id: string; group_id: string; uses?: number; max_uses?: number; expires_at?: string }>
     >(
-      `/api/collections/group_invites/records?perPage=1&filter=${groupInviteFilter}&sort=-created`,
+      `/api/collections/group_invites/records?perPage=1&filter=${filter}&code=${encodeURIComponent(input.codeOrToken)}&token=${encodeURIComponent(input.codeOrToken)}`,
       { method: "GET" },
       authToken
     );
-    invite = groupInviteList.items[0];
+  } catch {
+    // group_invites lookup may fail due to PB rules — not fatal, fall through to group ID lookup.
+    inviteList = { page: 1, perPage: 1, totalItems: 0, totalPages: 0, items: [] };
   }
+
+  let invite = inviteList.items[0];
+  let directGroup:
+    | {
+        id: string;
+        name: string;
+        slug: string;
+        season?: string;
+        league_id?: number;
+        visibility?: string;
+      }
+    | null = null;
+  // When joining via invite code/token, closed groups are bypassed (invite = explicit permission).
+  let joinedViaInvite = !!invite;
 
   if (!invite) {
-    return { ok: false as const, error: "Invite not found" };
+    // Join-from-search fallback: treat codeOrToken as group ID and resolve through list rule (not view rule).
+    const groupFilter = encodeURIComponent(`id=${q(input.codeOrToken)}`);
+    let groupList: PbListResult<{ id: string; name: string; slug: string; season?: string; league_id?: number; visibility?: string }>;
+    try {
+      groupList = await pbRequest<
+        PbListResult<{ id: string; name: string; slug: string; season?: string; league_id?: number; visibility?: string }>
+      >(
+        `/api/collections/groups/records?perPage=1&filter=${groupFilter}`,
+        { method: "GET" },
+        authToken
+      );
+    } catch (error) {
+      // PB token may have expired — surface the real error instead of a misleading "Invite not found".
+      const pbMsg = extractPocketBaseErrorMessage(error);
+      console.error("[joinGroupByCodeOrToken] group lookup failed:", pbMsg);
+      return { ok: false as const, error: `Group lookup failed: ${pbMsg}` };
+    }
+
+    directGroup = groupList.items[0] ?? null;
+    if (directGroup) {
+      // Synthetic invite payload so the existing membership flow can reuse `group_id`.
+      invite = { id: "", group_id: directGroup.id };
+    } else {
+      return { ok: false as const, error: "Invite not found" };
+    }
   }
 
-  const expiresAt = invite.expires_at ? new Date(invite.expires_at).getTime() : 0;
-  if (expiresAt && expiresAt < Date.now()) {
-    return { ok: false as const, error: "Invite expired" };
+  if (invite.id) {
+    const expiresAt = invite.expires_at ? new Date(invite.expires_at).getTime() : 0;
+    if (expiresAt && expiresAt < Date.now()) {
+      return { ok: false as const, error: "Invite expired" };
+    }
+
+    const uses = invite.uses ?? 0;
+    const maxUses = invite.max_uses ?? 0;
+    if (maxUses > 0 && uses >= maxUses) {
+      return { ok: false as const, error: "Invite reached max uses" };
+    }
   }
 
-  const uses = invite.uses ?? 0;
-  const maxUses = invite.max_uses ?? 0;
-  if (maxUses > 0 && uses >= maxUses) {
-    return { ok: false as const, error: "Invite reached max uses" };
+  // Determine if this is a closed group that requires approval (only for search-based joins).
+  let groupVisibility: string | undefined = directGroup?.visibility;
+  if (!groupVisibility && !joinedViaInvite) {
+    try {
+      const groupRecord = await pbRequest<{ visibility?: string }>(
+        `/api/collections/groups/records/${invite.group_id}`,
+        { method: "GET" },
+        authToken
+      );
+      groupVisibility = groupRecord.visibility;
+    } catch {
+      // If we can't read visibility, default to open behavior.
+    }
   }
+  const requiresApproval = !joinedViaInvite && groupVisibility === "closed";
 
   const existingFilter = encodeURIComponent(`user_id=${q(input.userId)} && group_id=${q(invite.group_id)}`);
   const existing = await pbRequest<PbListResult<{ id: string; role: "owner" | "admin" | "member"; status: string }>>(
@@ -1081,6 +1154,8 @@ export async function joinGroupByCodeOrToken(input: { userId: string; codeOrToke
   );
 
   const existingMembership = existing.items[0];
+  const targetStatus = requiresApproval ? "pending" : "active";
+
   if (!existingMembership) {
     await pbRequest(
       "/api/collections/group_members/records",
@@ -1090,8 +1165,25 @@ export async function joinGroupByCodeOrToken(input: { userId: string; codeOrToke
           group_id: invite.group_id,
           user_id: input.userId,
           role: "member",
+          status: targetStatus,
+          joined_at: requiresApproval ? "" : new Date().toISOString()
+        })
+      },
+      authToken
+    );
+  } else if (existingMembership.status === "pending" && requiresApproval) {
+    // Already has a pending request — don't create a duplicate.
+    return { ok: false as const, error: "Join request already pending" };
+  } else if (existingMembership.status === "pending" && !requiresApproval) {
+    // Joining via invite while having a pending request — approve immediately.
+    await pbRequest(
+      `/api/collections/group_members/records/${existingMembership.id}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
           status: "active",
-          joined_at: new Date().toISOString()
+          joined_at: new Date().toISOString(),
+          role: "member"
         })
       },
       authToken
@@ -1102,8 +1194,8 @@ export async function joinGroupByCodeOrToken(input: { userId: string; codeOrToke
       {
         method: "PATCH",
         body: JSON.stringify({
-          status: "active",
-          joined_at: new Date().toISOString(),
+          status: targetStatus,
+          joined_at: requiresApproval ? "" : new Date().toISOString(),
           role: existingMembership.role === "owner" ? "owner" : "member"
         })
       },
@@ -1111,24 +1203,29 @@ export async function joinGroupByCodeOrToken(input: { userId: string; codeOrToke
     );
   }
 
-  try {
-    await pbRequest(
-      `/api/collections/group_invites/records/${invite.id}`,
-      {
-        method: "PATCH",
-        body: JSON.stringify({ uses: uses + 1 })
-      },
-      authToken
-    );
-  } catch {
-    // Invite usage updates can be blocked by PB rules in locked-down setups.
+  if (invite.id) {
+    const uses = invite.uses ?? 0;
+    try {
+      await pbRequest(
+        `/api/collections/group_invites/records/${invite.id}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ uses: uses + 1 })
+        },
+        authToken
+      );
+    } catch {
+      // Invite usage updates can be blocked by PB rules in locked-down setups.
+    }
   }
 
-  const group = await pbRequest<{ id: string; name: string; slug: string; season?: string; league_id?: number }>(
-    `/api/collections/groups/records/${invite.group_id}`,
-    { method: "GET" },
-    authToken
-  );
+  const group =
+    directGroup ||
+    (await pbRequest<{ id: string; name: string; slug: string; season?: string; league_id?: number; visibility?: string }>(
+      `/api/collections/groups/records/${invite.group_id}`,
+      { method: "GET" },
+      authToken
+    ));
 
   const decoded = decodeSeasonWithStage(
     group.season || process.env.API_FOOTBALL_DEFAULT_SEASON || String(new Date().getFullYear()),
@@ -1137,6 +1234,7 @@ export async function joinGroupByCodeOrToken(input: { userId: string; codeOrToke
 
   return {
     ok: true as const,
+    status: (requiresApproval ? "pending" : "joined") as "pending" | "joined",
     group: {
       id: group.id,
       name: group.name,
@@ -1148,6 +1246,86 @@ export async function joinGroupByCodeOrToken(input: { userId: string; codeOrToke
       competitionKey: decoded.competitionKey
     }
   };
+}
+
+export async function listPendingJoinRequests(groupId: string, authToken: string) {
+  const filter = encodeURIComponent(`group_id=${q(groupId)} && status='pending'`);
+  const response = await pbRequest<
+    PbListResult<{
+      id: string;
+      user_id: string;
+      created: string;
+      expand?: {
+        user_id?:
+          | { id: string; name?: string; email?: string }
+          | Array<{ id: string; name?: string; email?: string }>;
+      };
+    }>
+  >(`/api/collections/group_members/records?perPage=200&filter=${filter}&expand=user_id&sort=-created`, { method: "GET" }, authToken);
+
+  return response.items.map((item) => {
+    const expandedUser = Array.isArray(item.expand?.user_id) ? item.expand?.user_id[0] : item.expand?.user_id;
+    return {
+      id: item.id,
+      userId: item.user_id,
+      userName: expandedUser?.name || expandedUser?.email || `Usuario ${item.user_id.slice(0, 6)}`,
+      requestedAt: item.created
+    };
+  });
+}
+
+export async function respondToJoinRequest(
+  input: { actorUserId: string; groupId: string; targetUserId: string; action: "approve" | "reject" },
+  authToken: string
+) {
+  // Verify actor is admin/owner of the group.
+  const actorFilter = encodeURIComponent(`user_id=${q(input.actorUserId)} && group_id=${q(input.groupId)} && status='active'`);
+  const actorResult = await pbRequest<PbListResult<{ id: string; role: "owner" | "admin" | "member" }>>(
+    `/api/collections/group_members/records?perPage=1&filter=${actorFilter}`,
+    { method: "GET" },
+    authToken
+  );
+  const actor = actorResult.items[0];
+  if (!actor || (actor.role !== "owner" && actor.role !== "admin")) {
+    return { ok: false as const, error: "Only admins can manage this resource" };
+  }
+
+  // Find the pending membership record.
+  const pendingFilter = encodeURIComponent(`user_id=${q(input.targetUserId)} && group_id=${q(input.groupId)} && status='pending'`);
+  const pendingResult = await pbRequest<PbListResult<{ id: string }>>(
+    `/api/collections/group_members/records?perPage=1&filter=${pendingFilter}`,
+    { method: "GET" },
+    authToken
+  );
+  const pendingRecord = pendingResult.items[0];
+  if (!pendingRecord) {
+    return { ok: false as const, error: "Join request not found" };
+  }
+
+  if (input.action === "approve") {
+    await pbRequest(
+      `/api/collections/group_members/records/${pendingRecord.id}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          status: "active",
+          joined_at: new Date().toISOString()
+        })
+      },
+      authToken
+    );
+  } else {
+    await pbRequest(
+      `/api/collections/group_members/records/${pendingRecord.id}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ status: "removed" })
+      },
+      authToken
+    );
+  }
+
+  return { ok: true as const, action: input.action };
 }
 
 export async function listPredictionsForScope(

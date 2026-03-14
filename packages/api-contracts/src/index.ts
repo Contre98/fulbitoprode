@@ -15,6 +15,7 @@ import type {
   LeaderboardStatsRow,
   MatchScoreValue,
   Membership,
+  MembershipStatus,
   NotificationItem,
   NotificationPreferences,
   ProfilePayload,
@@ -37,10 +38,26 @@ export interface AuthRepository {
   logout(): Promise<void>;
 }
 
+export interface JoinGroupResult {
+  group: Group;
+  status: "joined" | "pending";
+}
+
+export interface JoinRequestRecord {
+  id: string;
+  userId: string;
+  userName: string;
+  requestedAt: string;
+}
+
+export interface JoinRequestsPayload {
+  requests: JoinRequestRecord[];
+}
+
 export interface GroupsRepository {
   listGroups(): Promise<Group[]>;
   listMemberships(): Promise<Membership[]>;
-  searchGroups(input: { query?: string; leagueId?: number }): Promise<GroupSearchResult[]>;
+  searchGroups(input: { query?: string; leagueId?: number; page?: number; perPage?: number }): Promise<GroupSearchPage>;
   createGroup(input: {
     name: string;
     season?: string;
@@ -51,7 +68,7 @@ export interface GroupsRepository {
     visibility?: GroupVisibility;
     startingFecha?: string;
   }): Promise<Group>;
-  joinGroup(input: { codeOrToken: string }): Promise<Group>;
+  joinGroup(input: { codeOrToken: string }): Promise<JoinGroupResult>;
   updateGroupName(input: { groupId: string; name: string }): Promise<{ ok: true; group: { id: string; name: string } }>;
   listMembers(input: { groupId: string }): Promise<GroupMembersPayload>;
   updateMemberRole(input: { groupId: string; userId: string; role: "admin" | "member" }): Promise<GroupMemberUpdatePayload>;
@@ -60,6 +77,17 @@ export interface GroupsRepository {
   deleteGroup(input: { groupId: string }): Promise<GroupDeletePayload>;
   getInvite(input: { groupId: string }): Promise<GroupInvitePayload>;
   refreshInvite(input: { groupId: string }): Promise<GroupInviteRefreshPayload>;
+  listJoinRequests(input: { groupId: string }): Promise<JoinRequestsPayload>;
+  respondToJoinRequest(input: { groupId: string; userId: string; action: "approve" | "reject" }): Promise<{ ok: true }>;
+}
+
+export interface GroupSearchPage {
+  groups: GroupSearchResult[];
+  page: number;
+  perPage: number;
+  totalItems: number;
+  totalPages: number;
+  hasMore: boolean;
 }
 
 export interface GroupMemberRecord {
