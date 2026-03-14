@@ -18,25 +18,70 @@ export interface PushProvider {
 }
 
 // ---------------------------------------------------------------------------
-// Stub provider — logs only, used until FCM/APNs credentials are configured
+// Expo Push API provider — works for all ExponentPushToken[...] tokens
+// Expo's servers route to FCM (Android) or APNs (iOS) automatically
 // ---------------------------------------------------------------------------
 
-class StubPushProvider implements PushProvider {
+interface ExpoPushTicket {
+  status: "ok" | "error";
+  id?: string;
+  message?: string;
+  details?: { error?: string };
+}
+
+class ExpoPushProvider implements PushProvider {
   async send(token: string, payload: PushPayload): Promise<PushResult> {
-    logServerEvent("push.stub.send", { token: token.slice(0, 12) + "…", title: payload.title });
-    return { ok: true, providerMessageId: `stub-${Date.now()}` };
+    // Only handle Expo push tokens — skip native FCM/APNs tokens
+    if (!token.startsWith("ExponentPushToken")) {
+      logServerEvent("push.expo.skipped", { reason: "not an Expo token" });
+      return { ok: true, providerMessageId: "skipped-non-expo-token" };
+    }
+
+    try {
+      const response = await fetch("https://exp.host/--/api/v2/push/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json"
+        },
+        body: JSON.stringify({
+          to: token,
+          title: payload.title,
+          body: payload.body,
+          data: payload.data || {},
+          sound: "default"
+        })
+      });
+
+      const json = (await response.json()) as { data: ExpoPushTicket };
+      const ticket = json.data;
+
+      if (ticket.status === "ok") {
+        logServerEvent("push.expo.sent", { ticketId: ticket.id });
+        return { ok: true, providerMessageId: ticket.id };
+      }
+
+      const errorCode = ticket.details?.error;
+      const isInvalidToken = errorCode === "DeviceNotRegistered";
+
+      logServerEvent("push.expo.error", { error: ticket.message, errorCode });
+      return { ok: false, error: ticket.message, invalidToken: isInvalidToken };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logServerEvent("push.expo.exception", { error: message });
+      return { ok: false, error: message };
+    }
   }
 }
 
 // ---------------------------------------------------------------------------
-// Provider resolution — swap in real providers once credentials are set
+// Provider resolution
 // ---------------------------------------------------------------------------
 
 let _provider: PushProvider | null = null;
 
 export function getPushProvider(): PushProvider {
   if (_provider) return _provider;
-  // TODO: detect FCM/APNs env vars and return the real provider
-  _provider = new StubPushProvider();
+  _provider = new ExpoPushProvider();
   return _provider;
 }

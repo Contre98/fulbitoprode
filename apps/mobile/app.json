@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Fulbito Prode",
-    "slug": "fulbito-prode",
+    "slug": "fulbito-prode-monorepo",
     "scheme": "fulbito",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -14,6 +14,7 @@
     },
     "android": {
       "package": "com.fulbito.prode",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/branding/adaptive-foreground-1024.png",
         "backgroundColor": "#0A0A0A"
@@ -26,6 +27,12 @@
     "web": {
       "bundler": "metro",
       "favicon": "./assets/branding/app-icon-1024.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "b06c2f2d-359f-4070-ba6a-1465e90ce963"
+      }
+    },
+    "owner": "fcontre"
   }
 }
