@@ -2,7 +2,8 @@ import { NavigationContainer, createNavigationContainerRef } from "@react-naviga
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { StyleSheet, View } from "react-native";
-import { useMemo } from "react";
+import { Linking } from "react-native";
+import { useMemo, useEffect } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@fulbito/design-tokens";
 import { AuthProvider, useAuth } from "@/state/AuthContext";
@@ -24,6 +25,8 @@ import { PendingInviteProvider } from "@/state/PendingInviteContext";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { GroupSelectorOverlayProvider, useGroupSelectorOverlay } from "@/state/GroupSelectorOverlayContext";
 import { useRegisterPushToken } from "@/lib/pushNotifications";
+import { usePendingInvite } from "@/state/PendingInviteContext";
+import { parseInviteTokenFromUrl } from "@/lib/inviteDeepLink";
 
 const RootStack = createNativeStackNavigator();
 const Tabs = createBottomTabNavigator();
@@ -59,6 +62,28 @@ function TabIcon({ routeName, focused }: { routeName: string; focused: boolean }
       />
     </View>
   );
+}
+
+function InviteLinkHandler() {
+  const { setPendingInviteToken } = usePendingInvite();
+
+  useEffect(() => {
+    // Handle cold-start deep link (app opened from a link)
+    Linking.getInitialURL().then((url) => {
+      const token = parseInviteTokenFromUrl(url);
+      if (token) setPendingInviteToken(token);
+    });
+
+    // Handle warm-start deep link (app already open)
+    const sub = Linking.addEventListener("url", ({ url }) => {
+      const token = parseInviteTokenFromUrl(url);
+      if (token) setPendingInviteToken(token);
+    });
+
+    return () => sub.remove();
+  }, []);
+
+  return null;
 }
 
 function AppTabs() {
@@ -150,6 +175,7 @@ export function AppNavigation() {
   return (
     <AuthProvider>
       <PendingInviteProvider>
+        <InviteLinkHandler />
         <GroupProvider>
           <GroupSelectorOverlayProvider>
             <PeriodProvider>
