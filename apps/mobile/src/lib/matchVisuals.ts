@@ -57,6 +57,10 @@ const TEAM_COLOR_BY_NAME_RAW: Record<string, string> = {
   "independiente del valle": "#0000FF",
   "independiente rivadavia": "#1E5BAA",
   "independiente rivadavia de mendoza": "#1E5BAA",
+  "independiente de mendoza": "#1E5BAA",
+  "ind rivadavia": "#1E5BAA",
+  "ind de mendoza": "#1E5BAA",
+  "csd independiente rivadavia": "#1E5BAA",
   "club atletico independiente rivadavia": "#1E5BAA",
   independiente: "#C8102E",
   instituto: "#FF0000",
@@ -116,6 +120,8 @@ export function teamPredominantColor(teamName: string): string {
   // Handle provider variants like suffixes, abbreviations or extra location hints.
   if (normalized.includes("platense")) return "#6B3F1D";
   if (normalized.includes("independiente rivadavia")) return "#1E5BAA";
+  if (normalized.includes("independiente de mendoza")) return "#1E5BAA";
+  if (normalized.includes("rivadavia")) return "#1E5BAA";
   if (normalized.includes("central cordoba")) return "#000000";
   if (normalized.includes("belgrano")) return "#6ECFF6";
 

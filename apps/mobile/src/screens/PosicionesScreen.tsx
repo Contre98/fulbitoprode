@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@fulbito/design-tokens";
 import { leaderboardRepository } from "@/repositories";
 import { useAuth } from "@/state/AuthContext";
@@ -324,7 +325,7 @@ export function PosicionesScreen() {
                 <EmptyState title="Sin estadísticas disponibles" description="Necesitamos más resultados cerrados para construir tus métricas." />
               ) : (
                 <>
-                  <View style={styles.block}>
+                  <View style={styles.statsSection}>
                     <View style={styles.sectionHeaderRow}>
                       <Text allowFontScaling={false} style={styles.sectionTitleSmall}>Tus estadísticas</Text>
                       <Text allowFontScaling={false} style={styles.sectionSubtitleSmall}>{leaderboardQuery.data.stats.userSection.userName}</Text>
@@ -341,7 +342,7 @@ export function PosicionesScreen() {
                               onPress={() => openStatInfo(row.label, row.info)}
                               style={styles.infoBadge}
                             >
-                              <Text allowFontScaling={false} style={styles.infoBadgeText}>i</Text>
+                              <Ionicons name="information-circle-outline" size={16} color={colors.textMutedAlt} />
                             </Pressable>
                           </View>
                           <Text allowFontScaling={false} style={styles.performanceValue}>{row.value}</Text>
@@ -350,8 +351,10 @@ export function PosicionesScreen() {
                     </View>
                   </View>
 
-                  <View style={styles.block}>
-                    <Text allowFontScaling={false} style={styles.sectionTitleSmall}>Estadísticas del grupo</Text>
+                  <View style={styles.statsSection}>
+                    <View style={styles.sectionHeaderRow}>
+                      <Text allowFontScaling={false} style={styles.sectionTitleSmall}>Estadísticas del grupo</Text>
+                    </View>
                     <View style={styles.performanceCard}>
                       {groupStatRows.map((row, index) => (
                         <View key={row.label} style={[styles.performanceRow, index > 0 ? styles.performanceRowBorder : null]}>
@@ -364,7 +367,7 @@ export function PosicionesScreen() {
                               onPress={() => openStatInfo(row.label, row.info)}
                               style={styles.infoBadge}
                             >
-                              <Text allowFontScaling={false} style={styles.infoBadgeText}>i</Text>
+                              <Ionicons name="information-circle-outline" size={16} color={colors.textMutedAlt} />
                             </Pressable>
                           </View>
                           <Text allowFontScaling={false} style={styles.performanceValue}>{row.value}</Text>
@@ -650,21 +653,30 @@ const styles = StyleSheet.create({
   statsValueAccent: {
     color: colors.primaryAccent
   },
+  statsSection: {
+    gap: 0
+  },
   sectionHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
+    marginTop: 20,
     marginBottom: 8
   },
   sectionTitleSmall: {
-    color: colors.textHigh,
-    fontSize: 16,
-    fontWeight: "900"
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginLeft: 4
   },
   sectionSubtitleSmall: {
     marginLeft: "auto",
-    color: colors.textMutedAlt,
-    fontSize: 12,
-    fontWeight: "700"
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.4
   },
   performanceCard: {
     borderRadius: 12,
@@ -695,19 +707,10 @@ const styles = StyleSheet.create({
     gap: 6
   },
   infoBadge: {
-    width: 16,
-    height: 16,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.borderMutedAlt,
+    width: 18,
+    height: 18,
     alignItems: "center",
     justifyContent: "center"
-  },
-  infoBadgeText: {
-    color: colors.textMutedAlt,
-    fontSize: 10,
-    fontWeight: "900",
-    lineHeight: 10
   },
   performanceValue: {
     color: colors.textHigh,

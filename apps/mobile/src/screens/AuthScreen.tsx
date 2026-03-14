@@ -10,6 +10,8 @@ import {
   ScrollView,
   Animated
 } from "react-native";
+import Constants from "expo-constants";
+import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -21,6 +23,8 @@ import { useAuth } from "@/state/AuthContext";
 import { usePendingInvite } from "@/state/PendingInviteContext";
 
 WebBrowser.maybeCompleteAuthSession();
+
+const EXPO_PROXY_REDIRECT_URI = "https://auth.expo.io/@fcontre/fulbito-prode-monorepo";
 
 export function AuthScreen() {
   const insets = useSafeAreaInsets();
@@ -40,15 +44,23 @@ export function AuthScreen() {
   const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
   const googleAndroidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
   const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  const isExpoGo = Constants.appOwnership === "expo";
   const hasGoogleClientConfig = Boolean(
     googleExpoClientId || googleIosClientId || googleAndroidClientId || googleWebClientId
   );
 
   const [googleRequest, , promptGoogleAsync] = Google.useIdTokenAuthRequest({
     clientId: googleExpoClientId || googleWebClientId || "",
-    iosClientId: googleIosClientId,
-    androidClientId: googleAndroidClientId,
+    iosClientId: isExpoGo ? undefined : googleIosClientId,
+    androidClientId: isExpoGo ? undefined : googleAndroidClientId,
     webClientId: googleWebClientId,
+    redirectUri: isExpoGo
+      ? EXPO_PROXY_REDIRECT_URI
+      : AuthSession.makeRedirectUri({
+          native: "fulbito:/oauthredirect"
+        }),
+    responseType: isExpoGo ? "id_token" : undefined,
+    shouldAutoExchangeCode: isExpoGo ? false : undefined,
     scopes: ["profile", "email"]
   });
 
