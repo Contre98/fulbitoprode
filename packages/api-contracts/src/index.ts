@@ -31,6 +31,7 @@ export interface AuthSession {
 export interface AuthRepository {
   getSession(): Promise<AuthSession | null>;
   loginWithPassword(email: string, password: string): Promise<AuthSession>;
+  loginWithGoogleIdToken(idToken: string): Promise<AuthSession>;
   registerWithPassword(input: { email: string; password: string; name: string }): Promise<AuthSession>;
   requestPasswordReset(email: string): Promise<{ ok: true; message: string }>;
   logout(): Promise<void>;

@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors } from "@fulbito/design-tokens";
+import { CardSideAccentGradient } from "@/components/MatchCardVisuals";
 
 interface UrgentActionCardProps {
   message: string;
@@ -14,6 +15,7 @@ export function UrgentActionCard({ message, filled, total, complete, onPress }: 
 
   return (
     <View style={styles.card}>
+      <CardSideAccentGradient color={colors.primaryStrong} intensity={0.07} side="left" widthPct={28} />
       <View style={styles.topRow}>
         <Text style={styles.sectionTitle}>
           {complete ? "PRONÓSTICOS COMPLETOS" : "PRONÓSTICOS PENDIENTES"}
@@ -50,7 +52,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    gap: 8
+    gap: 8,
+    overflow: "hidden",
+    position: "relative"
   },
   topRow: {
     flexDirection: "row",

@@ -1,4 +1,5 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
+import { getGoogleOauthClientIds, getSessionSecret } from "./env";
 import { getPocketBaseConfig } from "./pocketbase";
 
 interface PbListResult<T> {
@@ -69,6 +70,14 @@ interface PbAuthRecord {
 interface PbAuthResponse {
   token: string;
   record: PbAuthRecord;
+}
+
+interface GoogleTokenInfoResponse {
+  aud?: string;
+  email?: string;
+  email_verified?: string | boolean;
+  name?: string;
+  sub?: string;
 }
 
 interface GroupMembershipRecord {
@@ -299,6 +308,29 @@ function mapUserFromRecord(record: PbAuthRecord): M3User {
   };
 }
 
+function buildGoogleDerivedPassword(input: { sub: string; email: string }) {
+  return createHash("sha256")
+    .update(`${getSessionSecret()}:${input.sub}:${input.email.toLowerCase()}`)
+    .digest("hex");
+}
+
+function isGoogleEmailVerified(value: GoogleTokenInfoResponse["email_verified"]) {
+  return value === true || value === "true";
+}
+
+async function getGoogleTokenInfo(idToken: string): Promise<GoogleTokenInfoResponse> {
+  const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken)}`, {
+    method: "GET",
+    cache: "no-store"
+  });
+
+  if (!response.ok) {
+    throw new Error("Invalid Google token");
+  }
+
+  return (await response.json()) as GoogleTokenInfoResponse;
+}
+
 export async function loginWithPassword(email: string, password: string): Promise<{ user: M3User; token: string }> {
   const attempts: Array<Record<string, string>> = [
     { identity: email, password },
@@ -352,6 +384,54 @@ export async function registerWithPassword(input: {
   });
 
   return session;
+}
+
+export async function loginOrRegisterWithGoogleIdToken(idToken: string): Promise<{ user: M3User; token: string }> {
+  const tokenInfo = await getGoogleTokenInfo(idToken);
+  const email = tokenInfo.email?.trim().toLowerCase() || "";
+  const sub = tokenInfo.sub?.trim() || "";
+  const audience = tokenInfo.aud?.trim() || "";
+
+  if (!email || !sub || !isGoogleEmailVerified(tokenInfo.email_verified)) {
+    throw new Error("Google account email is missing or unverified.");
+  }
+
+  const allowedAudiences = getGoogleOauthClientIds();
+  if (allowedAudiences.length > 0 && !allowedAudiences.includes(audience)) {
+    throw new Error("Google token audience is not allowed.");
+  }
+
+  const password = buildGoogleDerivedPassword({ sub, email });
+
+  try {
+    const session = await loginWithPassword(email, password);
+    await ensureGlobalGroupEnrollment({
+      userId: session.user.id,
+      authToken: session.token
+    });
+    return session;
+  } catch {
+    // Continue with registration flow below.
+  }
+
+  try {
+    return await registerWithPassword({
+      email,
+      password,
+      name: tokenInfo.name?.trim() || undefined
+    });
+  } catch (error) {
+    const message = extractPocketBaseErrorMessage(error).toLowerCase();
+    if (
+      message.includes("already exists") ||
+      message.includes("must be unique") ||
+      message.includes("not unique") ||
+      message.includes("validation")
+    ) {
+      throw new Error("This email is already registered with password login. Use email/password for this account.");
+    }
+    throw new Error(extractPocketBaseErrorMessage(error));
+  }
 }
 
 export async function requestPasswordReset(email: string) {

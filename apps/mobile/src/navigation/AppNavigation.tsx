@@ -60,13 +60,11 @@ function TabIcon({ routeName, focused }: { routeName: string; focused: boolean }
   }
 
   return (
-    <View style={[styles.tabIconWrap, focused ? styles.tabIconWrapActive : null]}>
-      <Ionicons
-        name={focused ? icons.active : icons.inactive}
-        size={22}
-        color={focused ? colors.primary : colors.textSecondary}
-      />
-    </View>
+    <Ionicons
+      name={focused ? icons.active : icons.inactive}
+      size={22}
+      color={focused ? colors.primary : colors.textSecondary}
+    />
   );
 }
 
@@ -229,19 +227,6 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     marginTop: 1
   },
-  tabIconWrap: {
-    height: 34,
-    width: 34,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "transparent",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  tabIconWrapActive: {
-    backgroundColor: colors.primaryHighlight,
-    borderColor: colors.primaryLime
-  },
   centerTabButton: {
     width: 60,
     height: 60,
@@ -250,12 +235,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: colors.surface,
     alignItems: "center",
-    justifyContent: "center",
-    shadowColor: colors.textPrimary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 8
+    justifyContent: "center"
   },
   centerTabButtonActive: {
     backgroundColor: colors.primaryStrong,

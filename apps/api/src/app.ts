@@ -3,6 +3,7 @@ import { jsonResponse } from "#http";
 
 import * as authForgotPasswordRoute from "./routes/auth/forgot-password/route";
 import * as authLoginPasswordRoute from "./routes/auth/login-password/route";
+import * as authLoginGoogleRoute from "./routes/auth/login-google/route";
 import * as authLogoutRoute from "./routes/auth/logout/route";
 import * as authMeRoute from "./routes/auth/me/route";
 import * as authRegisterPasswordRoute from "./routes/auth/register-password/route";
@@ -138,6 +139,7 @@ app.notFound((c) => {
 
 registerRoute("/api/auth/forgot-password", authForgotPasswordRoute);
 registerRoute("/api/auth/login-password", authLoginPasswordRoute);
+registerRoute("/api/auth/login-google", authLoginGoogleRoute);
 registerRoute("/api/auth/logout", authLogoutRoute);
 registerRoute("/api/auth/me", authMeRoute);
 registerRoute("/api/auth/register-password", authRegisterPasswordRoute);

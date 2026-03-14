@@ -30,6 +30,12 @@ jest.mock("@/state/PeriodContext", () => ({
   usePeriod: jest.fn()
 }));
 
+jest.mock("@react-navigation/native", () => ({
+  useNavigation: () => ({
+    navigate: jest.fn()
+  })
+}));
+
 jest.mock("react-native-safe-area-context", () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 })
 }));
@@ -263,5 +269,24 @@ describe("HomeScreen filters", () => {
     await waitFor(() => {
       expect(screen.getByText("No hay partidos en vivo para este grupo y fecha.")).toBeTruthy();
     });
+  });
+
+  it("prompts users to create or join a group when they have no memberships", async () => {
+    mockedUseGroupSelection.mockReturnValue({
+      memberships: [],
+      selectedGroupId: null,
+      setSelectedGroupId: mockedSetSelectedGroupId
+    });
+
+    const screen = renderScreen();
+
+    await waitFor(() => {
+      expect(screen.getByText("Todavía no estás en un grupo")).toBeTruthy();
+      expect(screen.getByText("Crear o unirse a un grupo")).toBeTruthy();
+    });
+
+    expect(mockedLeaderboard).not.toHaveBeenCalled();
+    expect(mockedFixtureList).not.toHaveBeenCalled();
+    expect(mockedPredictionsList).not.toHaveBeenCalled();
   });
 });

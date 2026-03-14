@@ -30,6 +30,11 @@ export const mockAuthRepository: AuthRepository = {
     inMemorySession = createSession(email, "Usuario Fulbito");
     return inMemorySession;
   },
+  async loginWithGoogleIdToken() {
+    const email = "google.user@fulbito.mock";
+    inMemorySession = createSession(email, "Usuario Google");
+    return inMemorySession;
+  },
   async registerWithPassword(input: { email: string; password: string; name: string }) {
     inMemorySession = createSession(input.email, input.name);
     return inMemorySession;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { colors } from "@fulbito/design-tokens";
 import { leaderboardRepository } from "@/repositories";
@@ -12,6 +12,7 @@ import { FechaSelector } from "@/components/FechaSelector";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
+import { CreateOrJoinGroupPrompt } from "@/components/CreateOrJoinGroupPrompt";
 
 type PosicionesMode = "positions" | "stats";
 
@@ -30,17 +31,7 @@ function formatSigned(value: number, suffix = "") {
   return `0${suffix}`;
 }
 
-function buildAwardEmoji(title: string) {
-  const normalized = title.toLowerCase();
-  if (normalized.includes("nostradamus")) return "🔮";
-  if (normalized.includes("bilardista")) return "🧠";
-  if (normalized.includes("racha")) return "🔥";
-  if (normalized.includes("batacazo")) return "💥";
-  if (normalized.includes("robin")) return "🏹";
-  if (normalized.includes("casi")) return "🎯";
-  if (normalized.includes("mufa")) return "🧊";
-  return "🏅";
-}
+type StatRow = { label: string; value: string; info: string };
 
 export function PosicionesScreen() {
   const queryClient = useQueryClient();
@@ -48,12 +39,13 @@ export function PosicionesScreen() {
   const currentUserId = session?.user.id;
   const { memberships, selectedGroupId } = useGroupSelection();
   const { fecha, options } = usePeriod();
+  const hasMemberships = memberships.length > 0;
   const [mode, setMode] = useState<PosicionesMode>("positions");
   const [positionsPeriod, setPositionsPeriod] = useState("global");
 
-  const groupId = memberships.find((membership) => membership.groupId === selectedGroupId)?.groupId ?? memberships[0]?.groupId ?? "grupo-1";
+  const groupId = memberships.find((membership) => membership.groupId === selectedGroupId)?.groupId ?? memberships[0]?.groupId ?? null;
   const selectedMembership = useMemo(
-    () => memberships.find((membership) => membership.groupId === groupId) ?? memberships[0],
+    () => memberships.find((membership) => membership.groupId === groupId) ?? memberships[0] ?? null,
     [groupId, memberships]
   );
   const positionsCycleOptions = useMemo(() => {
@@ -76,20 +68,134 @@ export function PosicionesScreen() {
     queryKey: ["leaderboard-payload", groupId, selectedLeaderboardPeriod, mode],
     queryFn: () =>
       leaderboardRepository.getLeaderboardPayload({
-        groupId,
+        groupId: groupId!,
         fecha: selectedLeaderboardPeriod,
         mode: mode === "stats" ? "stats" : "posiciones"
-      })
+      }),
+    enabled: Boolean(groupId)
   });
 
   const entries = leaderboardQuery.data?.rows ?? [];
   const tableGroupLabel = leaderboardQuery.data?.groupLabel?.trim() || selectedMembership?.groupName || "Grupo";
   const tablePeriodLabel = leaderboardQuery.data?.periodLabel?.trim() || "Acumulado";
   const qualificationCutoff = Math.min(8, Math.max(1, entries.length));
+  const standingsLegendItems = [
+    "P: pronósticos",
+    "E: exactos (+3 pts)",
+    "R: resultado (+1 pt)",
+    "N: sin acierto (0 pts)"
+  ];
 
   const handleRefresh = useCallback(async () => {
     await queryClient.resetQueries();
   }, [queryClient]);
+  const openStatInfo = useCallback((label: string, info: string) => {
+    Alert.alert(label, info);
+  }, []);
+
+  const userStatRows = useMemo<StatRow[]>(() => {
+    if (!leaderboardQuery.data?.stats?.userSection) {
+      return [];
+    }
+
+    return [
+      {
+        label: "Precisión total",
+        value: formatPct(leaderboardQuery.data.stats.userSection.precisionPct),
+        info: "Porcentaje de pronósticos con acierto de resultado o pleno."
+      },
+      {
+        label: "Plenos",
+        value: formatPct(leaderboardQuery.data.stats.userSection.exactPct),
+        info: "Porcentaje de partidos donde acertaste el marcador exacto."
+      },
+      {
+        label: "Puntos por fecha",
+        value: formatNumber(leaderboardQuery.data.stats.userSection.averagePointsPerRound),
+        info: "Promedio de puntos que sumás por cada fecha cerrada."
+      },
+      {
+        label: "Tendencia",
+        value: `${formatSigned(leaderboardQuery.data.stats.userSection.trend.pointsPerRoundDelta)} pts · ${formatSigned(
+          leaderboardQuery.data.stats.userSection.trend.accuracyPctDelta,
+          " pp"
+        )}`,
+        info: "Cambio reciente de rendimiento contra tu promedio anterior."
+      },
+      {
+        label: "Consistencia (desvío)",
+        value: formatNumber(leaderboardQuery.data.stats.userSection.consistencyStdDev),
+        info: "Qué tan estable es tu puntaje entre fechas. Más bajo es más regular."
+      },
+      {
+        label: "Brecha vs mediana",
+        value: `${formatSigned(leaderboardQuery.data.stats.comparatives?.vsMedianPointsPerRound ?? 0)} pts · ${formatSigned(
+          leaderboardQuery.data.stats.comparatives?.vsMedianAccuracyPct ?? 0,
+          " pp"
+        )}`,
+        info: "Diferencia entre tu rendimiento y la mediana del grupo."
+      },
+      {
+        label: "Errores evitables",
+        value: formatPct(leaderboardQuery.data.stats.userSection.nearMissRatePct),
+        info: "Partidos donde estuviste cerca de sumar más puntos."
+      },
+      {
+        label: "Split local / visitante",
+        value: `${formatPct(leaderboardQuery.data.stats.userSection.homeAccuracyPct)} / ${formatPct(leaderboardQuery.data.stats.userSection.awayAccuracyPct)}`,
+        info: "Comparación de acierto en partidos de local versus visitante."
+      }
+    ];
+  }, [leaderboardQuery.data?.stats]);
+
+  const groupStatRows = useMemo<StatRow[]>(() => {
+    if (!leaderboardQuery.data?.stats?.groupSection) {
+      return [];
+    }
+
+    return [
+      {
+        label: "Precisión grupal",
+        value: formatPct(leaderboardQuery.data.stats.groupSection.precisionPct),
+        info: "Porcentaje de aciertos del grupo sobre todos los pronósticos."
+      },
+      {
+        label: "Distribución (P25 / Mediana / P75)",
+        value: `${formatNumber(leaderboardQuery.data.stats.groupSection.pointsDistribution.p25)} / ${formatNumber(leaderboardQuery.data.stats.groupSection.pointsDistribution.median)} / ${formatNumber(leaderboardQuery.data.stats.groupSection.pointsDistribution.p75)}`,
+        info: "Rango de puntos del grupo: 25%, 50% (mediana) y 75%."
+      },
+      {
+        label: "Paridad competitiva",
+        value: `${formatNumber(leaderboardQuery.data.stats.groupSection.parityGapTopVsMedian)} pts`,
+        info: "Distancia entre la cima y el rendimiento medio del grupo."
+      },
+      {
+        label: "Índice de dificultad",
+        value: `${formatNumber(leaderboardQuery.data.stats.groupSection.difficultyIndexAvgPointsPerRound)} pts/fecha`,
+        info: "Puntos promedio por fecha en el grupo; menor valor suele indicar fechas más difíciles."
+      },
+      {
+        label: "Acierto de consenso",
+        value: formatPct(leaderboardQuery.data.stats.groupSection.consensusHitPct),
+        info: "Qué tan seguido el pronóstico más elegido termina siendo correcto."
+      },
+      {
+        label: "Oportunidades de ventaja",
+        value: String(leaderboardQuery.data.stats.groupSection.advantageOpportunityCount),
+        info: "Cantidad de partidos donde se podía sacar diferencia con una elección distinta."
+      },
+      {
+        label: "Participación activa",
+        value: formatPct(leaderboardQuery.data.stats.groupSection.activeParticipationPct),
+        info: "Porcentaje de miembros que participaron con pronósticos en fechas recientes."
+      },
+      {
+        label: "Racha colectiva",
+        value: `${leaderboardQuery.data.stats.groupSection.bestRound?.periodLabel ?? "-"} / ${leaderboardQuery.data.stats.groupSection.worstRound?.periodLabel ?? "-"}`,
+        info: "Mejor y peor fecha del grupo según puntos promedio."
+      }
+    ];
+  }, [leaderboardQuery.data?.stats]);
 
   function swipeToPreviousPeriod() {
     if (mode !== "positions" || positionsCycleOptions.length === 0) {
@@ -120,170 +226,158 @@ export function PosicionesScreen() {
       onRefresh={handleRefresh}
       header={<AppHeader />}
     >
-      <View style={styles.filterTabs}>
-        <Pressable onPress={() => setMode("positions")} style={[styles.filterTab, mode === "positions" ? styles.filterTabActive : null]}>
-          <Text allowFontScaling={false} style={mode === "positions" ? styles.filterTabLabelActive : styles.filterTabLabel}>Posiciones</Text>
-        </Pressable>
-        <Pressable onPress={() => setMode("stats")} style={[styles.filterTab, mode === "stats" ? styles.filterTabActive : null]}>
-          <Text allowFontScaling={false} style={mode === "stats" ? styles.filterTabLabelActive : styles.filterTabLabel}>Estadísticas</Text>
-        </Pressable>
-      </View>
-
-      {mode === "positions" ? (
-        <FechaSelector options={positionsCycleOptions} value={positionsPeriod} onChange={setPositionsPeriod} />
-      ) : null}
-
-      {leaderboardQuery.isLoading ? <LoadingState message={mode === "positions" ? "Cargando posiciones..." : "Cargando estadísticas..."} variant={mode === "positions" ? "leaderboard" : "stats"} /> : null}
-      {leaderboardQuery.isError ? (
-        <ErrorState
-          message={mode === "positions" ? "No se pudo cargar la tabla de posiciones." : "No se pudieron cargar las estadísticas."}
-          retryLabel="Reintentar"
-          onRetry={() => void leaderboardQuery.refetch()}
-        />
-      ) : null}
-      {!leaderboardQuery.isLoading && !leaderboardQuery.isError && entries.length === 0 && mode === "positions" ? (
-        <EmptyState title="Sin posiciones disponibles" description="Cuando haya puntajes del grupo vas a verlos acá." />
-      ) : null}
-
-      {!leaderboardQuery.isLoading && !leaderboardQuery.isError && entries.length > 0 && mode === "positions" ? (
-        <View style={styles.standingsCard}>
-          <View style={styles.standingsHeader}>
-            <View style={styles.standingsTitleWrap}>
-              <Text allowFontScaling={false} style={styles.standingsTitle}>{tableGroupLabel}</Text>
-              <Text allowFontScaling={false} style={styles.standingsSubtitle}>{tablePeriodLabel}</Text>
-            </View>
-            <View style={styles.standingsColsHeader}>
-              <Text allowFontScaling={false} style={styles.standingsColLabel}>P</Text>
-              <Text allowFontScaling={false} style={styles.standingsColLabel}>E</Text>
-              <Text allowFontScaling={false} style={styles.standingsColLabel}>R</Text>
-              <Text allowFontScaling={false} style={styles.standingsColLabel}>N</Text>
-              <Text allowFontScaling={false} style={styles.standingsColLabel}>PTS</Text>
-            </View>
-          </View>
-          {entries.map((entry, index) => {
-            const isQualified = entry.rank <= qualificationCutoff;
-            const isFirst = index === 0;
-            const isLast = index === entries.length - 1;
-            const isMe = !!currentUserId && entry.userId === currentUserId;
-            return (
-              <View
-                key={entry.userId ?? `row-${entry.rank}-${entry.name}`}
-                style={[
-                  styles.standingsRow,
-                  isFirst ? styles.standingsRowFirst : null,
-                  isLast ? styles.standingsRowLast : null,
-                  isMe ? styles.standingsRowMe : null
-                ]}
-              >
-                <View
-                  style={[
-                    styles.standingsMarker,
-                    isQualified ? styles.standingsMarkerQualified : null,
-                    isFirst && isQualified ? styles.standingsMarkerFirst : null,
-                    isLast && isQualified ? styles.standingsMarkerLast : null
-                  ]}
-                />
-                <Text allowFontScaling={false} style={[styles.standingsRank, isMe ? styles.standingsRankMe : null]}>{entry.rank}</Text>
-                <Text allowFontScaling={false} numberOfLines={1} style={[styles.standingsName, isMe ? styles.standingsNameMe : null]}>
-                  {entry.name}
-                </Text>
-                <Text allowFontScaling={false} style={styles.standingsMetric}>{entry.predictions}</Text>
-                <Text allowFontScaling={false} style={styles.standingsMetric}>{entry.record?.split("/")[0] ?? "-"}</Text>
-                <Text allowFontScaling={false} style={styles.standingsMetric}>{entry.record?.split("/")[1] ?? "-"}</Text>
-                <Text allowFontScaling={false} style={styles.standingsMetric}>{entry.record?.split("/")[2] ?? "-"}</Text>
-                <Text allowFontScaling={false} style={styles.standingsPoints}>{entry.points}</Text>
-              </View>
-            );
-          })}
-        </View>
-      ) : null}
-
-      {!leaderboardQuery.isLoading && !leaderboardQuery.isError && entries.length > 0 && mode === "positions" ? (
-        <Text allowFontScaling={false} style={styles.standingsLegend}>
-          P: pronósticos · E: exactos · R: resultado · N: sin acierto
-        </Text>
-      ) : null}
-
-      {!leaderboardQuery.isLoading && !leaderboardQuery.isError && mode === "stats" ? (
+      {!hasMemberships ? (
+        <CreateOrJoinGroupPrompt />
+      ) : (
         <>
-          {!leaderboardQuery.data?.stats?.userSection || !leaderboardQuery.data?.stats?.groupSection ? (
-            <EmptyState title="Sin estadísticas disponibles" description="Necesitamos más resultados cerrados para construir tus métricas." />
-          ) : (
-            <>
-              <View style={styles.block}>
-                <View style={styles.sectionHeaderRow}>
-                  <Text allowFontScaling={false} style={styles.sectionTitleSmall}>Tus estadísticas</Text>
-                  <Text allowFontScaling={false} style={styles.sectionSubtitleSmall}>{leaderboardQuery.data.stats.userSection.userName}</Text>
+          <View style={styles.filterTabs}>
+            <Pressable onPress={() => setMode("positions")} style={[styles.filterTab, mode === "positions" ? styles.filterTabActive : null]}>
+              <Text allowFontScaling={false} style={mode === "positions" ? styles.filterTabLabelActive : styles.filterTabLabel}>Posiciones</Text>
+            </Pressable>
+            <Pressable onPress={() => setMode("stats")} style={[styles.filterTab, mode === "stats" ? styles.filterTabActive : null]}>
+              <Text allowFontScaling={false} style={mode === "stats" ? styles.filterTabLabelActive : styles.filterTabLabel}>Estadísticas</Text>
+            </Pressable>
+          </View>
+
+          {mode === "positions" ? (
+            <FechaSelector options={positionsCycleOptions} value={positionsPeriod} onChange={setPositionsPeriod} />
+          ) : null}
+
+          {leaderboardQuery.isLoading ? <LoadingState message={mode === "positions" ? "Cargando posiciones..." : "Cargando estadísticas..."} variant={mode === "positions" ? "leaderboard" : "stats"} /> : null}
+          {leaderboardQuery.isError ? (
+            <ErrorState
+              message={mode === "positions" ? "No se pudo cargar la tabla de posiciones." : "No se pudieron cargar las estadísticas."}
+              retryLabel="Reintentar"
+              onRetry={() => void leaderboardQuery.refetch()}
+            />
+          ) : null}
+          {!leaderboardQuery.isLoading && !leaderboardQuery.isError && entries.length === 0 && mode === "positions" ? (
+            <EmptyState title="Sin posiciones disponibles" description="Cuando haya puntajes del grupo vas a verlos acá." />
+          ) : null}
+
+          {!leaderboardQuery.isLoading && !leaderboardQuery.isError && entries.length > 0 && mode === "positions" ? (
+            <View style={styles.standingsCard}>
+              <View style={styles.standingsHeader}>
+                <View style={styles.standingsTitleWrap}>
+                  <Text allowFontScaling={false} style={styles.standingsTitle}>{tableGroupLabel}</Text>
+                  <Text allowFontScaling={false} style={styles.standingsSubtitle}>{tablePeriodLabel}</Text>
                 </View>
-                <View style={styles.performanceCard}>
-                  {[
-                    { label: "Precisión total", value: formatPct(leaderboardQuery.data.stats.userSection.precisionPct) },
-                    { label: "Plenos", value: formatPct(leaderboardQuery.data.stats.userSection.exactPct) },
-                    { label: "Puntos por fecha", value: formatNumber(leaderboardQuery.data.stats.userSection.averagePointsPerRound) },
-                    { label: "Tendencia", value: `${formatSigned(leaderboardQuery.data.stats.userSection.trend.pointsPerRoundDelta)} pts · ${formatSigned(leaderboardQuery.data.stats.userSection.trend.accuracyPctDelta, " pp")}` },
-                    { label: "Consistencia (desvío)", value: formatNumber(leaderboardQuery.data.stats.userSection.consistencyStdDev) },
-                    { label: "Brecha vs mediana", value: `${formatSigned(leaderboardQuery.data.stats.comparatives?.vsMedianPointsPerRound ?? 0)} pts · ${formatSigned(leaderboardQuery.data.stats.comparatives?.vsMedianAccuracyPct ?? 0, " pp")}` },
-                    { label: "Errores evitables", value: formatPct(leaderboardQuery.data.stats.userSection.nearMissRatePct) },
-                    { label: "Split local / visitante", value: `${formatPct(leaderboardQuery.data.stats.userSection.homeAccuracyPct)} / ${formatPct(leaderboardQuery.data.stats.userSection.awayAccuracyPct)}` }
-                  ].map((row, index) => (
-                    <View key={row.label} style={[styles.performanceRow, index > 0 ? styles.performanceRowBorder : null]}>
-                      <Text allowFontScaling={false} style={styles.performanceLabel}>{row.label}</Text>
-                      <Text allowFontScaling={false} style={styles.performanceValue}>{row.value}</Text>
-                    </View>
-                  ))}
+                <View style={styles.standingsColsHeader}>
+                  <Text allowFontScaling={false} style={styles.standingsColLabel}>P</Text>
+                  <Text allowFontScaling={false} style={styles.standingsColLabel}>E</Text>
+                  <Text allowFontScaling={false} style={styles.standingsColLabel}>R</Text>
+                  <Text allowFontScaling={false} style={styles.standingsColLabel}>N</Text>
+                  <Text allowFontScaling={false} style={styles.standingsColLabel}>PTS</Text>
                 </View>
               </View>
-
-              <View style={styles.block}>
-                <Text allowFontScaling={false} style={styles.sectionTitleSmall}>Estadísticas del grupo</Text>
-                <View style={styles.performanceCard}>
-                  {[
-                    { label: "Precisión grupal", value: formatPct(leaderboardQuery.data.stats.groupSection.precisionPct) },
-                    {
-                      label: "Distribución (P25 / Mediana / P75)",
-                      value: `${formatNumber(leaderboardQuery.data.stats.groupSection.pointsDistribution.p25)} / ${formatNumber(leaderboardQuery.data.stats.groupSection.pointsDistribution.median)} / ${formatNumber(leaderboardQuery.data.stats.groupSection.pointsDistribution.p75)}`
-                    },
-                    { label: "Paridad competitiva", value: `${formatNumber(leaderboardQuery.data.stats.groupSection.parityGapTopVsMedian)} pts` },
-                    { label: "Índice de dificultad", value: `${formatNumber(leaderboardQuery.data.stats.groupSection.difficultyIndexAvgPointsPerRound)} pts/fecha` },
-                    { label: "Acierto de consenso", value: formatPct(leaderboardQuery.data.stats.groupSection.consensusHitPct) },
-                    { label: "Oportunidades de ventaja", value: String(leaderboardQuery.data.stats.groupSection.advantageOpportunityCount) },
-                    { label: "Participación activa", value: formatPct(leaderboardQuery.data.stats.groupSection.activeParticipationPct) },
-                    {
-                      label: "Racha colectiva",
-                      value: `${leaderboardQuery.data.stats.groupSection.bestRound?.periodLabel ?? "-"} / ${leaderboardQuery.data.stats.groupSection.worstRound?.periodLabel ?? "-"}`
-                    }
-                  ].map((row, index) => (
-                    <View key={row.label} style={[styles.performanceRow, index > 0 ? styles.performanceRowBorder : null]}>
-                      <Text allowFontScaling={false} style={styles.performanceLabel}>{row.label}</Text>
-                      <Text allowFontScaling={false} style={styles.performanceValue}>{row.value}</Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-
-              {leaderboardQuery.data.stats.awards?.length ? (
-                <View style={styles.block}>
-                  <Text allowFontScaling={false} style={styles.rewardsTitle}>PREMIOS Y CASTIGOS</Text>
-                  <View style={styles.rewardsList}>
-                    {leaderboardQuery.data.stats.awards.map((award) => (
-                      <View key={award.id} style={styles.rewardRow}>
-                        <View style={styles.rewardIcon}>
-                          <Text allowFontScaling={false} style={styles.rewardIconText}>{buildAwardEmoji(award.title)}</Text>
-                        </View>
-                        <View style={styles.rewardTextCol}>
-                          <Text allowFontScaling={false} style={styles.rewardLabel}>{award.title}</Text>
-                          <Text allowFontScaling={false} style={styles.rewardWinner}>{award.winnerName}</Text>
-                          <Text allowFontScaling={false} style={styles.rewardHint}>{award.subtitle}</Text>
-                        </View>
-                      </View>
-                    ))}
+              {entries.map((entry, index) => {
+                const isQualified = entry.rank <= qualificationCutoff;
+                const isFirst = index === 0;
+                const isLast = index === entries.length - 1;
+                const isMe = !!currentUserId && entry.userId === currentUserId;
+                return (
+                  <View
+                    key={entry.userId ?? `row-${entry.rank}-${entry.name}`}
+                    style={[
+                      styles.standingsRow,
+                      isFirst ? styles.standingsRowFirst : null,
+                      isLast ? styles.standingsRowLast : null,
+                      isMe ? styles.standingsRowMe : null
+                    ]}
+                  >
+                    <View
+                      style={[
+                        styles.standingsMarker,
+                        isQualified ? styles.standingsMarkerQualified : null,
+                        isFirst && isQualified ? styles.standingsMarkerFirst : null,
+                        isLast && isQualified ? styles.standingsMarkerLast : null
+                      ]}
+                    />
+                    <Text allowFontScaling={false} style={[styles.standingsRank, isMe ? styles.standingsRankMe : null]}>{entry.rank}</Text>
+                    <Text allowFontScaling={false} numberOfLines={1} style={[styles.standingsName, isMe ? styles.standingsNameMe : null]}>
+                      {entry.name}
+                    </Text>
+                    <Text allowFontScaling={false} style={styles.standingsMetric}>{entry.predictions}</Text>
+                    <Text allowFontScaling={false} style={styles.standingsMetric}>{entry.record?.split("/")[0] ?? "-"}</Text>
+                    <Text allowFontScaling={false} style={styles.standingsMetric}>{entry.record?.split("/")[1] ?? "-"}</Text>
+                    <Text allowFontScaling={false} style={styles.standingsMetric}>{entry.record?.split("/")[2] ?? "-"}</Text>
+                    <Text allowFontScaling={false} style={styles.standingsPoints}>{entry.points}</Text>
                   </View>
-                </View>
-              ) : null}
+                );
+              })}
+            </View>
+          ) : null}
+
+          {!leaderboardQuery.isLoading && !leaderboardQuery.isError && entries.length > 0 && mode === "positions" ? (
+            <View style={styles.standingsLegend}>
+              {standingsLegendItems.map((item) => (
+                <Text key={item} allowFontScaling={false} style={styles.standingsLegendItem}>
+                  {item}
+                </Text>
+              ))}
+            </View>
+          ) : null}
+
+          {!leaderboardQuery.isLoading && !leaderboardQuery.isError && mode === "stats" ? (
+            <>
+              {!leaderboardQuery.data?.stats?.userSection || !leaderboardQuery.data?.stats?.groupSection ? (
+                <EmptyState title="Sin estadísticas disponibles" description="Necesitamos más resultados cerrados para construir tus métricas." />
+              ) : (
+                <>
+                  <View style={styles.block}>
+                    <View style={styles.sectionHeaderRow}>
+                      <Text allowFontScaling={false} style={styles.sectionTitleSmall}>Tus estadísticas</Text>
+                      <Text allowFontScaling={false} style={styles.sectionSubtitleSmall}>{leaderboardQuery.data.stats.userSection.userName}</Text>
+                    </View>
+                    <View style={styles.performanceCard}>
+                      {userStatRows.map((row, index) => (
+                        <View key={row.label} style={[styles.performanceRow, index > 0 ? styles.performanceRowBorder : null]}>
+                          <View style={styles.performanceLabelRow}>
+                            <Text allowFontScaling={false} style={styles.performanceLabel}>{row.label}</Text>
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel={`Info de ${row.label}`}
+                              hitSlop={8}
+                              onPress={() => openStatInfo(row.label, row.info)}
+                              style={styles.infoBadge}
+                            >
+                              <Text allowFontScaling={false} style={styles.infoBadgeText}>i</Text>
+                            </Pressable>
+                          </View>
+                          <Text allowFontScaling={false} style={styles.performanceValue}>{row.value}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+
+                  <View style={styles.block}>
+                    <Text allowFontScaling={false} style={styles.sectionTitleSmall}>Estadísticas del grupo</Text>
+                    <View style={styles.performanceCard}>
+                      {groupStatRows.map((row, index) => (
+                        <View key={row.label} style={[styles.performanceRow, index > 0 ? styles.performanceRowBorder : null]}>
+                          <View style={styles.performanceLabelRow}>
+                            <Text allowFontScaling={false} style={styles.performanceLabel}>{row.label}</Text>
+                            <Pressable
+                              accessibilityRole="button"
+                              accessibilityLabel={`Info de ${row.label}`}
+                              hitSlop={8}
+                              onPress={() => openStatInfo(row.label, row.info)}
+                              style={styles.infoBadge}
+                            >
+                              <Text allowFontScaling={false} style={styles.infoBadgeText}>i</Text>
+                            </Pressable>
+                          </View>
+                          <Text allowFontScaling={false} style={styles.performanceValue}>{row.value}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                </>
+              )}
             </>
-          )}
+          ) : null}
         </>
-      ) : null}
+      )}
     </ScreenFrame>
   );
 }
@@ -496,12 +590,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600"
   },
-standingsLegend: {
+  standingsLegend: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 6,
+    rowGap: 2,
+    marginTop: -6
+  },
+  standingsLegendItem: {
     fontSize: 11,
     color: colors.textMuted,
     fontWeight: "500",
-    textAlign: "center",
-    marginTop: -6
+    textAlign: "center"
   },
   standingsPoints: {
     width: 36,
@@ -549,15 +650,6 @@ standingsLegend: {
   statsValueAccent: {
     color: colors.primaryAccent
   },
-  rewardsTitle: {
-    color: colors.textHigh,
-    fontSize: 18,
-    fontWeight: "900"
-  },
-  rewardsList: {
-    marginTop: 8,
-    gap: 8
-  },
   sectionHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -573,52 +665,6 @@ standingsLegend: {
     color: colors.textMutedAlt,
     fontSize: 12,
     fontWeight: "700"
-  },
-  rewardRow: {
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surfaceSoft,
-    minHeight: 58,
-    paddingHorizontal: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8
-  },
-  rewardIcon: {
-    height: 30,
-    width: 30,
-    borderRadius: 999,
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  rewardIconText: {
-    fontSize: 14,
-    fontWeight: "800"
-  },
-  rewardTextCol: {
-    flex: 1
-  },
-  rewardLabel: {
-    color: colors.textMuted,
-    fontSize: 11,
-    fontWeight: "900",
-    letterSpacing: 0.8
-  },
-  rewardWinner: {
-    color: colors.textHigh,
-    fontSize: 14,
-    fontWeight: "900"
-  },
-  rewardHint: {
-    marginTop: 2,
-    color: colors.textQuaternary,
-    fontSize: 12,
-    fontWeight: "600"
-  },
-  rewardChevron: {
-    color: colors.textSoft,
-    fontSize: 16
   },
   performanceCard: {
     borderRadius: 12,
@@ -642,6 +688,26 @@ standingsLegend: {
     color: colors.textTertiary,
     fontSize: 12,
     fontWeight: "700"
+  },
+  performanceLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6
+  },
+  infoBadge: {
+    width: 16,
+    height: 16,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.borderMutedAlt,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  infoBadgeText: {
+    color: colors.textMutedAlt,
+    fontSize: 10,
+    fontWeight: "900",
+    lineHeight: 10
   },
   performanceValue: {
     color: colors.textHigh,

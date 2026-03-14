@@ -153,13 +153,17 @@ describe("Mobile E2E smoke tab-flow", () => {
     fireEvent.press(screen.getByText("Estadísticas"));
 
     await waitFor(() => {
-      expect(screen.getAllByText("PREMIOS Y CASTIGOS").length).toBeGreaterThan(0);
+      expect(screen.getByText("Tus estadísticas")).toBeTruthy();
+      expect(screen.getByText("Precisión total")).toBeTruthy();
     });
 
     fireEvent.press(screen.getAllByText("Posiciones")[0]);
 
     await waitFor(() => {
-      expect(screen.getByText("P: pronósticos · E: exactos · R: resultado · N: sin acierto")).toBeTruthy();
+      expect(screen.getByText("P: pronósticos")).toBeTruthy();
+      expect(screen.getByText("E: exactos (+3 pts)")).toBeTruthy();
+      expect(screen.getByText("R: resultado (+1 pt)")).toBeTruthy();
+      expect(screen.getByText("N: sin acierto (0 pts)")).toBeTruthy();
     });
 
     fireEvent.press(screen.getAllByText("Pronósticos")[0]);

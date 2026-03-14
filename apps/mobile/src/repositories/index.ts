@@ -516,6 +516,18 @@ export const authRepository: AuthRepository = {
       return mockAuthRepository.loginWithPassword(email, password);
     }
   },
+  async loginWithGoogleIdToken(idToken) {
+    try {
+      const session = await httpAuthRepository.loginWithGoogleIdToken(idToken);
+      setUseHttpSession(true);
+      clearFallbackFailure();
+      return session;
+    } catch (error) {
+      maybeFallback("auth.loginWithGoogleIdToken", error);
+      setUseHttpSession(false);
+      return mockAuthRepository.loginWithGoogleIdToken(idToken);
+    }
+  },
   async registerWithPassword(input) {
     try {
       const session = await httpAuthRepository.registerWithPassword(input);

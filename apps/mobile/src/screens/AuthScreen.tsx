@@ -8,8 +8,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Animated,
+  Animated
 } from "react-native";
+import * as WebBrowser from "expo-web-browser";
+import * as Google from "expo-auth-session/providers/google";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, spacing } from "@fulbito/design-tokens";
 import { translateBackendError } from "@fulbito/domain";
@@ -18,9 +20,11 @@ import Svg, { Path, Rect } from "react-native-svg";
 import { useAuth } from "@/state/AuthContext";
 import { usePendingInvite } from "@/state/PendingInviteContext";
 
+WebBrowser.maybeCompleteAuthSession();
+
 export function AuthScreen() {
   const insets = useSafeAreaInsets();
-  const { login, register, requestPasswordReset } = useAuth();
+  const { login, loginWithGoogle, register, requestPasswordReset } = useAuth();
   const { pendingInviteToken } = usePendingInvite();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [name, setName] = useState("");
@@ -30,6 +34,23 @@ export function AuthScreen() {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [googleSubmitting, setGoogleSubmitting] = useState(false);
+
+  const googleExpoClientId = process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID;
+  const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+  const googleAndroidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
+  const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  const hasGoogleClientConfig = Boolean(
+    googleExpoClientId || googleIosClientId || googleAndroidClientId || googleWebClientId
+  );
+
+  const [googleRequest, , promptGoogleAsync] = Google.useIdTokenAuthRequest({
+    clientId: googleExpoClientId || googleWebClientId || "",
+    iosClientId: googleIosClientId,
+    androidClientId: googleAndroidClientId,
+    webClientId: googleWebClientId,
+    scopes: ["profile", "email"]
+  });
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
@@ -94,6 +115,33 @@ export function AuthScreen() {
       );
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function submitGoogleAuth() {
+    if (!hasGoogleClientConfig) {
+      setError("Google Login no está configurado en esta build.");
+      return;
+    }
+    setError(null);
+    setInfo(null);
+    setGoogleSubmitting(true);
+    try {
+      const result = await promptGoogleAsync();
+      if (result.type !== "success") {
+        return;
+      }
+
+      const idToken = result.params?.id_token;
+      if (!idToken) {
+        throw new Error("Google sign-in did not return an id token.");
+      }
+
+      await loginWithGoogle(idToken);
+    } catch (nextError) {
+      setError(translateBackendError(nextError, "No se pudo autenticar con Google"));
+    } finally {
+      setGoogleSubmitting(false);
     }
   }
 
@@ -246,7 +294,7 @@ export function AuthScreen() {
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => void submitForgotPassword()}
-                  disabled={submitting}
+                  disabled={submitting || googleSubmitting}
                   style={styles.forgotRow}
                 >
                   <Text style={styles.forgotText}>
@@ -281,10 +329,10 @@ export function AuthScreen() {
                 onPress={() => void submit()}
                 style={({ pressed }) => [
                   styles.submitButton,
-                  submitting && styles.submitButtonDisabled,
-                  pressed && !submitting && styles.submitButtonPressed,
+                  (submitting || googleSubmitting) && styles.submitButtonDisabled,
+                  pressed && !(submitting || googleSubmitting) && styles.submitButtonPressed
                 ]}
-                disabled={submitting}
+                disabled={submitting || googleSubmitting}
               >
                 <Text style={styles.submitButtonText}>
                   {submitting
@@ -300,6 +348,27 @@ export function AuthScreen() {
                     color={colors.primaryText}
                   />
                 ) : null}
+              </Pressable>
+
+              <View style={styles.separatorRow}>
+                <View style={styles.separatorLine} />
+                <Text style={styles.separatorText}>o</Text>
+                <View style={styles.separatorLine} />
+              </View>
+
+              <Pressable
+                onPress={() => void submitGoogleAuth()}
+                style={({ pressed }) => [
+                  styles.googleButton,
+                  (!hasGoogleClientConfig || !googleRequest || submitting || googleSubmitting) && styles.submitButtonDisabled,
+                  pressed && googleRequest && !(submitting || googleSubmitting) && styles.submitButtonPressed
+                ]}
+                disabled={!hasGoogleClientConfig || !googleRequest || submitting || googleSubmitting}
+              >
+                <Ionicons name="logo-google" size={18} color={colors.textPrimary} />
+                <Text style={styles.googleButtonText}>
+                  {googleSubmitting ? "Conectando..." : "Continuar con Google"}
+                </Text>
               </Pressable>
             </View>
           </View>
@@ -533,6 +602,37 @@ const styles = StyleSheet.create({
     opacity: 0.55,
   },
   submitButtonPressed: {
-    opacity: 0.85,
+    opacity: 0.85
   },
+  separatorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10
+  },
+  separatorLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.borderMuted
+  },
+  separatorText: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "700"
+  },
+  googleButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    minHeight: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+    backgroundColor: colors.surfaceMuted
+  },
+  googleButtonText: {
+    color: colors.textPrimary,
+    fontSize: 15,
+    fontWeight: "700"
+  }
 });

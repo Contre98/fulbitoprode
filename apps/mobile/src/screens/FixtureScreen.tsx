@@ -13,6 +13,7 @@ import { FechaSelector } from "@/components/FechaSelector";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
+import { CreateOrJoinGroupPrompt } from "@/components/CreateOrJoinGroupPrompt";
 import { TeamCrest } from "@/components/TeamCrest";
 import { estimateMatchMinute, useLivePulse } from "@/components/LiveMatchIndicator";
 import { FormDots } from "@/components/MatchCardVisuals";
@@ -68,15 +69,12 @@ function statusLabel(status: Fixture["status"]) {
 
 export function FixtureScreen() {
   const queryClient = useQueryClient();
-  const { memberships, selectedGroupId, setSelectedGroupId } = useGroupSelection();
+  const { memberships, selectedGroupId } = useGroupSelection();
   const { fecha, options, setFecha } = usePeriod();
   const [filter, setFilter] = useState<FixtureFilter>("all");
+  const hasMemberships = memberships.length > 0;
 
-  const groupId = memberships.find((membership) => membership.groupId === selectedGroupId)?.groupId ?? memberships[0]?.groupId ?? "grupo-1";
-  const selectedMembership = useMemo(
-    () => memberships.find((membership) => membership.groupId === groupId) ?? memberships[0],
-    [groupId, memberships]
-  );
+  const groupId = memberships.find((membership) => membership.groupId === selectedGroupId)?.groupId ?? memberships[0]?.groupId ?? null;
   const safeOptions = options.length > 0 ? options : [{ id: fecha, label: fecha }];
   const currentOptionIndex = safeOptions.findIndex((option) => option.id === fecha);
   const resolvedOptionIndex = currentOptionIndex >= 0 ? currentOptionIndex : 0;
@@ -84,9 +82,10 @@ export function FixtureScreen() {
     queryKey: ["fixture", groupId, fecha],
     queryFn: () =>
       fixtureRepository.listFixture({
-        groupId,
+        groupId: groupId!,
         fecha
-      })
+      }),
+    enabled: Boolean(groupId)
   });
   const formFixtureQuery = useQuery({
     queryKey: ["fixture-form-history", groupId, fecha, options.map((item) => item.id).join("|")],
@@ -96,7 +95,7 @@ export function FixtureScreen() {
       const periodLists = await Promise.all(
         candidatePeriods.map((period) =>
           fixtureRepository
-            .listFixture({ groupId, fecha: period })
+            .listFixture({ groupId: groupId!, fecha: period })
             .catch(() => [])
         )
       );
@@ -104,7 +103,8 @@ export function FixtureScreen() {
       const deduped = new Map<string, (typeof merged)[number]>();
       merged.forEach((fixture) => deduped.set(fixture.id, fixture));
       return [...deduped.values()];
-    }
+    },
+    enabled: Boolean(groupId)
   });
 
   const hasLiveFixtures = useMemo(
@@ -173,85 +173,91 @@ export function FixtureScreen() {
       onRefresh={handleRefresh}
       header={<AppHeader />}
     >
-      <FechaSelector />
+      {!hasMemberships ? (
+        <CreateOrJoinGroupPrompt />
+      ) : (
+        <>
+          <FechaSelector />
 
-      <View style={styles.filterTabs}>
-        {(Object.keys(filterLabels) as FixtureFilter[]).map((key) => {
-          const selected = filter === key;
-          return (
-            <Pressable key={key} onPress={() => setFilter(key)} style={[styles.filterTab, selected ? styles.filterTabActive : null]}>
-              <Text allowFontScaling={false} style={[styles.filterTabLabel, selected ? styles.filterTabLabelActive : null]}>
-                {filterLabels[key]}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {fixtureQuery.isLoading ? <LoadingState message="Cargando fixture..." variant="fixtures" /> : null}
-      {fixtureQuery.isError ? (
-        <ErrorState
-          message="No se pudo cargar el fixture."
-          retryLabel="Reintentar"
-          onRetry={() => void fixtureQuery.refetch()}
-        />
-      ) : null}
-      {!fixtureQuery.isLoading && !fixtureQuery.isError && groupedByFilter.length === 0 ? (
-        <EmptyState title="Sin partidos disponibles" description="No hay partidos cargados para este filtro en esta fecha." />
-      ) : null}
-
-      {groupedByFilter.map((group) => (
-        <View key={group.dateKey} style={styles.groupCard}>
-          <Text allowFontScaling={false} style={styles.dateLabel}>{group.dateLabel}</Text>
-          {group.fixtures.map((fixture, index) => {
-            void matchClockTick;
-            const score = fixture.score ? `${fixture.score.home}-${fixture.score.away}` : null;
-            const homeCode = toTeamCode(fixture.homeTeam);
-            const awayCode = toTeamCode(fixture.awayTeam);
-            const isLive = fixture.status === "live";
-            const liveMinute = isLive ? estimateMatchMinute(fixture.kickoffAt) : "";
-            const kickoffHour = formatClock24(fixture.kickoffAt);
-            const rowMetaLabel = isLive && liveMinute ? `${liveMinute} · ${kickoffHour}` : `${statusLabel(fixture.status)} · ${kickoffHour}`;
-            const homeForm = teamFormLookup(fixture.homeTeam, fixture.kickoffAt);
-            const awayForm = teamFormLookup(fixture.awayTeam, fixture.kickoffAt);
-
-            const row = (
-              <View key={fixture.id} style={[styles.row, index > 0 && !isLive ? styles.rowWithBorder : null, isLive ? styles.rowLive : null]}>
-                <View style={styles.teamSide}>
-                  <TeamCrest teamName={fixture.homeTeam} code={homeCode} logoUrl={fixture.homeLogoUrl} size={24} />
-                  <View style={styles.teamInfoCol}>
-                    <Text allowFontScaling={false} numberOfLines={1} style={styles.teamName}>{fixture.homeTeam}</Text>
-                    <FormDots form={homeForm} />
-                  </View>
-                </View>
-
-                <View style={styles.middleCol}>
-                  {isLive ? (
-                    <Animated.Text allowFontScaling={false} style={[styles.metaLabel, styles.metaLabelLive, { opacity: livePulseOpacity }]}>
-                      {rowMetaLabel}
-                    </Animated.Text>
-                  ) : (
-                    <Text allowFontScaling={false} style={styles.metaLabel}>{rowMetaLabel}</Text>
-                  )}
-                  <Text allowFontScaling={false} style={styles.scoreText}>
-                    {score ?? (isLive ? "0-0" : fixture.status === "final" ? "--" : fixture.status === "postponed" ? "POST." : "vs")}
+          <View style={styles.filterTabs}>
+            {(Object.keys(filterLabels) as FixtureFilter[]).map((key) => {
+              const selected = filter === key;
+              return (
+                <Pressable key={key} onPress={() => setFilter(key)} style={[styles.filterTab, selected ? styles.filterTabActive : null]}>
+                  <Text allowFontScaling={false} style={[styles.filterTabLabel, selected ? styles.filterTabLabelActive : null]}>
+                    {filterLabels[key]}
                   </Text>
-                </View>
+                </Pressable>
+              );
+            })}
+          </View>
 
-                <View style={[styles.teamSide, styles.teamSideRight]}>
-                  <View style={[styles.teamInfoCol, styles.teamInfoColRight]}>
-                    <Text allowFontScaling={false} numberOfLines={1} style={styles.teamNameRight}>{fixture.awayTeam}</Text>
-                    <FormDots form={awayForm} align="right" />
+          {fixtureQuery.isLoading ? <LoadingState message="Cargando fixture..." variant="fixtures" /> : null}
+          {fixtureQuery.isError ? (
+            <ErrorState
+              message="No se pudo cargar el fixture."
+              retryLabel="Reintentar"
+              onRetry={() => void fixtureQuery.refetch()}
+            />
+          ) : null}
+          {!fixtureQuery.isLoading && !fixtureQuery.isError && groupedByFilter.length === 0 ? (
+            <EmptyState title="Sin partidos disponibles" description="No hay partidos cargados para este filtro en esta fecha." />
+          ) : null}
+
+          {groupedByFilter.map((group) => (
+            <View key={group.dateKey} style={styles.groupCard}>
+              <Text allowFontScaling={false} style={styles.dateLabel}>{group.dateLabel}</Text>
+              {group.fixtures.map((fixture, index) => {
+                void matchClockTick;
+                const score = fixture.score ? `${fixture.score.home}-${fixture.score.away}` : null;
+                const homeCode = toTeamCode(fixture.homeTeam);
+                const awayCode = toTeamCode(fixture.awayTeam);
+                const isLive = fixture.status === "live";
+                const liveMinute = isLive ? estimateMatchMinute(fixture.kickoffAt) : "";
+                const kickoffHour = formatClock24(fixture.kickoffAt);
+                const rowMetaLabel = isLive && liveMinute ? `${liveMinute} · ${kickoffHour}` : `${statusLabel(fixture.status)} · ${kickoffHour}`;
+                const homeForm = teamFormLookup(fixture.homeTeam, fixture.kickoffAt);
+                const awayForm = teamFormLookup(fixture.awayTeam, fixture.kickoffAt);
+
+                const row = (
+                  <View key={fixture.id} style={[styles.row, index > 0 && !isLive ? styles.rowWithBorder : null, isLive ? styles.rowLive : null]}>
+                    <View style={styles.teamSide}>
+                      <TeamCrest teamName={fixture.homeTeam} code={homeCode} logoUrl={fixture.homeLogoUrl} size={24} />
+                      <View style={styles.teamInfoCol}>
+                        <Text allowFontScaling={false} numberOfLines={1} style={styles.teamName}>{fixture.homeTeam}</Text>
+                        <FormDots form={homeForm} />
+                      </View>
+                    </View>
+
+                    <View style={styles.middleCol}>
+                      {isLive ? (
+                        <Animated.Text allowFontScaling={false} style={[styles.metaLabel, styles.metaLabelLive, { opacity: livePulseOpacity }]}>
+                          {rowMetaLabel}
+                        </Animated.Text>
+                      ) : (
+                        <Text allowFontScaling={false} style={styles.metaLabel}>{rowMetaLabel}</Text>
+                      )}
+                      <Text allowFontScaling={false} style={styles.scoreText}>
+                        {score ?? (isLive ? "0-0" : fixture.status === "final" ? "--" : fixture.status === "postponed" ? "POST." : "vs")}
+                      </Text>
+                    </View>
+
+                    <View style={[styles.teamSide, styles.teamSideRight]}>
+                      <View style={[styles.teamInfoCol, styles.teamInfoColRight]}>
+                        <Text allowFontScaling={false} numberOfLines={1} style={styles.teamNameRight}>{fixture.awayTeam}</Text>
+                        <FormDots form={awayForm} align="right" />
+                      </View>
+                      <TeamCrest teamName={fixture.awayTeam} code={awayCode} logoUrl={fixture.awayLogoUrl} size={24} />
+                    </View>
                   </View>
-                  <TeamCrest teamName={fixture.awayTeam} code={awayCode} logoUrl={fixture.awayLogoUrl} size={24} />
-                </View>
-              </View>
-            );
+                );
 
-            return row;
-          })}
-        </View>
-      ))}
+                return row;
+              })}
+            </View>
+          ))}
+        </>
+      )}
     </ScreenFrame>
   );
 }

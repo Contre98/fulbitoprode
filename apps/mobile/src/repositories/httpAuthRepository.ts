@@ -171,6 +171,29 @@ export const httpAuthRepository: AuthRepository = {
     };
   },
 
+  async loginWithGoogleIdToken(idToken: string) {
+    const loginPayload = await requestJson<AuthResponseBody>("/api/auth/login-google", {
+      method: "POST",
+      body: JSON.stringify({ idToken })
+    });
+
+    await persistTokensFromAuthPayload(loginPayload);
+
+    try {
+      const session = await httpAuthRepository.getSession();
+      if (session) {
+        return session;
+      }
+    } catch {
+      // fallback below
+    }
+
+    return {
+      user: loginPayload.user,
+      memberships: loginPayload.memberships ?? []
+    };
+  },
+
   async registerWithPassword(input: { email: string; password: string; name: string }) {
     const registerPayload = await requestJson<AuthResponseBody>("/api/auth/register-password", {
       method: "POST",

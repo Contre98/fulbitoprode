@@ -10,6 +10,7 @@ import { LoadingState } from "@/components/LoadingState";
 import { LeaderboardOverviewCard } from "@/components/LeaderboardOverviewCard";
 import { UrgentActionCard } from "@/components/UrgentActionCard";
 import { FeaturedMatchesCard } from "@/components/FeaturedMatchesCard";
+import { CreateOrJoinGroupPrompt } from "@/components/CreateOrJoinGroupPrompt";
 import { useGroupSelection } from "@/state/GroupContext";
 import { useAuth } from "@/state/AuthContext";
 import { usePeriod } from "@/state/PeriodContext";
@@ -19,11 +20,12 @@ export function HomeScreen() {
   const { memberships, selectedGroupId } = useGroupSelection();
   const { session } = useAuth();
   const { fecha, defaultFecha, options, setFecha } = usePeriod();
+  const hasMemberships = memberships.length > 0;
 
   const queryClient = useQueryClient();
-  const groupId = memberships.find((m) => m.groupId === selectedGroupId)?.groupId ?? memberships[0]?.groupId ?? "grupo-1";
+  const groupId = memberships.find((m) => m.groupId === selectedGroupId)?.groupId ?? memberships[0]?.groupId ?? null;
   const selectedMembership = useMemo(
-    () => memberships.find((m) => m.groupId === groupId) ?? memberships[0],
+    () => memberships.find((m) => m.groupId === groupId) ?? memberships[0] ?? null,
     [groupId, memberships]
   );
 
@@ -33,15 +35,17 @@ export function HomeScreen() {
     queryKey: ["leaderboard-payload", groupId, "global", "posiciones"],
     queryFn: () =>
       leaderboardRepository.getLeaderboardPayload({
-        groupId,
+        groupId: groupId!,
         fecha: "global",
         mode: "posiciones"
-      })
+      }),
+    enabled: Boolean(groupId)
   });
 
   const fixtureQuery = useQuery({
     queryKey: ["fixture", groupId, ctaFecha],
-    queryFn: () => fixtureRepository.listFixture({ groupId, fecha: ctaFecha })
+    queryFn: () => fixtureRepository.listFixture({ groupId: groupId!, fecha: ctaFecha }),
+    enabled: Boolean(groupId)
   });
   const formFixtureQuery = useQuery({
     queryKey: ["fixture-form-history", groupId, ctaFecha, options.map((item) => item.id).join("|")],
@@ -51,7 +55,7 @@ export function HomeScreen() {
       const periodLists = await Promise.all(
         candidatePeriods.map((period) =>
           fixtureRepository
-            .listFixture({ groupId, fecha: period })
+            .listFixture({ groupId: groupId!, fecha: period })
             .catch(() => [])
         )
       );
@@ -59,12 +63,14 @@ export function HomeScreen() {
       const deduped = new Map<string, (typeof merged)[number]>();
       merged.forEach((fixture) => deduped.set(fixture.id, fixture));
       return [...deduped.values()];
-    }
+    },
+    enabled: Boolean(groupId)
   });
 
   const predictionsQuery = useQuery({
     queryKey: ["predictions", groupId, ctaFecha],
-    queryFn: () => predictionsRepository.listPredictions({ groupId, fecha: ctaFecha })
+    queryFn: () => predictionsRepository.listPredictions({ groupId: groupId!, fecha: ctaFecha }),
+    enabled: Boolean(groupId)
   });
 
   const myRow = leaderboardQuery.data?.rows.find((r) => r.highlight);
@@ -117,32 +123,38 @@ export function HomeScreen() {
       onRefresh={handleRefresh}
       header={<AppHeader />}
     >
-      {isLoading && !hasRenderableContent ? <LoadingState message="Cargando inicio..." variant="home" /> : null}
-      {myRow && (
-        <LeaderboardOverviewCard
-          groupLabel={groupLabel}
-          row={myRow}
-          awards={leaderboardQuery.data?.stats?.awards}
-          currentUserId={session?.user?.id}
-          onPress={handleOpenPosiciones}
-        />
-      )}
-      {showCard && (
-        <UrgentActionCard
-          message={cardMessage}
-          filled={filledCount}
-          total={totalCount}
-          complete={allComplete}
-          onPress={handleOpenPronosticos}
-        />
-      )}
-      {fixtures.length > 0 && (
-        <FeaturedMatchesCard
-          fixtures={fixtures}
-          formFixtures={formFixtures}
-          predictions={predictions}
-          onPressPrediction={handleOpenPronosticos}
-        />
+      {!hasMemberships ? (
+        <CreateOrJoinGroupPrompt />
+      ) : (
+        <>
+          {isLoading && !hasRenderableContent ? <LoadingState message="Cargando inicio..." variant="home" /> : null}
+          {myRow && (
+            <LeaderboardOverviewCard
+              groupLabel={groupLabel}
+              row={myRow}
+              awards={leaderboardQuery.data?.stats?.awards}
+              currentUserId={session?.user?.id}
+              onPress={handleOpenPosiciones}
+            />
+          )}
+          {showCard && (
+            <UrgentActionCard
+              message={cardMessage}
+              filled={filledCount}
+              total={totalCount}
+              complete={allComplete}
+              onPress={handleOpenPronosticos}
+            />
+          )}
+          {fixtures.length > 0 && (
+            <FeaturedMatchesCard
+              fixtures={fixtures}
+              formFixtures={formFixtures}
+              predictions={predictions}
+              onPressPrediction={handleOpenPronosticos}
+            />
+          )}
+        </>
       )}
     </ScreenFrame>
   );

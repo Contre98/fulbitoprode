@@ -22,6 +22,7 @@ interface AuthContextValue {
   fallbackHistory: FallbackFailure[];
   refresh: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: (idToken: string) => Promise<void>;
   register: (input: { email: string; password: string; name: string }) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<{ ok: true; message: string }>;
   logout: () => Promise<void>;
@@ -91,6 +92,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setDataMode(canUseHttpSession() ? "http" : "mock");
   }, []);
 
+  const loginWithGoogle = useCallback(async (idToken: string) => {
+    const nextSession = await authRepository.loginWithGoogleIdToken(idToken);
+    setSession(nextSession);
+    setDataMode(canUseHttpSession() ? "http" : "mock");
+  }, []);
+
   const register = useCallback(async (input: { email: string; password: string; name: string }) => {
     const nextSession = await authRepository.registerWithPassword(input);
     setSession(nextSession);
@@ -125,6 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       fallbackHistory,
       refresh,
       login,
+      loginWithGoogle,
       register,
       requestPasswordReset,
       logout,
@@ -139,6 +147,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       fallbackHistory,
       refresh,
       login,
+      loginWithGoogle,
       register,
       requestPasswordReset,
       logout,

@@ -10,6 +10,7 @@ import { FechaSelector } from "@/components/FechaSelector";
 import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
+import { CreateOrJoinGroupPrompt } from "@/components/CreateOrJoinGroupPrompt";
 import { FormDots, MatchSideGradient } from "@/components/MatchCardVisuals";
 import { TeamCrest } from "@/components/TeamCrest";
 import { LivePulseBorder, estimateMatchMinute, useLivePulse } from "@/components/LiveMatchIndicator";
@@ -76,9 +77,10 @@ function isOpenUpcomingFixture(fixture: Fixture) {
 
 export function PronosticosScreen() {
   const queryClient = useQueryClient();
-  const { memberships, selectedGroupId, setSelectedGroupId } = useGroupSelection();
+  const { memberships, selectedGroupId } = useGroupSelection();
   const { fecha, options, setFecha } = usePeriod();
-  const groupId = memberships.find((membership) => membership.groupId === selectedGroupId)?.groupId ?? memberships[0]?.groupId ?? "grupo-1";
+  const hasMemberships = memberships.length > 0;
+  const groupId = memberships.find((membership) => membership.groupId === selectedGroupId)?.groupId ?? memberships[0]?.groupId ?? null;
   const safePeriodOptions = options.length > 0 ? options : [{ id: fecha, label: fecha }];
   const currentPeriodIndex = safePeriodOptions.findIndex((option) => option.id === fecha);
   const resolvedPeriodIndex = currentPeriodIndex >= 0 ? currentPeriodIndex : 0;
@@ -99,9 +101,10 @@ export function PronosticosScreen() {
     queryKey: ["fixture", groupId, fecha],
     queryFn: () =>
       fixtureRepository.listFixture({
-        groupId,
+        groupId: groupId!,
         fecha
-      })
+      }),
+    enabled: Boolean(groupId)
   });
   const formFixtureQuery = useQuery({
     queryKey: ["fixture-form-history", groupId, fecha, options.map((item) => item.id).join("|")],
@@ -111,7 +114,7 @@ export function PronosticosScreen() {
       const periodLists = await Promise.all(
         candidatePeriods.map((period) =>
           fixtureRepository
-            .listFixture({ groupId, fecha: period })
+            .listFixture({ groupId: groupId!, fecha: period })
             .catch(() => [])
         )
       );
@@ -119,7 +122,8 @@ export function PronosticosScreen() {
       const deduped = new Map<string, (typeof merged)[number]>();
       merged.forEach((fixture) => deduped.set(fixture.id, fixture));
       return [...deduped.values()];
-    }
+    },
+    enabled: Boolean(groupId)
   });
 
   const historyFixtureQuery = useQuery({
@@ -133,7 +137,7 @@ export function PronosticosScreen() {
 
       try {
         const selectedRows = await fixtureRepository.listFixture({
-          groupId,
+          groupId: groupId!,
           fecha
         });
         firstSuccessfulRows = selectedRows;
@@ -148,7 +152,7 @@ export function PronosticosScreen() {
       for (const period of candidatePeriods.slice(1)) {
         try {
           const rows = await fixtureRepository.listFixture({
-            groupId,
+            groupId: groupId!,
             fecha: period
           });
           if (firstSuccessfulRows === null) {
@@ -165,16 +169,17 @@ export function PronosticosScreen() {
 
       return (firstSuccessfulRows ?? []).filter((fixture) => !isOpenUpcomingFixture(fixture));
     },
-    enabled: mode === "history"
+    enabled: mode === "history" && Boolean(groupId)
   });
 
   const predictionsQuery = useQuery({
     queryKey: ["predictions", groupId, fecha],
     queryFn: () =>
       predictionsRepository.listPredictions({
-        groupId,
+        groupId: groupId!,
         fecha
-      })
+      }),
+    enabled: Boolean(groupId)
   });
 
   useEffect(() => {
@@ -665,48 +670,54 @@ export function PronosticosScreen() {
         onRefresh={handleRefresh}
         header={<AppHeader />}
       >
-        <FechaSelector />
-        {isLoading ? <LoadingState message="Cargando partidos..." variant="predictions" /> : null}
-        {hasError ? (
-          <ErrorState
-            message="No se pudo cargar la información de pronósticos."
-            retryLabel="Reintentar"
-            onRetry={() => {
-              void fixtureQuery.refetch();
-              void predictionsQuery.refetch();
-              void historyFixtureQuery.refetch();
-            }}
-          />
-        ) : null}
-        {!isLoading && !hasError ? (
+        {!hasMemberships ? (
+          <CreateOrJoinGroupPrompt />
+        ) : (
           <>
-            <View style={styles.progressCard}>
-              <Text allowFontScaling={false} style={styles.progressLabel}>
-                {completionSummary.completed}/{completionSummary.total}
-              </Text>
-              <View style={styles.progressTrack}>
-                <View style={[styles.progressFill, { width: `${completionSummary.pct}%` }]} />
-              </View>
-            </View>
-
-            <View style={styles.filterTabs}>
-              <Pressable onPress={() => setMode("upcoming")} style={[styles.filterTab, mode === "upcoming" ? styles.filterTabActive : null]}>
-                <Text allowFontScaling={false} style={mode === "upcoming" ? styles.filterTabLabelActive : styles.filterTabLabel}>Por Jugar</Text>
-              </Pressable>
-              <Pressable onPress={() => setMode("history")} style={[styles.filterTab, mode === "history" ? styles.filterTabActive : null]}>
-                <Text allowFontScaling={false} style={mode === "history" ? styles.filterTabLabelActive : styles.filterTabLabel}>Jugados</Text>
-              </Pressable>
-            </View>
-            {visibleFixtures.length === 0 ? (
-              <EmptyState
-                title={mode === "upcoming" ? "Sin partidos próximos" : "Sin partidos finalizados"}
-                description={mode === "upcoming" ? "Volvé más tarde para cargar tus próximos pronósticos." : "Todavía no hay partidos en historial para esta fecha."}
+            <FechaSelector />
+            {isLoading ? <LoadingState message="Cargando partidos..." variant="predictions" /> : null}
+            {hasError ? (
+              <ErrorState
+                message="No se pudo cargar la información de pronósticos."
+                retryLabel="Reintentar"
+                onRetry={() => {
+                  void fixtureQuery.refetch();
+                  void predictionsQuery.refetch();
+                  void historyFixtureQuery.refetch();
+                }}
               />
             ) : null}
-            {visibleFixtures.map((fixture) => renderFixtureCard(fixture))}
-            {statusMessage ? <Text allowFontScaling={false} style={styles.statusText}>{statusMessage}</Text> : null}
+            {!isLoading && !hasError ? (
+              <>
+                <View style={styles.progressCard}>
+                  <Text allowFontScaling={false} style={styles.progressLabel}>
+                    {completionSummary.completed}/{completionSummary.total}
+                  </Text>
+                  <View style={styles.progressTrack}>
+                    <View style={[styles.progressFill, { width: `${completionSummary.pct}%` }]} />
+                  </View>
+                </View>
+
+                <View style={styles.filterTabs}>
+                  <Pressable onPress={() => setMode("upcoming")} style={[styles.filterTab, mode === "upcoming" ? styles.filterTabActive : null]}>
+                    <Text allowFontScaling={false} style={mode === "upcoming" ? styles.filterTabLabelActive : styles.filterTabLabel}>Por Jugar</Text>
+                  </Pressable>
+                  <Pressable onPress={() => setMode("history")} style={[styles.filterTab, mode === "history" ? styles.filterTabActive : null]}>
+                    <Text allowFontScaling={false} style={mode === "history" ? styles.filterTabLabelActive : styles.filterTabLabel}>Jugados</Text>
+                  </Pressable>
+                </View>
+                {visibleFixtures.length === 0 ? (
+                  <EmptyState
+                    title={mode === "upcoming" ? "Sin partidos próximos" : "Sin partidos finalizados"}
+                    description={mode === "upcoming" ? "Volvé más tarde para cargar tus próximos pronósticos." : "Todavía no hay partidos en historial para esta fecha."}
+                  />
+                ) : null}
+                {visibleFixtures.map((fixture) => renderFixtureCard(fixture))}
+                {statusMessage ? <Text allowFontScaling={false} style={styles.statusText}>{statusMessage}</Text> : null}
+              </>
+            ) : null}
           </>
-        ) : null}
+        )}
       </ScreenFrame>
       <ScorePickerModal
         visible={Boolean(scoreModalFixture)}

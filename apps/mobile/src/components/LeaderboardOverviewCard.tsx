@@ -2,6 +2,7 @@ import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@fulbito/design-tokens";
 import type { LeaderboardStatsRow, LeaderboardAward } from "@fulbito/domain";
+import { CardSideAccentGradient } from "@/components/MatchCardVisuals";
 
 interface LeaderboardOverviewCardProps {
   groupLabel: string;
@@ -43,6 +44,7 @@ export function LeaderboardOverviewCard({ groupLabel, row, awards, currentUserId
 
   return (
     <View style={styles.card}>
+      <CardSideAccentGradient color={colors.primaryStrong} intensity={0.07} side="left" widthPct={28} />
       <View style={styles.headerRow}>
         <Text style={styles.header}>{groupLabel.toUpperCase()}</Text>
         {onPress && (
@@ -103,6 +105,8 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 16,
     gap: 14,
+    overflow: "hidden",
+    position: "relative"
   },
   headerRow: {
     flexDirection: "row",

@@ -56,3 +56,14 @@ export function getFootballProviderCoreConfig() {
     prefersApiSports: Boolean(process.env.API_FOOTBALL_KEY?.trim())
   };
 }
+
+export function getGoogleOauthClientIds() {
+  const raw = readFirstNonEmpty([process.env.GOOGLE_OAUTH_CLIENT_IDS]);
+  if (!raw) {
+    return [];
+  }
+  return raw
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
