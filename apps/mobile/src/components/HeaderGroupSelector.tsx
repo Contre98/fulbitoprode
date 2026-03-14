@@ -4,6 +4,7 @@ import { NavigationContext } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import type { Membership, MembershipRole } from "@fulbito/domain";
 import { colors, spacing } from "@fulbito/design-tokens";
+import { groupsRepository } from "@/repositories";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -131,13 +132,22 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
     setActionsGroupId(null);
   }
 
-  function handleShare() {
+  async function handleShare() {
     if (!actionsMembership) return;
     dismissPopover();
-    const link = `https://fulbito.prode/join/${actionsMembership.groupId}`;
-    void Share.share({
-      message: `Unite a mi grupo "${actionsMembership.groupName}" en Fulbito Prode: ${link}`
-    });
+    try {
+      const { invite } = await groupsRepository.getInvite({ groupId: actionsMembership.groupId });
+      if (!invite) {
+        Alert.alert("Error", "No se pudo obtener el link de invitación.");
+        return;
+      }
+      const link = `fulbito://?invite=${encodeURIComponent(invite.token)}`;
+      await Share.share({
+        message: `Unite a mi grupo "${actionsMembership.groupName}" en Fulbito Prode:\n${link}`
+      });
+    } catch {
+      Alert.alert("Error", "No se pudo generar el link de invitación.");
+    }
   }
 
   function handleEditName() {
@@ -391,7 +401,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                 <>
                   <Pressable style={styles.popoverBackdrop} onPress={dismissPopover} />
                   <View style={[styles.popover, { top: popoverPos.top, right: popoverPos.right }]}>
-                    <Pressable onPress={handleShare} style={styles.popoverRow}>
+                    <Pressable onPress={() => void handleShare()} style={styles.popoverRow}>
                       <Ionicons name="share-outline" size={17} color={colors.textSecondary} />
                       <Text allowFontScaling={false} style={styles.popoverLabel}>Compartir link</Text>
                     </Pressable>
@@ -491,9 +501,9 @@ function MembershipRow({ membership, active, isLast, onSelect, onMore }: Members
         accessibilityLabel="Opciones del grupo"
         hitSlop={8}
         onPress={() => onMore(moreRef.current)}
-        style={styles.moreButton}
+        style={[styles.moreButton, active && styles.moreButtonActive]}
       >
-        <Ionicons name="ellipsis-horizontal" size={18} color={active ? colors.textTitle : colors.textMuted} />
+        <Ionicons name="ellipsis-horizontal" size={18} color={active ? colors.textPrimary : colors.textMuted} />
       </Pressable>
     </Pressable>
   );
@@ -666,6 +676,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center"
+  },
+  moreButtonActive: {
+    backgroundColor: colors.surface
   },
   footerDivider: {
     marginTop: 6,
