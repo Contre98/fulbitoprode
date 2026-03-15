@@ -264,7 +264,7 @@ export async function upsertPreferences(
 // Inbox
 // ---------------------------------------------------------------------------
 
-export async function listInboxItems(userId: string, limit = 50) {
+export async function listInboxItems(userId: string, limit = 200) {
   const filter = `user_id=${q(userId)}`;
   const result = await pbRequest<PbListResult<PbInboxRow>>(
     `/api/collections/notification_inbox/records?filter=${encodeURIComponent(filter)}&perPage=${limit}&sort=-created`
@@ -342,7 +342,29 @@ export async function dismissInboxItem(userId: string, notificationId: string): 
     return false;
   }
 
-  await pbRequest<null>(`/api/collections/notification_inbox/records/${row.id}`, { method: "DELETE" });
+  let data: Record<string, unknown> = {};
+  if (typeof row.data_json === "string" && row.data_json.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(row.data_json) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        data = parsed as Record<string, unknown>;
+      }
+    } catch {
+      // Ignore malformed JSON payloads and override with a normalized dismissal payload.
+    }
+  }
+
+  await pbRequest<PbInboxRow>(`/api/collections/notification_inbox/records/${row.id}`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      read: true,
+      data_json: JSON.stringify({
+        ...data,
+        dismissed: true,
+        dismissedAt: new Date().toISOString()
+      })
+    })
+  });
   return true;
 }
 

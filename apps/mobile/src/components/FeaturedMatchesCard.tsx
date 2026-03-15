@@ -3,7 +3,7 @@ import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { colors } from "@fulbito/design-tokens";
 import type { Fixture, Prediction } from "@fulbito/domain";
 import { TeamCrest } from "@/components/TeamCrest";
-import { LivePulseBorder, useLivePulse } from "@/components/LiveMatchIndicator";
+import { LivePulseBorder, estimateMatchMinute, useLivePulse } from "@/components/LiveMatchIndicator";
 import { FormDots, MatchSideGradient } from "@/components/MatchCardVisuals";
 import { formatShortDateTime24 } from "@/lib/dateTime";
 import { buildTeamFormLookup, teamPredominantColor } from "@/lib/matchVisuals";
@@ -140,13 +140,14 @@ function StatusScorePill({ fixture }: { fixture: Fixture }) {
   const livePulseOpacity = useLivePulse();
   const isLive = fixture.status === "live";
   const statusText = statusTextForFixture(fixture);
+  const liveMinute = isLive ? estimateMatchMinute(fixture.kickoffAt) : "";
   const scoreText = fixture.score ? `${fixture.score.home} : ${fixture.score.away}` : "- : -";
 
   return (
     <View style={[styles.resultPill, !isLive ? styles.resultPillUpcoming : null]}>
       {isLive ? (
         <Animated.Text allowFontScaling={false} style={[styles.resultSub, styles.resultSubLive, { opacity: livePulseOpacity }]}>
-          {statusText}
+          {liveMinute || "0'"}
         </Animated.Text>
       ) : (
         <Text allowFontScaling={false} style={styles.resultSub}>{statusText}</Text>
@@ -161,11 +162,9 @@ function StatusScorePill({ fixture }: { fixture: Fixture }) {
 /* ─── Kickoff Row ────────────────────────────────────────────── */
 
 function KickoffRow({ fixture }: { fixture: Fixture }) {
-  const kickoffLabel = formatShortDateTime24(fixture.kickoffAt);
-
   return (
     <View style={styles.timeRow}>
-      <Text allowFontScaling={false} style={styles.kickoffBadge}>{kickoffLabel}</Text>
+      <Text allowFontScaling={false} style={styles.kickoffBadge}>{formatShortDateTime24(fixture.kickoffAt)}</Text>
     </View>
   );
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Dimensions, PanResponder, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Animated, PanResponder, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -69,7 +69,7 @@ function NotificationBubble({ item, onDismiss }: { item: NotificationItem; onDis
           const direction = gestureState.dx >= 0 ? 1 : -1;
           Animated.parallel([
             Animated.timing(translateX, {
-              toValue: direction * 280,
+              toValue: direction * 320,
               duration: 170,
               useNativeDriver: true
             }),
@@ -127,10 +127,8 @@ export function NotificationsBubbleOverlay() {
   const insets = useSafeAreaInsets();
   const { visible, hide } = useNotificationsOverlay();
   const queryClient = useQueryClient();
-  const { width } = Dimensions.get("window");
+  const { height } = useWindowDimensions();
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
-
-  const cardWidth = useMemo(() => Math.min(360, Math.max(280, width - 22)), [width]);
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["notifications-inbox"],
@@ -140,6 +138,7 @@ export function NotificationsBubbleOverlay() {
   const items = data?.items ?? [];
   const visibleItems = useMemo(() => items.filter((item) => !dismissedIds.has(item.id)), [dismissedIds, items]);
   const unreadCount = useMemo(() => visibleItems.filter((item) => !item.read).length, [visibleItems]);
+  const maxListHeight = useMemo(() => Math.max(220, height - insets.top - insets.bottom - 130), [height, insets.bottom, insets.top]);
 
   useEffect(() => {
     if (dismissedIds.size === 0) return;
@@ -164,17 +163,13 @@ export function NotificationsBubbleOverlay() {
       next.add(id);
       return next;
     });
+
     void (async () => {
       try {
         await notificationsRepository.dismissNotification({ notificationId: id });
         await queryClient.invalidateQueries({ queryKey: ["notifications-inbox"] });
       } catch {
-        setDismissedIds((prev) => {
-          if (!prev.has(id)) return prev;
-          const next = new Set(prev);
-          next.delete(id);
-          return next;
-        });
+        // Keep it dismissed locally even if persistence fails to avoid reappearing cards.
       }
     })();
   }, [queryClient]);
@@ -196,50 +191,52 @@ export function NotificationsBubbleOverlay() {
   return (
     <View pointerEvents="box-none" style={styles.overlayRoot}>
       <Pressable style={styles.overlayBackdrop} onPress={hide} />
-      <View pointerEvents="box-none" style={[styles.overlayLayer, { paddingTop: insets.top + 54 }]}>
-        <View style={[styles.floatingTopBar, { width: cardWidth }]}> 
-          <View style={styles.headerTitleWrap}>
-            <Text allowFontScaling={false} style={styles.headerTitle}>Notificaciones</Text>
-            {unreadCount > 0 ? (
-              <View style={styles.badge}>
-                <Text allowFontScaling={false} style={styles.badgeText}>
-                  {unreadCount > 9 ? "9+" : String(unreadCount)}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-          <View style={styles.headerActions}>
-            {unreadCount > 0 ? (
-              <Pressable hitSlop={6} onPress={() => void handleMarkAllRead()} style={styles.markReadBtn}>
-                <Text allowFontScaling={false} style={styles.markReadText}>Marcar</Text>
+      <View pointerEvents="box-none" style={[styles.overlayLayer, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 12 }]}>
+        <View style={styles.floatingTopBar}>
+          <View style={styles.headerRow}>
+            <View style={styles.headerTitleWrap}>
+              <Text allowFontScaling={false} style={styles.headerTitle}>Notificaciones</Text>
+              {unreadCount > 0 ? (
+                <View style={styles.badge}>
+                  <Text allowFontScaling={false} style={styles.badgeText}>
+                    {unreadCount > 9 ? "9+" : String(unreadCount)}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+            <View style={styles.headerActions}>
+              {unreadCount > 0 ? (
+                <Pressable hitSlop={6} onPress={() => void handleMarkAllRead()} style={styles.markReadBtn}>
+                  <Text allowFontScaling={false} style={styles.markReadText}>Marcar</Text>
+                </Pressable>
+              ) : null}
+              <Pressable hitSlop={6} onPress={hide} style={styles.closeBtn}>
+                <Ionicons name="close" size={17} color={colors.textSecondary} />
               </Pressable>
-            ) : null}
-            <Pressable hitSlop={6} onPress={hide} style={styles.closeBtn}>
-              <Ionicons name="close" size={17} color={colors.textSecondary} />
-            </Pressable>
+            </View>
           </View>
         </View>
 
         {isLoading ? (
-          <View style={[styles.centered, { width: cardWidth }]}>
-            <ActivityIndicator size="small" color={colors.primaryDeep} />
+          <View style={styles.centered}>
+            <ActivityIndicator size="small" color="#D9F99D" />
           </View>
         ) : (
           <ScrollView
-            style={[styles.list, { width: cardWidth }]}
+            style={[styles.list, { maxHeight: maxListHeight }]}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             refreshControl={
               <RefreshControl
                 refreshing={isRefetching}
                 onRefresh={handleRefresh}
-                tintColor={colors.primaryDeep}
+                tintColor="#D9F99D"
               />
             }
           >
             {visibleItems.length === 0 ? (
               <View style={styles.emptyWrap}>
-                <Ionicons name="notifications-off-outline" size={24} color={colors.textSoft} />
+                <Ionicons name="notifications-off-outline" size={28} color={colors.textSoft} />
                 <Text allowFontScaling={false} style={styles.emptyTitle}>Sin novedades</Text>
                 <Text allowFontScaling={false} style={styles.emptyBody}>Deslizá izquierda o derecha para descartar.</Text>
               </View>
@@ -262,35 +259,39 @@ const styles = StyleSheet.create({
   },
   overlayBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "transparent"
+    backgroundColor: "rgba(6, 10, 18, 0.72)"
   },
   overlayLayer: {
     flex: 1,
-    paddingHorizontal: 12,
-    alignItems: "flex-end",
-    gap: 10
+    paddingHorizontal: 14,
+    gap: 12
   },
   floatingTopBar: {
-    borderRadius: 16,
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: colors.borderMutedSoft,
-    backgroundColor: colors.surfaceSoft,
-    shadowColor: colors.textPrimary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 9
+    borderColor: colors.borderMuted,
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 14,
+    elevation: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 11
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12
   },
   headerTitleWrap: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    justifyContent: "space-between"
+    gap: 8
   },
   headerTitle: {
-    fontSize: 15,
+    fontSize: 18,
     fontWeight: "900",
     color: colors.textTitle
   },
@@ -312,21 +313,18 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    position: "absolute",
-    right: 10,
-    top: 8
+    gap: 8
   },
   markReadBtn: {
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 10,
-    backgroundColor: colors.primarySoft
+    backgroundColor: "rgba(182, 217, 0, 0.22)"
   },
   markReadText: {
     fontSize: 11,
     fontWeight: "800",
-    color: colors.textBodyStrong
+    color: colors.textPrimary
   },
   closeBtn: {
     width: 26,
@@ -334,45 +332,43 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surfaceMuted
+    backgroundColor: "rgba(255,255,255,0.16)"
   },
   list: {
-    flexGrow: 0,
-    maxHeight: 470
+    flexGrow: 0
   },
   listContent: {
-    gap: 10,
-    paddingHorizontal: 0,
-    paddingBottom: 20
+    gap: 12,
+    paddingBottom: 22
   },
   centered: {
-    backgroundColor: colors.surfaceSoft,
+    backgroundColor: "rgba(17, 24, 39, 0.9)",
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.borderMutedSoft,
+    borderColor: "rgba(255,255,255,0.2)",
     paddingVertical: 20,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: colors.textPrimary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 3
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 14,
+    elevation: 6
   },
   emptyWrap: {
-    backgroundColor: colors.surface,
+    backgroundColor: "#FFFFFF",
     borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.borderMutedSoft,
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
-    paddingVertical: 20,
+    gap: 6,
+    paddingVertical: 24,
     paddingHorizontal: 14
   },
   emptyTitle: {
-    color: colors.textPrimary,
-    fontSize: 14,
+    color: colors.textTitle,
+    fontSize: 15,
     fontWeight: "800"
   },
   emptyBody: {
@@ -383,23 +379,23 @@ const styles = StyleSheet.create({
   },
   bubble: {
     borderRadius: 18,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
-    backgroundColor: colors.surface,
+    borderWidth: 1.2,
+    borderColor: "#D8DEE7",
+    backgroundColor: "#FFFFFF",
     paddingHorizontal: 12,
     paddingVertical: 10,
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 10,
-    shadowColor: colors.textPrimary,
+    shadowColor: "#000000",
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.18,
     shadowRadius: 14,
-    elevation: 6
+    elevation: 8
   },
   bubbleUnread: {
-    borderColor: colors.primaryAlpha16,
-    backgroundColor: colors.primaryHighlight
+    borderColor: colors.primaryDeep,
+    backgroundColor: "#FCFFE8"
   },
   bubbleIcon: {
     width: 28,

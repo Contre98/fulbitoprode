@@ -170,6 +170,70 @@ function uniqNonEmpty(values: string[]) {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
+function chunkArray<T>(values: T[], chunkSize: number) {
+  const chunks: T[][] = [];
+  for (let index = 0; index < values.length; index += chunkSize) {
+    chunks.push(values.slice(index, index + chunkSize));
+  }
+  return chunks;
+}
+
+function resolveDisplayName(input: { name?: string; email?: string; fallback: string }) {
+  const trimmedName = input.name?.trim();
+  if (trimmedName) {
+    return trimmedName;
+  }
+  const emailPrefix = input.email?.split("@")[0]?.trim();
+  if (emailPrefix) {
+    return emailPrefix;
+  }
+  return input.fallback;
+}
+
+function resolveMemberRecordName(input: { name?: string; user_name?: string; display_name?: string }) {
+  return resolveDisplayName({
+    name: input.name || input.user_name || input.display_name,
+    fallback: ""
+  });
+}
+
+async function resolveUserDisplayNames(userIds: string[], authToken: string) {
+  const ids = uniqNonEmpty(userIds);
+  const userNameById = new Map<string, string>();
+  if (ids.length === 0) {
+    return userNameById;
+  }
+
+  const chunks = chunkArray(ids, 50);
+  for (const chunk of chunks) {
+    const filter = encodeURIComponent(chunk.map((id) => `id=${q(id)}`).join(" || "));
+    try {
+      const response = await pbRequest<
+        PbListResult<{
+          id: string;
+          name?: string;
+          email?: string;
+        }>
+      >(`/api/collections/users/records?perPage=${chunk.length}&filter=${filter}&fields=id,name,email`, { method: "GET" }, authToken);
+
+      response.items.forEach((item) => {
+        const resolvedName = resolveDisplayName({
+          name: item.name,
+          email: item.email,
+          fallback: ""
+        });
+        if (resolvedName) {
+          userNameById.set(item.id, resolvedName);
+        }
+      });
+    } catch {
+      // Ignore lookup failures and keep membership-level fallback names.
+    }
+  }
+
+  return userNameById;
+}
+
 function firstDefinedEnv(keys: string[]) {
   for (const key of keys) {
     const value = process.env[key]?.trim();
@@ -719,6 +783,9 @@ export async function listGroupMembers(groupId: string, authToken: string): Prom
     PbListResult<{
       id: string;
       user_id: string;
+      name?: string;
+      user_name?: string;
+      display_name?: string;
       role: "owner" | "admin" | "member";
       joined_at?: string;
       expand?: {
@@ -737,6 +804,21 @@ export async function listGroupMembers(groupId: string, authToken: string): Prom
     }>
   >(`/api/collections/group_members/records?perPage=200&filter=${filter}&expand=user_id`, { method: "GET" }, authToken);
 
+  const unresolvedUserIds = response.items
+    .map((item) => {
+      const expandedUser = Array.isArray(item.expand?.user_id) ? item.expand?.user_id[0] : item.expand?.user_id;
+      const memberName = resolveMemberRecordName(item);
+      const expandedName = resolveDisplayName({
+        name: memberName || expandedUser?.name,
+        email: expandedUser?.email,
+        fallback: ""
+      });
+      return expandedName ? "" : item.user_id;
+    })
+    .filter(Boolean);
+
+  const resolvedNamesById = await resolveUserDisplayNames(unresolvedUserIds, authToken);
+
   return response.items
     .map((item) => {
       const expandedUser = Array.isArray(item.expand?.user_id) ? item.expand?.user_id[0] : item.expand?.user_id;
@@ -746,7 +828,11 @@ export async function listGroupMembers(groupId: string, authToken: string): Prom
         userId: item.user_id,
         role: item.role,
         joinedAt: item.joined_at || new Date().toISOString(),
-        name: expandedUser?.name || expandedUser?.email?.split("@")[0] || fallbackName
+        name: resolveDisplayName({
+          name: resolveMemberRecordName(item) || expandedUser?.name || resolvedNamesById.get(item.user_id),
+          email: expandedUser?.email,
+          fallback: fallbackName
+        })
       };
     })
     .filter((row) => Boolean(row.userId));
@@ -887,6 +973,9 @@ export async function listGroupMembersForGroups(groupIds: string[], authToken: s
       id: string;
       group_id: string;
       user_id: string;
+      name?: string;
+      user_name?: string;
+      display_name?: string;
       role: "owner" | "admin" | "member";
       joined_at?: string;
       expand?: {
@@ -905,6 +994,21 @@ export async function listGroupMembersForGroups(groupIds: string[], authToken: s
     }>
   >(`/api/collections/group_members/records?perPage=2000&filter=${filter}&expand=user_id`, { method: "GET" }, authToken);
 
+  const unresolvedUserIds = response.items
+    .map((item) => {
+      const expandedUser = Array.isArray(item.expand?.user_id) ? item.expand?.user_id[0] : item.expand?.user_id;
+      const memberName = resolveMemberRecordName(item);
+      const expandedName = resolveDisplayName({
+        name: memberName || expandedUser?.name,
+        email: expandedUser?.email,
+        fallback: ""
+      });
+      return expandedName ? "" : item.user_id;
+    })
+    .filter(Boolean);
+
+  const resolvedNamesById = await resolveUserDisplayNames(unresolvedUserIds, authToken);
+
   response.items.forEach((item) => {
     if (!item.group_id || !byGroupId[item.group_id]) {
       return;
@@ -917,7 +1021,11 @@ export async function listGroupMembersForGroups(groupIds: string[], authToken: s
       userId: item.user_id,
       role: item.role,
       joinedAt: item.joined_at || new Date().toISOString(),
-      name: expandedUser?.name || expandedUser?.email?.split("@")[0] || fallbackName
+      name: resolveDisplayName({
+        name: resolveMemberRecordName(item) || expandedUser?.name || resolvedNamesById.get(item.user_id),
+        email: expandedUser?.email,
+        fallback: fallbackName
+      })
     });
   });
 

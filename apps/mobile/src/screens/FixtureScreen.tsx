@@ -215,7 +215,9 @@ export function FixtureScreen() {
                 const isLive = fixture.status === "live";
                 const liveMinute = isLive ? estimateMatchMinute(fixture.kickoffAt) : "";
                 const kickoffHour = formatClock24(fixture.kickoffAt);
-                const rowMetaLabel = isLive && liveMinute ? `${liveMinute} · ${kickoffHour}` : `${statusLabel(fixture.status)} · ${kickoffHour}`;
+                const rowMetaLabel = isLive
+                  ? (liveMinute || "0'")
+                  : `${statusLabel(fixture.status)} · ${kickoffHour}`;
                 const homeForm = teamFormLookup(fixture.homeTeam, fixture.kickoffAt);
                 const awayForm = teamFormLookup(fixture.awayTeam, fixture.kickoffAt);
 

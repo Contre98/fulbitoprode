@@ -1,0 +1,26 @@
+name: Notify - Match Kickoff Reminder
+
+on:
+  schedule:
+    # Every 30 minutes
+    - cron: "0,30 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  send-reminder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send match kickoff reminder
+        run: |
+          RESPONSE=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            -X POST \
+            -H "x-admin-token: ${{ secrets.NOTIFICATIONS_ADMIN_TOKEN }}" \
+            "https://api.fulbitoprode.com/api/admin/cron/match-reminder")
+
+          echo "HTTP status: $RESPONSE"
+          cat /tmp/response.json
+
+          if [ "$RESPONSE" != "200" ]; then
+            echo "Request failed with status $RESPONSE"
+            exit 1
+          fi

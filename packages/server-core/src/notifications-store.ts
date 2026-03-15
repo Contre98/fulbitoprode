@@ -4,7 +4,6 @@ import {
   getPreferencesRecord,
   upsertPreferences as pbUpsertPreferences,
   listInboxItems,
-  countUnreadInbox,
   createInboxItem,
   markAllInboxRead,
   dismissInboxItem,
@@ -27,6 +26,22 @@ const deviceTokensByUserId = new Map<string, Array<{ token: string; platform: st
 
 function nextId() {
   return `notif-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function isInboxRowDismissed(dataJson?: string) {
+  if (typeof dataJson !== "string" || dataJson.trim().length === 0) {
+    return false;
+  }
+  try {
+    const parsed = JSON.parse(dataJson) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return false;
+    }
+    const value = (parsed as Record<string, unknown>).dismissed;
+    return value === true;
+  } catch {
+    return false;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -110,14 +125,16 @@ export async function listNotifications(userId: string): Promise<NotificationIte
   if (mode === "pocketbase") {
     try {
       const rows = await listInboxItems(userId);
-      return rows.map((row) => ({
+      return rows
+        .filter((row) => !isInboxRowDismissed(row.data_json))
+        .map((row) => ({
         id: row.id,
         type: row.event_type as NotificationEventType,
         title: row.title,
         body: row.body,
         createdAt: row.created || new Date().toISOString(),
         read: row.read
-      }));
+        }));
     } catch (error) {
       warnPbFallback("listNotifications", error);
     }
@@ -197,7 +214,8 @@ export async function unreadNotificationCount(userId: string): Promise<number> {
 
   if (mode === "pocketbase") {
     try {
-      return await countUnreadInbox(userId);
+      const rows = await listInboxItems(userId);
+      return rows.filter((row) => !row.read && !isInboxRowDismissed(row.data_json)).length;
     } catch (error) {
       warnPbFallback("unreadCount", error);
     }

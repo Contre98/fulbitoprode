@@ -30,7 +30,7 @@ export function MatchSideGradient({ homeColor, awayColor, intensity = 0.2 }: Mat
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <Svg width="100%" height="100%" preserveAspectRatio="none">
+      <Svg style={StyleSheet.absoluteFill} viewBox="0 0 100 100" preserveAspectRatio="none">
         <Defs>
           <LinearGradient id={leftId} x1="0%" y1="0%" x2="100%" y2="55%">
             <Stop offset="0%" stopColor={homeColor} stopOpacity={alpha} />
@@ -41,8 +41,8 @@ export function MatchSideGradient({ homeColor, awayColor, intensity = 0.2 }: Mat
             <Stop offset="45%" stopColor={awayColor} stopOpacity={0} />
           </LinearGradient>
         </Defs>
-        <Rect x="0" y="0" width="50%" height="100%" fill={`url(#${leftId})`} />
-        <Rect x="50%" y="0" width="50%" height="100%" fill={`url(#${rightId})`} />
+        <Rect x="0" y="0" width="50" height="100" fill={`url(#${leftId})`} />
+        <Rect x="50" y="0" width="50" height="100" fill={`url(#${rightId})`} />
       </Svg>
     </View>
   );
@@ -61,7 +61,7 @@ export function CardSideAccentGradient({
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <Svg width="100%" height="100%" preserveAspectRatio="none">
+      <Svg style={StyleSheet.absoluteFill} viewBox="0 0 100 100" preserveAspectRatio="none">
         <Defs>
           {side === "left" ? (
             <LinearGradient id={sideId} x1="0%" y1="0%" x2="100%" y2="35%">
@@ -76,10 +76,10 @@ export function CardSideAccentGradient({
           )}
         </Defs>
         <Rect
-          x={side === "left" ? "0%" : `${100 - clampedWidth}%`}
+          x={side === "left" ? "0" : `${100 - clampedWidth}`}
           y="0"
-          width={`${clampedWidth}%`}
-          height="100%"
+          width={`${clampedWidth}`}
+          height="100"
           fill={`url(#${sideId})`}
         />
       </Svg>

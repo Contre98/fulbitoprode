@@ -23,6 +23,7 @@ import * as adminNotificationsSendRoute from "./routes/admin/notifications/manua
 import * as adminNotificationsReplayRoute from "./routes/admin/notifications/manual/replay/route";
 import * as adminNotificationsTriggerRunRoute from "./routes/admin/notifications/triggers/[event]/run/route";
 import * as adminCronPredictionReminderRoute from "./routes/admin/cron/prediction-reminder/route";
+import * as adminCronMatchReminderRoute from "./routes/admin/cron/match-reminder/route";
 import * as adminNotificationsJobRoute from "./routes/admin/notifications/jobs/[jobId]/route";
 import * as healthPocketbaseRoute from "./routes/health/pocketbase/route";
 import * as healthProviderRoute from "./routes/health/provider/route";
@@ -173,6 +174,7 @@ registerRoute("/api/admin/notifications/manual/send", adminNotificationsSendRout
 registerRoute("/api/admin/notifications/manual/replay", adminNotificationsReplayRoute);
 registerRoute("/api/admin/notifications/triggers/:event/run", adminNotificationsTriggerRunRoute);
 registerRoute("/api/admin/cron/prediction-reminder", adminCronPredictionReminderRoute);
+registerRoute("/api/admin/cron/match-reminder", adminCronMatchReminderRoute);
 registerRoute("/api/admin/notifications/jobs/:jobId", adminNotificationsJobRoute);
 
 export { app };
