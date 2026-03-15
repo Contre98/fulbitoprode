@@ -215,6 +215,7 @@ export interface NotificationsRepository {
   updatePreferences(input: Partial<NotificationPreferences>): Promise<NotificationPreferences>;
   listInbox(): Promise<{ items: NotificationItem[]; unreadCount: number; weeklyWinner: WeeklyWinnerSummary | null }>;
   markAllRead(): Promise<{ ok: true }>;
+  dismissNotification(input: { notificationId: string }): Promise<{ ok: true }>;
   registerDeviceToken(input: { token: string; platform: string }): Promise<{ ok: true }>;
 }
 

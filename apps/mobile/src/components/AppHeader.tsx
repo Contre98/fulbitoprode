@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { StyleSheet, View } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "@fulbito/design-tokens";
 import { HeaderGroupSelector } from "@/components/HeaderGroupSelector";
@@ -8,14 +8,21 @@ import { HeaderActionIcons } from "@/components/HeaderActionIcons";
 import { useGroupSelection } from "@/state/GroupContext";
 import { useAuth } from "@/state/AuthContext";
 import { useGroupSelectorOverlay } from "@/state/GroupSelectorOverlayContext";
-import { groupsRepository } from "@/repositories";
+import { groupsRepository, notificationsRepository } from "@/repositories";
+import { useNotificationsOverlay } from "@/state/NotificationsOverlayContext";
 
 export function AppHeader() {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation<any>();
   const { memberships, selectedGroupId, setSelectedGroupId } = useGroupSelection();
   const { refresh } = useAuth();
   const overlay = useGroupSelectorOverlay();
+  const notificationsOverlay = useNotificationsOverlay();
+  const notificationsQuery = useQuery({
+    queryKey: ["notifications-inbox"],
+    queryFn: () => notificationsRepository.listInbox(),
+    staleTime: 30_000
+  });
+  const unreadCount = notificationsQuery.data?.unreadCount ?? 0;
 
   const handleOpenChange = useCallback((isOpen: boolean) => {
     if (isOpen) overlay.show();
@@ -58,7 +65,8 @@ export function AppHeader() {
         forceClose={!overlay.visible}
         actionIcons={
           <HeaderActionIcons
-            onPressNotifications={() => navigation.navigate("Notificaciones")}
+            notificationCount={unreadCount}
+            onPressNotifications={notificationsOverlay.toggle}
           />
         }
       />

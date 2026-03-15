@@ -747,6 +747,12 @@ export const httpNotificationsRepository: NotificationsRepository = {
       method: "POST"
     });
   },
+  async dismissNotification(input) {
+    return requestJson<{ ok: true }>(
+      `/api/notifications/inbox/${encodeURIComponent(input.notificationId)}`,
+      { method: "DELETE" }
+    );
+  },
   async registerDeviceToken(input) {
     return requestJson<{ ok: true }>("/api/notifications/device-token", {
       method: "POST",

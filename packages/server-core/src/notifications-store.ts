@@ -7,6 +7,7 @@ import {
   countUnreadInbox,
   createInboxItem,
   markAllInboxRead,
+  dismissInboxItem,
   isNotificationsPersistenceAvailable
 } from "./notifications-repo";
 
@@ -205,6 +206,26 @@ export async function unreadNotificationCount(userId: string): Promise<number> {
   return (inboxByUserId.get(userId) || []).filter((item) => !item.read).length;
 }
 
+export async function dismissNotification(userId: string, notificationId: string): Promise<boolean> {
+  const mode = await resolvePersistenceMode();
+
+  if (mode === "pocketbase") {
+    try {
+      return await dismissInboxItem(userId, notificationId);
+    } catch (error) {
+      warnPbFallback("dismissNotification", error);
+    }
+  }
+
+  const rows = inboxByUserId.get(userId) || [];
+  const next = rows.filter((item) => item.id !== notificationId);
+  if (next.length === rows.length) {
+    return false;
+  }
+  inboxByUserId.set(userId, next);
+  return true;
+}
+
 // ---------------------------------------------------------------------------
 // Device tokens
 // ---------------------------------------------------------------------------
@@ -244,4 +265,3 @@ export async function registerDeviceToken(
 // ---------------------------------------------------------------------------
 // Seed (convenience for dev/demo)
 // ---------------------------------------------------------------------------
-

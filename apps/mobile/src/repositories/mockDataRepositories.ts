@@ -610,6 +610,10 @@ export const mockNotificationsRepository: NotificationsRepository = {
     }));
     return { ok: true } as const;
   },
+  async dismissNotification(input) {
+    mockNotificationInbox = mockNotificationInbox.filter((item) => item.id !== input.notificationId);
+    return { ok: true } as const;
+  },
   async registerDeviceToken() {
     return { ok: true } as const;
   }

@@ -14,7 +14,6 @@ import { PronosticosScreen } from "@/screens/PronosticosScreen";
 import { PosicionesScreen } from "@/screens/PosicionesScreen";
 import { FixtureScreen } from "@/screens/FixtureScreen";
 import { PerfilScreen } from "@/screens/PerfilScreen";
-import { NotificacionesScreen } from "@/screens/NotificacionesScreen";
 import { TerminosCondicionesScreen } from "@/screens/TerminosCondicionesScreen";
 import { ReglasScreen } from "@/screens/ReglasScreen";
 import { SugerenciasScreen } from "@/screens/SugerenciasScreen";
@@ -29,6 +28,8 @@ import { usePendingInvite } from "@/state/PendingInviteContext";
 import { parseInviteTokenFromUrl } from "@/lib/inviteDeepLink";
 import { groupsRepository } from "@/repositories";
 import { AppDialogProvider, useAppDialog } from "@/state/AppDialogContext";
+import { NotificationsOverlayProvider } from "@/state/NotificationsOverlayContext";
+import { NotificationsBubbleOverlay } from "@/components/NotificationsBubbleOverlay";
 
 const RootStack = createNativeStackNavigator();
 const Tabs = createBottomTabNavigator();
@@ -184,7 +185,6 @@ function RootNavigator() {
       {isAuthenticated ? (
         <>
           <RootStack.Screen name="App" component={AppTabs} />
-          <RootStack.Screen name="Notificaciones" component={NotificacionesScreen} />
           <RootStack.Screen name="TerminosCondiciones" component={TerminosCondicionesScreen} />
           <RootStack.Screen name="Reglas" component={ReglasScreen} />
           <RootStack.Screen name="Sugerencias" component={SugerenciasScreen} />
@@ -213,8 +213,7 @@ export function AppNavigation() {
               Fixture: "fixture",
               Perfil: "perfil"
             }
-          },
-          Notificaciones: "notificaciones"
+          }
         }
       }
     }),
@@ -229,11 +228,14 @@ export function AppNavigation() {
           <InviteAutoJoinHandler />
           <GroupProvider>
             <GroupSelectorOverlayProvider>
-              <PeriodProvider>
-                <NavigationContainer ref={navigationRef} linking={linking}>
-                  <RootNavigator />
-                </NavigationContainer>
-              </PeriodProvider>
+              <NotificationsOverlayProvider>
+                <PeriodProvider>
+                  <NavigationContainer ref={navigationRef} linking={linking}>
+                    <RootNavigator />
+                  </NavigationContainer>
+                  <NotificationsBubbleOverlay />
+                </PeriodProvider>
+              </NotificationsOverlayProvider>
             </GroupSelectorOverlayProvider>
           </GroupProvider>
         </PendingInviteProvider>

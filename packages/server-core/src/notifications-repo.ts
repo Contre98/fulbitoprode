@@ -331,6 +331,21 @@ export async function markAllInboxRead(userId: string) {
   return result.items.length;
 }
 
+export async function dismissInboxItem(userId: string, notificationId: string): Promise<boolean> {
+  const filter = `id=${q(notificationId)} && user_id=${q(userId)}`;
+  const result = await pbRequest<PbListResult<PbInboxRow>>(
+    `/api/collections/notification_inbox/records?filter=${encodeURIComponent(filter)}&perPage=1`
+  );
+
+  const row = result.items[0];
+  if (!row) {
+    return false;
+  }
+
+  await pbRequest<null>(`/api/collections/notification_inbox/records/${row.id}`, { method: "DELETE" });
+  return true;
+}
+
 // ---------------------------------------------------------------------------
 // Notification events (outbox)
 // ---------------------------------------------------------------------------

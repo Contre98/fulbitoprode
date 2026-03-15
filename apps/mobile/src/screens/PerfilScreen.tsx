@@ -7,6 +7,7 @@ import { translateBackendError } from "@fulbito/domain";
 import { authRepository, profileRepository } from "@/repositories";
 import { useAuth } from "@/state/AuthContext";
 import { useAppDialog } from "@/state/AppDialogContext";
+import { useNotificationsOverlay } from "@/state/NotificationsOverlayContext";
 import Constants from "expo-constants";
 import { useEffect, useState } from "react";
 
@@ -251,6 +252,7 @@ function toggleSection(current: ExpandedSection, target: ExpandedSection): Expan
 export function PerfilScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
+  const notificationsOverlay = useNotificationsOverlay();
   const { session, logout, refresh } = useAuth();
   const dialog = useAppDialog();
   const [expanded, setExpanded] = useState<ExpandedSection>(null);
@@ -440,7 +442,7 @@ export function PerfilScreen() {
         {/* Preferencias */}
         <SectionHeader title="Preferencias" />
         <View style={styles.card}>
-          <SettingsRow icon="notifications-outline" label="Notificaciones" onPress={() => navigation.navigate("Notificaciones")} />
+          <SettingsRow icon="notifications-outline" label="Notificaciones" onPress={notificationsOverlay.toggle} />
         </View>
 
         {/* Sobre la app */}

@@ -509,6 +509,22 @@ export const notificationsRepository: NotificationsRepository = {
       return mockNotificationsRepository.markAllRead();
     }
   },
+  async dismissNotification(input) {
+    if (!canUseHttpSession()) {
+      if (!isMockFallbackEnabled()) {
+        return { ok: true };
+      }
+      return mockNotificationsRepository.dismissNotification(input);
+    }
+    try {
+      const result = await httpNotificationsRepository.dismissNotification(input);
+      clearFallbackFailure();
+      return result;
+    } catch (error) {
+      maybeFallback("notifications.dismissNotification", error);
+      return mockNotificationsRepository.dismissNotification(input);
+    }
+  },
   async registerDeviceToken(input) {
     if (!canUseHttpSession()) {
       if (!isMockFallbackEnabled()) {
