@@ -35,6 +35,8 @@ export interface AuthRepository {
   loginWithGoogleIdToken(idToken: string): Promise<AuthSession>;
   registerWithPassword(input: { email: string; password: string; name: string }): Promise<AuthSession>;
   requestPasswordReset(email: string): Promise<{ ok: true; message: string }>;
+  changePassword(input: { password: string; oldPassword?: string }): Promise<{ ok: true }>;
+  deleteAccount(): Promise<{ ok: true }>;
   logout(): Promise<void>;
 }
 

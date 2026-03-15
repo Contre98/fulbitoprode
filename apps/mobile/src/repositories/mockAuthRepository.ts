@@ -45,6 +45,13 @@ export const mockAuthRepository: AuthRepository = {
       message: "If an account exists for this email, we sent password reset instructions."
     } as const;
   },
+  async changePassword() {
+    return { ok: true } as const;
+  },
+  async deleteAccount() {
+    inMemorySession = null;
+    return { ok: true } as const;
+  },
   async logout() {
     inMemorySession = null;
   }

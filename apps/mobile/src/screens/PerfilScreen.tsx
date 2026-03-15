@@ -1,11 +1,14 @@
-import { Alert, LayoutAnimation, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, UIManager, View } from "react-native";
+import { LayoutAnimation, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, UIManager, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "@fulbito/design-tokens";
+import { translateBackendError } from "@fulbito/domain";
+import { authRepository, profileRepository } from "@/repositories";
 import { useAuth } from "@/state/AuthContext";
+import { useAppDialog } from "@/state/AppDialogContext";
 import Constants from "expo-constants";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -71,23 +74,52 @@ interface InlineEditFieldProps {
   value: string;
   placeholder: string;
   secureTextEntry?: boolean;
+  autoCapitalize?: "none" | "sentences" | "words" | "characters";
+  keyboardType?: "default" | "email-address";
   confirmLabel?: string;
-  onSave: (value: string, confirm?: string) => void;
+  onSave: (value: string, confirm?: string) => Promise<boolean | void> | boolean | void;
   onClose: () => void;
 }
 
-function InlineEditField({ label, value, placeholder, secureTextEntry, confirmLabel, onSave, onClose }: InlineEditFieldProps) {
+function InlineEditField({
+  label,
+  value,
+  placeholder,
+  secureTextEntry,
+  autoCapitalize,
+  keyboardType,
+  confirmLabel,
+  onSave,
+  onClose
+}: InlineEditFieldProps) {
   const [draft, setDraft] = useState(value);
   const [confirm, setConfirm] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const dialog = useAppDialog();
 
-  function handleSave() {
-    if (!draft.trim()) return;
-    if (confirmLabel && draft !== confirm) {
-      Alert.alert("Error", "Las contraseñas no coinciden.");
+  useEffect(() => {
+    setDraft(value);
+  }, [value]);
+
+  async function handleSave() {
+    const nextValue = secureTextEntry ? draft : draft.trim();
+    const nextConfirm = secureTextEntry ? confirm : confirm.trim();
+    if (!nextValue.trim()) return;
+    if (confirmLabel && nextValue !== nextConfirm) {
+      dialog.alert("Error", "Las contraseñas no coinciden.");
       return;
     }
-    onSave(draft.trim(), confirm);
-    onClose();
+    setSubmitting(true);
+    try {
+      const shouldClose = await onSave(nextValue, nextConfirm);
+      if (shouldClose !== false) {
+        onClose();
+      }
+    } catch (error) {
+      dialog.alert("Error", translateBackendError(error, "No se pudieron guardar los cambios."));
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -100,9 +132,11 @@ function InlineEditField({ label, value, placeholder, secureTextEntry, confirmLa
         placeholder={placeholder}
         placeholderTextColor={colors.textSoft}
         secureTextEntry={secureTextEntry}
+        editable={!submitting}
+        keyboardType={keyboardType}
         autoFocus
         autoCorrect={false}
-        autoCapitalize={secureTextEntry ? "none" : "words"}
+        autoCapitalize={autoCapitalize ?? (secureTextEntry ? "none" : "words")}
       />
 
       {confirmLabel ? (
@@ -115,6 +149,7 @@ function InlineEditField({ label, value, placeholder, secureTextEntry, confirmLa
             placeholder="Repetir contraseña"
             placeholderTextColor={colors.textSoft}
             secureTextEntry
+            editable={!submitting}
             autoCorrect={false}
             autoCapitalize="none"
           />
@@ -122,14 +157,15 @@ function InlineEditField({ label, value, placeholder, secureTextEntry, confirmLa
       ) : null}
 
       <View style={styles.inlineActions}>
-        <Pressable onPress={onClose} style={styles.inlineCancelBtn}>
+        <Pressable disabled={submitting} onPress={onClose} style={styles.inlineCancelBtn}>
           <Text allowFontScaling={false} style={styles.inlineCancelText}>Cancelar</Text>
         </Pressable>
         <Pressable
           onPress={handleSave}
-          style={[styles.inlineSaveBtn, !draft.trim() && styles.inlineBtnDisabled]}
+          disabled={submitting || !nextValueCanBeSaved(draft, secureTextEntry)}
+          style={[styles.inlineSaveBtn, (submitting || !nextValueCanBeSaved(draft, secureTextEntry)) && styles.inlineBtnDisabled]}
         >
-          <Text allowFontScaling={false} style={styles.inlineSaveText}>Guardar</Text>
+          <Text allowFontScaling={false} style={styles.inlineSaveText}>{submitting ? "Guardando..." : "Guardar"}</Text>
         </Pressable>
       </View>
     </View>
@@ -138,13 +174,32 @@ function InlineEditField({ label, value, placeholder, secureTextEntry, confirmLa
 
 // ─── InlineDeleteField ───────────────────────────────────────────────────────
 
-function InlineDeleteField({ onConfirm, onClose }: { onConfirm: () => void; onClose: () => void }) {
-  const [text, setText] = useState("");
-  const confirmed = text.toLowerCase() === "eliminar";
+function nextValueCanBeSaved(value: string, secureTextEntry?: boolean) {
+  if (secureTextEntry) {
+    return value.trim().length > 0;
+  }
+  return value.trim().length > 0;
+}
 
-  function handleConfirm() {
+function InlineDeleteField({ onConfirm, onClose }: { onConfirm: () => Promise<boolean | void> | boolean | void; onClose: () => void }) {
+  const [text, setText] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const dialog = useAppDialog();
+  const confirmed = text.trim().toLowerCase() === "eliminar";
+
+  async function handleConfirm() {
     if (!confirmed) return;
-    onConfirm();
+    setSubmitting(true);
+    try {
+      const shouldClose = await onConfirm();
+      if (shouldClose !== false) {
+        onClose();
+      }
+    } catch (error) {
+      dialog.alert("Error", translateBackendError(error, "No se pudo eliminar la cuenta."));
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -162,20 +217,22 @@ function InlineDeleteField({ onConfirm, onClose }: { onConfirm: () => void; onCl
         onChangeText={setText}
         placeholder="eliminar"
         placeholderTextColor={colors.textSoft}
+        editable={!submitting}
         autoFocus
         autoCorrect={false}
         autoCapitalize="none"
       />
 
       <View style={styles.inlineActions}>
-        <Pressable onPress={onClose} style={styles.inlineCancelBtn}>
+        <Pressable disabled={submitting} onPress={onClose} style={styles.inlineCancelBtn}>
           <Text allowFontScaling={false} style={styles.inlineCancelText}>Cancelar</Text>
         </Pressable>
         <Pressable
           onPress={handleConfirm}
-          style={[styles.inlineDeleteBtn, !confirmed && styles.inlineBtnDisabled]}
+          disabled={submitting || !confirmed}
+          style={[styles.inlineDeleteBtn, (submitting || !confirmed) && styles.inlineBtnDisabled]}
         >
-          <Text allowFontScaling={false} style={styles.inlineDeleteText}>Eliminar</Text>
+          <Text allowFontScaling={false} style={styles.inlineDeleteText}>{submitting ? "Eliminando..." : "Eliminar"}</Text>
         </Pressable>
       </View>
     </View>
@@ -194,8 +251,16 @@ function toggleSection(current: ExpandedSection, target: ExpandedSection): Expan
 export function PerfilScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { session, logout } = useAuth();
+  const { session, logout, refresh } = useAuth();
+  const dialog = useAppDialog();
   const [expanded, setExpanded] = useState<ExpandedSection>(null);
+  const [displayName, setDisplayName] = useState(session?.user?.name || "Jugador");
+  const [displayEmail, setDisplayEmail] = useState(session?.user?.email || "");
+
+  useEffect(() => {
+    setDisplayName(session?.user?.name || "Jugador");
+    setDisplayEmail(session?.user?.email || "");
+  }, [session?.user?.name, session?.user?.email]);
 
   function handleToggle(section: ExpandedSection) {
     setExpanded(toggleSection(expanded, section));
@@ -207,7 +272,7 @@ export function PerfilScreen() {
   }
 
   function handleLogout() {
-    Alert.alert("Cerrar sesión", "¿Seguro que querés cerrar sesión?", [
+    dialog.alert("Cerrar sesión", "¿Seguro que querés cerrar sesión?", [
       { text: "Cancelar", style: "cancel" },
       { text: "Cerrar sesión", style: "destructive", onPress: () => void logout() }
     ]);
@@ -222,10 +287,10 @@ export function PerfilScreen() {
         </View>
         <View style={styles.headerTextWrap}>
           <Text allowFontScaling={false} style={styles.headerName}>
-            {session?.user?.name || "Jugador"}
+            {displayName}
           </Text>
           <Text allowFontScaling={false} style={styles.headerEmail}>
-            {session?.user?.email || ""}
+            {displayEmail}
           </Text>
         </View>
       </View>
@@ -241,17 +306,31 @@ export function PerfilScreen() {
           <SettingsRow
             icon="person-outline"
             label="Nombre"
-            rightText={expanded !== "nombre" ? (session?.user?.name || "—") : undefined}
+            rightText={expanded !== "nombre" ? (displayName || "—") : undefined}
             onPress={() => handleToggle("nombre")}
             expanded={expanded === "nombre"}
           />
           {expanded === "nombre" && (
             <InlineEditField
               label="Nombre"
-              value={session?.user?.name || ""}
+              value={displayName}
               placeholder="Tu nombre"
               onClose={handleClose}
-              onSave={(_val) => { /* TODO: call API to update name */ }}
+              onSave={async (value) => {
+                const nextName = value.trim();
+                if (!nextName) {
+                  dialog.alert("Error", "Ingresá un nombre válido.");
+                  return false;
+                }
+                if (nextName === (displayName || "").trim()) {
+                  return true;
+                }
+                const updatedUser = await profileRepository.updateProfile({ name: nextName });
+                setDisplayName(updatedUser.name || nextName);
+                void refresh().catch(() => undefined);
+                dialog.alert("Listo", "Nombre actualizado.");
+                return true;
+              }}
             />
           )}
 
@@ -260,17 +339,33 @@ export function PerfilScreen() {
           <SettingsRow
             icon="mail-outline"
             label="Email"
-            rightText={expanded !== "email" ? (session?.user?.email || "—") : undefined}
+            rightText={expanded !== "email" ? (displayEmail || "—") : undefined}
             onPress={() => handleToggle("email")}
             expanded={expanded === "email"}
           />
           {expanded === "email" && (
             <InlineEditField
               label="Email"
-              value={session?.user?.email || ""}
+              value={displayEmail}
               placeholder="tu@email.com"
+              autoCapitalize="none"
+              keyboardType="email-address"
               onClose={handleClose}
-              onSave={(_val) => { /* TODO: call API to update email */ }}
+              onSave={async (value) => {
+                const nextEmail = value.trim().toLowerCase();
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
+                  dialog.alert("Error", "Ingresá un email válido.");
+                  return false;
+                }
+                if (nextEmail === (displayEmail || "").trim().toLowerCase()) {
+                  return true;
+                }
+                const updatedUser = await profileRepository.updateProfile({ email: nextEmail });
+                setDisplayEmail(updatedUser.email || nextEmail);
+                void refresh().catch(() => undefined);
+                dialog.alert("Listo", "Email actualizado.");
+                return true;
+              }}
             />
           )}
 
@@ -290,7 +385,15 @@ export function PerfilScreen() {
               secureTextEntry
               confirmLabel="Confirmar contraseña"
               onClose={handleClose}
-              onSave={(_val, _confirm) => { /* TODO: call API to update password */ }}
+              onSave={async (value) => {
+                if (value.length < 8) {
+                  dialog.alert("Error", "La contraseña debe tener al menos 8 caracteres.");
+                  return false;
+                }
+                await authRepository.changePassword({ password: value });
+                dialog.alert("Listo", "Contraseña actualizada.");
+                return true;
+              }}
             />
           )}
 
@@ -306,7 +409,30 @@ export function PerfilScreen() {
           {expanded === "delete" && (
             <InlineDeleteField
               onClose={handleClose}
-              onConfirm={() => { /* TODO: call API to delete account, then logout */ }}
+              onConfirm={async () => {
+                let confirmed = false;
+                await new Promise<void>((resolve) => {
+                  dialog.alert("Eliminar cuenta", "¿Seguro que querés eliminar tu cuenta? Esta acción es irreversible.", [
+                    { text: "Cancelar", style: "cancel", onPress: () => resolve() },
+                    {
+                      text: "Eliminar",
+                      style: "destructive",
+                      onPress: () => {
+                        confirmed = true;
+                        resolve();
+                      }
+                    }
+                  ]);
+                });
+
+                if (!confirmed) {
+                  return false;
+                }
+
+                await authRepository.deleteAccount();
+                await logout();
+                return true;
+              }}
             />
           )}
         </View>

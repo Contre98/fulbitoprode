@@ -1,11 +1,13 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, LayoutAnimation, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, UIManager, View } from "react-native";
+import { ActivityIndicator, LayoutAnimation, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, UIManager, View } from "react-native";
 import { NavigationContext } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import type { Membership, MembershipRole } from "@fulbito/domain";
-import type { JoinRequestRecord } from "@fulbito/api-contracts";
+import type { GroupMemberRecord, JoinRequestRecord } from "@fulbito/api-contracts";
 import { colors, spacing } from "@fulbito/design-tokens";
 import { groupsRepository } from "@/repositories";
+import { useAppDialog } from "@/state/AppDialogContext";
+import { useAuth } from "@/state/AuthContext";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -46,7 +48,9 @@ function animate() {
 }
 
 export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGroup, onRenameGroup, onCheckLeave, onLeaveGroup, onDeleteGroup, onOpenChange, forceClose, actionIcons }: HeaderGroupSelectorProps) {
+  const { session } = useAuth();
   const [saving, setSaving] = useState(false);
+  const dialog = useAppDialog();
   const navigation = useContext(NavigationContext) as { navigate?: (route: string) => void } | null;
   const panelRef = useRef<View | null>(null);
   const [open, setOpen] = useState(false);
@@ -58,6 +62,13 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
   const [joinRequests, setJoinRequests] = useState<JoinRequestRecord[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(false);
   const [respondingUserId, setRespondingUserId] = useState<string | null>(null);
+  const [membersGroupId, setMembersGroupId] = useState<string | null>(null);
+  const [members, setMembers] = useState<GroupMemberRecord[]>([]);
+  const [loadingMembers, setLoadingMembers] = useState(false);
+  const [membersCanManage, setMembersCanManage] = useState(false);
+  const [membersViewerRole, setMembersViewerRole] = useState<MembershipRole>("member");
+  const [updatingMemberUserId, setUpdatingMemberUserId] = useState<string | null>(null);
+  const currentUserId = session?.user?.id ?? null;
 
   const activeMembership = useMemo(
     () => memberships.find((m) => m.groupId === selectedGroupId) || memberships[0] || null,
@@ -77,7 +88,8 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
   const triggerLabel = activeMembership?.groupName || "Sin grupo";
   const showEditName = editingGroupId !== null;
   const showJoinRequests = joinRequestsGroupId !== null;
-  const showSubPanel = showEditName || showJoinRequests;
+  const showMembers = membersGroupId !== null;
+  const showSubPanel = showEditName || showJoinRequests || showMembers;
 
   function toggleOpen() {
     if (memberships.length === 0) return;
@@ -100,6 +112,11 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
     setEditingName("");
     setJoinRequestsGroupId(null);
     setJoinRequests([]);
+    setMembersGroupId(null);
+    setMembers([]);
+    setMembersCanManage(false);
+    setMembersViewerRole("member");
+    setUpdatingMemberUserId(null);
     onOpenChange?.(false);
   }
 
@@ -154,7 +171,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
       }
 
       if (!inviteToken) {
-        Alert.alert("Error", "No hay un link de invitación activo. Pedile a un admin que genere uno nuevo.");
+        dialog.alert("Error", "No hay un link de invitación activo. Pedile a un admin que genere uno nuevo.");
         return;
       }
 
@@ -164,7 +181,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
         message: `Unite a mi grupo "${actionsMembership.groupName}" en Fulbito Prode:\n${link}`
       });
     } catch (error) {
-      Alert.alert("Error", error instanceof Error ? error.message : "No se pudo generar el link de invitación.");
+      dialog.alert("Error", error instanceof Error ? error.message : "No se pudo generar el link de invitación.");
     }
   }
 
@@ -189,7 +206,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
         setEditingGroupId(null);
         setEditingName("");
       } catch (error) {
-        Alert.alert("Error", error instanceof Error ? error.message : "No se pudo renombrar el grupo.");
+        dialog.alert("Error", error instanceof Error ? error.message : "No se pudo renombrar el grupo.");
       } finally {
         setSaving(false);
       }
@@ -214,7 +231,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
         const result = await groupsRepository.listJoinRequests({ groupId });
         setJoinRequests(result.requests);
       } catch {
-        Alert.alert("Error", "No se pudieron cargar las solicitudes.");
+        dialog.alert("Error", "No se pudieron cargar las solicitudes.");
       } finally {
         setLoadingRequests(false);
       }
@@ -227,13 +244,117 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
     setJoinRequests([]);
   }
 
+  function handleViewMembers() {
+    if (!actionsMembership) return;
+    const groupId = actionsMembership.groupId;
+    dismissPopover();
+    animate();
+    setMembersGroupId(groupId);
+    setLoadingMembers(true);
+    setUpdatingMemberUserId(null);
+    void (async () => {
+      try {
+        const result = await groupsRepository.listMembers({ groupId });
+        setMembers(result.members);
+        setMembersCanManage(result.canManage);
+        setMembersViewerRole(result.viewerRole);
+      } catch (error) {
+        dialog.alert("Error", error instanceof Error ? error.message : "No se pudieron cargar los miembros.");
+      } finally {
+        setLoadingMembers(false);
+      }
+    })();
+  }
+
+  function cancelMembersView() {
+    animate();
+    setMembersGroupId(null);
+    setMembers([]);
+    setMembersCanManage(false);
+    setMembersViewerRole("member");
+    setUpdatingMemberUserId(null);
+  }
+
+  function canManageMember(member: GroupMemberRecord) {
+    if (!membersCanManage) return false;
+    if (member.role === "owner") return false;
+    if (currentUserId && member.userId === currentUserId) return false;
+    if (membersViewerRole !== "owner" && member.role === "admin") return false;
+    return true;
+  }
+
+  function handleToggleMemberAdmin(member: GroupMemberRecord) {
+    if (!membersGroupId || updatingMemberUserId || !canManageMember(member)) return;
+    const nextRole: "admin" | "member" = member.role === "admin" ? "member" : "admin";
+    const actionLabel = nextRole === "admin" ? "dar permisos de admin a" : "quitar permisos de admin a";
+
+    dialog.alert(
+      nextRole === "admin" ? "Dar permisos de admin" : "Quitar permisos de admin",
+      `¿Querés ${actionLabel} ${member.name}?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Confirmar",
+          onPress: () => {
+            setUpdatingMemberUserId(member.userId);
+            void (async () => {
+              try {
+                await groupsRepository.updateMemberRole({
+                  groupId: membersGroupId,
+                  userId: member.userId,
+                  role: nextRole
+                });
+                setMembers((previous) => previous.map((row) => (row.userId === member.userId ? { ...row, role: nextRole } : row)));
+              } catch (error) {
+                dialog.alert("Error", error instanceof Error ? error.message : "No se pudo actualizar el rol.");
+              } finally {
+                setUpdatingMemberUserId(null);
+              }
+            })();
+          }
+        }
+      ]
+    );
+  }
+
+  function handleKickMember(member: GroupMemberRecord) {
+    if (!membersGroupId || updatingMemberUserId || !canManageMember(member)) return;
+    dialog.alert(
+      "Quitar del grupo",
+      `¿Querés quitar a ${member.name} del grupo?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Quitar",
+          style: "destructive",
+          onPress: () => {
+            setUpdatingMemberUserId(member.userId);
+            void (async () => {
+              try {
+                await groupsRepository.removeMember({
+                  groupId: membersGroupId,
+                  userId: member.userId
+                });
+                setMembers((previous) => previous.filter((row) => row.userId !== member.userId));
+              } catch (error) {
+                dialog.alert("Error", error instanceof Error ? error.message : "No se pudo quitar al miembro.");
+              } finally {
+                setUpdatingMemberUserId(null);
+              }
+            })();
+          }
+        }
+      ]
+    );
+  }
+
   function handleRespondToRequest(targetUserId: string, action: "approve" | "reject") {
     if (!joinRequestsGroupId || respondingUserId) return;
     const label = action === "approve" ? "aprobar" : "rechazar";
     const request = joinRequests.find((r) => r.userId === targetUserId);
     const userName = request?.userName || "este usuario";
 
-    Alert.alert(
+    dialog.alert(
       action === "approve" ? "Aprobar solicitud" : "Rechazar solicitud",
       `¿Querés ${label} la solicitud de ${userName}?`,
       [
@@ -251,14 +372,14 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                   action
                 });
                 setJoinRequests((prev) => prev.filter((r) => r.userId !== targetUserId));
-                Alert.alert(
+                dialog.alert(
                   "Listo",
                   action === "approve"
                     ? `${userName} fue aceptado en el grupo.`
                     : `La solicitud de ${userName} fue rechazada.`
                 );
               } catch (error) {
-                Alert.alert("Error", error instanceof Error ? error.message : "No se pudo procesar la solicitud.");
+                dialog.alert("Error", error instanceof Error ? error.message : "No se pudo procesar la solicitud.");
               } finally {
                 setRespondingUserId(null);
               }
@@ -278,7 +399,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
 
     if (!memberIsAdmin) {
       // Regular members can leave freely
-      Alert.alert(
+      dialog.alert(
         "Salir del grupo",
         `¿Seguro que querés salir de "${name}"?`,
         [
@@ -292,7 +413,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                 try {
                   await onLeaveGroup?.(groupId);
                 } catch (error) {
-                  Alert.alert("Error", error instanceof Error ? error.message : "No se pudo salir del grupo.");
+                  dialog.alert("Error", error instanceof Error ? error.message : "No se pudo salir del grupo.");
                 }
               })();
             }
@@ -309,7 +430,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
         if (!info) return;
 
         if (info.isSoleMember) {
-          Alert.alert(
+          dialog.alert(
             "Sos el único miembro",
             `No podés salir de "${name}" porque sos el único miembro. ¿Querés eliminar el grupo?`,
             [
@@ -323,7 +444,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                     try {
                       await onDeleteGroup?.(groupId);
                     } catch (error) {
-                      Alert.alert("Error", error instanceof Error ? error.message : "No se pudo eliminar el grupo.");
+                      dialog.alert("Error", error instanceof Error ? error.message : "No se pudo eliminar el grupo.");
                     }
                   })();
                 }
@@ -337,7 +458,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
           ? `Sos el único admin de "${name}". Si salís, se asignará un admin nuevo automáticamente. ¿Querés salir?`
           : `¿Seguro que querés salir de "${name}"?`;
 
-        Alert.alert(
+        dialog.alert(
           "Salir del grupo",
           message,
           [
@@ -351,7 +472,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                   try {
                     await onLeaveGroup?.(groupId);
                   } catch (error) {
-                    Alert.alert("Error", error instanceof Error ? error.message : "No se pudo salir del grupo.");
+                    dialog.alert("Error", error instanceof Error ? error.message : "No se pudo salir del grupo.");
                   }
                 })();
               }
@@ -359,7 +480,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
           ]
         );
       } catch (error) {
-        Alert.alert("Error", error instanceof Error ? error.message : "No se pudo verificar el estado del grupo.");
+        dialog.alert("Error", error instanceof Error ? error.message : "No se pudo verificar el estado del grupo.");
       }
     })();
   }
@@ -369,7 +490,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
     const name = actionsMembership.groupName;
     const groupId = actionsMembership.groupId;
     dismissPopover();
-    Alert.alert(
+    dialog.alert(
       "Eliminar grupo",
       `¿Seguro que querés eliminar "${name}"? Esta acción no se puede deshacer.`,
       [
@@ -383,7 +504,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
               try {
                 await onDeleteGroup?.(groupId);
               } catch (error) {
-                Alert.alert("Error", error instanceof Error ? error.message : "No se pudo eliminar el grupo.");
+                dialog.alert("Error", error instanceof Error ? error.message : "No se pudo eliminar el grupo.");
               }
             })();
           }
@@ -447,13 +568,25 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                 <Ionicons name="close" size={14} color={colors.textMuted} />
               </Pressable>
             </View>
-          ) : (
+          ) : showJoinRequests ? (
             <View style={styles.panelHeader}>
               <Pressable accessibilityRole="button" accessibilityLabel="Volver" onPress={cancelJoinRequests} style={styles.backButton}>
                 <Ionicons name="chevron-back" size={16} color={colors.textSecondary} />
               </Pressable>
               <Text allowFontScaling={false} numberOfLines={1} style={styles.panelTitleFlex}>
                 Solicitudes
+              </Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="Cerrar" onPress={closePanel} hitSlop={6} style={styles.closeButton}>
+                <Ionicons name="close" size={14} color={colors.textMuted} />
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.panelHeader}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Volver" onPress={cancelMembersView} style={styles.backButton}>
+                <Ionicons name="chevron-back" size={16} color={colors.textSecondary} />
+              </Pressable>
+              <Text allowFontScaling={false} numberOfLines={1} style={styles.panelTitleFlex}>
+                Miembros
               </Text>
               <Pressable accessibilityRole="button" accessibilityLabel="Cerrar" onPress={closePanel} hitSlop={6} style={styles.closeButton}>
                 <Ionicons name="close" size={14} color={colors.textMuted} />
@@ -501,6 +634,10 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                     <Pressable onPress={() => void handleShare()} style={styles.popoverRow}>
                       <Ionicons name="share-outline" size={17} color={colors.textSecondary} />
                       <Text allowFontScaling={false} style={styles.popoverLabel}>Compartir link</Text>
+                    </Pressable>
+                    <Pressable onPress={handleViewMembers} style={styles.popoverRow}>
+                      <Ionicons name="people-outline" size={17} color={colors.textSecondary} />
+                      <Text allowFontScaling={false} style={styles.popoverLabel}>Miembros</Text>
                     </Pressable>
 
                     {actionsIsAdmin ? (
@@ -604,6 +741,74 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                       )}
                     </View>
                   ))}
+                </ScrollView>
+              )}
+            </View>
+          ) : null}
+
+          {/* Members view */}
+          {showMembers ? (
+            <View style={styles.joinRequestsWrap}>
+              {loadingMembers ? (
+                <View style={styles.joinRequestsCentered}>
+                  <ActivityIndicator color={colors.primary} />
+                </View>
+              ) : members.length === 0 ? (
+                <View style={styles.joinRequestsCentered}>
+                  <Ionicons name="people-outline" size={32} color={colors.textSoft} />
+                  <Text allowFontScaling={false} style={styles.joinRequestsEmpty}>No hay miembros disponibles</Text>
+                </View>
+              ) : (
+                <ScrollView showsVerticalScrollIndicator={false} style={styles.joinRequestsList} nestedScrollEnabled>
+                  {members.map((member) => {
+                    const loadingMember = updatingMemberUserId === member.userId;
+                    const showManageActions = canManageMember(member);
+                    return (
+                      <View key={member.userId} style={styles.memberRow}>
+                        <View style={styles.memberMainLine}>
+                          <Text allowFontScaling={false} numberOfLines={1} style={styles.memberName}>
+                            {member.name}
+                          </Text>
+                          <View style={styles.memberMetaRow}>
+                            <View style={[styles.memberRoleBadge, member.role === "owner" ? styles.memberRoleBadgeOwner : member.role === "admin" ? styles.memberRoleBadgeAdmin : null]}>
+                              <Text allowFontScaling={false} style={[styles.memberRoleBadgeText, member.role === "owner" ? styles.memberRoleBadgeTextOwner : member.role === "admin" ? styles.memberRoleBadgeTextAdmin : null]}>
+                                {member.role === "owner" ? "Owner" : member.role === "admin" ? "Admin" : "Miembro"}
+                              </Text>
+                            </View>
+                            {currentUserId && member.userId === currentUserId ? (
+                              <Text allowFontScaling={false} style={styles.memberYouLabel}>Vos</Text>
+                            ) : null}
+                          </View>
+                        </View>
+                        {loadingMember ? (
+                          <ActivityIndicator size="small" color={colors.primaryDeep} />
+                        ) : showManageActions ? (
+                          <View style={styles.memberActions}>
+                            <Pressable
+                              onPress={() => handleToggleMemberAdmin(member)}
+                              style={styles.memberActionBtn}
+                            >
+                              <Ionicons
+                                name={member.role === "admin" ? "remove-circle-outline" : "shield-checkmark-outline"}
+                                size={16}
+                                color={colors.textSecondary}
+                              />
+                              <Text allowFontScaling={false} style={styles.memberActionText}>
+                                {member.role === "admin" ? "Quitar admin" : "Dar admin"}
+                              </Text>
+                            </Pressable>
+                            <Pressable
+                              onPress={() => handleKickMember(member)}
+                              style={[styles.memberActionBtn, styles.memberActionBtnDanger]}
+                            >
+                              <Ionicons name="person-remove-outline" size={16} color={colors.dangerAccent} />
+                              <Text allowFontScaling={false} style={styles.memberActionTextDanger}>Quitar</Text>
+                            </Pressable>
+                          </View>
+                        ) : null}
+                      </View>
+                    );
+                  })}
                 </ScrollView>
               )}
             </View>
@@ -1032,5 +1237,89 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceTintWarning,
     alignItems: "center",
     justifyContent: "center"
+  },
+  memberRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 4
+  },
+  memberMainLine: {
+    flex: 1,
+    minHeight: 30,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  memberName: {
+    flex: 1,
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: "700"
+  },
+  memberMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6
+  },
+  memberRoleBadge: {
+    borderRadius: 999,
+    backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: 8,
+    paddingVertical: 3
+  },
+  memberRoleBadgeOwner: {
+    backgroundColor: colors.primarySoftAlt
+  },
+  memberRoleBadgeAdmin: {
+    backgroundColor: colors.surfaceTintBlueSoft
+  },
+  memberRoleBadgeText: {
+    color: colors.textMuted,
+    fontSize: 10,
+    fontWeight: "700"
+  },
+  memberRoleBadgeTextOwner: {
+    color: colors.primaryDeep
+  },
+  memberRoleBadgeTextAdmin: {
+    color: colors.textSlateStrong
+  },
+  memberYouLabel: {
+    color: colors.textSoft,
+    fontSize: 10,
+    fontWeight: "700"
+  },
+  memberActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6
+  },
+  memberActionBtn: {
+    minHeight: 28,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+    backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4
+  },
+  memberActionBtnDanger: {
+    borderColor: colors.borderDangerSoft,
+    backgroundColor: colors.surfaceTintDangerSoft
+  },
+  memberActionText: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "700"
+  },
+  memberActionTextDanger: {
+    color: colors.dangerAccent,
+    fontSize: 11,
+    fontWeight: "700"
   }
 });

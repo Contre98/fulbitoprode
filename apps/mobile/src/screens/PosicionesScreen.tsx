@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@fulbito/design-tokens";
@@ -14,6 +14,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { CreateOrJoinGroupPrompt } from "@/components/CreateOrJoinGroupPrompt";
+import { useAppDialog } from "@/state/AppDialogContext";
 
 type PosicionesMode = "positions" | "stats";
 
@@ -36,6 +37,7 @@ type StatRow = { label: string; value: string; info: string };
 
 export function PosicionesScreen() {
   const queryClient = useQueryClient();
+  const dialog = useAppDialog();
   const { session } = useAuth();
   const currentUserId = session?.user.id;
   const { memberships, selectedGroupId } = useGroupSelection();
@@ -91,8 +93,8 @@ export function PosicionesScreen() {
     await queryClient.resetQueries();
   }, [queryClient]);
   const openStatInfo = useCallback((label: string, info: string) => {
-    Alert.alert(label, info);
-  }, []);
+    dialog.alert(label, info);
+  }, [dialog]);
 
   const userStatRows = useMemo<StatRow[]>(() => {
     if (!leaderboardQuery.data?.stats?.userSection) {

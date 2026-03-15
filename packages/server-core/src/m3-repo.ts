@@ -516,6 +516,46 @@ export async function updateUserProfile(
   return mapUserFromRecord(record);
 }
 
+export async function updateUserPassword(
+  userId: string,
+  input: { password: string; oldPassword?: string },
+  authToken: string
+) {
+  const password = input.password.trim();
+  if (!password) {
+    throw new Error("Password is required");
+  }
+
+  const payload: Record<string, unknown> = {
+    password,
+    passwordConfirm: password
+  };
+
+  const oldPassword = input.oldPassword?.trim();
+  if (oldPassword) {
+    payload.oldPassword = oldPassword;
+  }
+
+  await pbRequest(
+    `/api/collections/users/records/${userId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    },
+    authToken
+  );
+}
+
+export async function deleteUserAccount(userId: string, authToken: string) {
+  await pbRequest(
+    `/api/collections/users/records/${userId}`,
+    {
+      method: "DELETE"
+    },
+    authToken
+  );
+}
+
 export async function listGroupsForUser(userId: string, authToken: string) {
   const filter = encodeURIComponent(`user_id=${q(userId)} && status='active'`);
   const response = await pbRequest<

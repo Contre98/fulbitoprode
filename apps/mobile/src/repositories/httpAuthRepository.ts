@@ -228,6 +228,22 @@ export const httpAuthRepository: AuthRepository = {
     };
   },
 
+  async changePassword(input: { password: string; oldPassword?: string }) {
+    await requestJson<{ ok: boolean }>("/api/auth/me", {
+      method: "POST",
+      body: JSON.stringify(input)
+    });
+    return { ok: true } as const;
+  },
+
+  async deleteAccount() {
+    await requestJson<{ ok: boolean }>("/api/auth/me", {
+      method: "DELETE"
+    });
+    await clearAuthTokens();
+    return { ok: true } as const;
+  },
+
   async logout() {
     const refreshToken = await getRefreshToken();
     try {

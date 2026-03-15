@@ -606,6 +606,15 @@ export function translateBackendErrorMessage(rawMessage: string) {
   if (normalized.includes("email is invalid")) {
     return "Ingresá un email válido.";
   }
+  if (normalized.includes("password is required")) {
+    return "Ingresá una contraseña válida.";
+  }
+  if (normalized.includes("password must be at least 8 characters")) {
+    return "La contraseña debe tener al menos 8 caracteres.";
+  }
+  if (normalized.includes("old password is invalid")) {
+    return "La contraseña actual no es correcta.";
+  }
   if (normalized.includes("favorite team is too long")) {
     return "El equipo favorito no puede superar 120 caracteres.";
   }

@@ -1,15 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
+  Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View
@@ -22,82 +21,89 @@ import { colors, spacing } from "@fulbito/design-tokens";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { groupsRepository } from "@/repositories";
 import { useAuth } from "@/state/AuthContext";
+import { useAppDialog } from "@/state/AppDialogContext";
+import { useGroupSelection } from "@/state/GroupContext";
 import { usePeriod } from "@/state/PeriodContext";
 
 type Tab = "buscar" | "crear";
 const SEARCH_PAGE_SIZE = 5;
 const AUTO_LOAD_THRESHOLD_PX = 96;
+const LEAGUE_FILTER_ID = 128;
+const LEAGUE_LABEL = "LPF: Apertura 2026";
+const CREATE_COMPETITION_LABEL = "LPF: Apertura (2026)";
+
+interface DropdownOption {
+  id: string;
+  label: string;
+}
 
 export function UnirseCrearGrupoScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const [activeTab, setActiveTab] = useState<Tab>("buscar");
+  const searchTabActive = activeTab === "buscar";
 
   return (
     <ScreenFrame
-      title="Unirse/Crear grupo"
+      title="Unirse o crear grupo"
       hideDataModeBadge
       containerStyle={styles.screenContainer}
       contentStyle={styles.screenContent}
       header={
-        <View style={[styles.headerCard, { paddingTop: Math.max(insets.top, 10) + 2 }]}>
-          <Pressable onPress={() => navigation.goBack()} hitSlop={6} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={18} color={colors.iconStrong} />
-          </Pressable>
-          <Text allowFontScaling={false} style={styles.headerTitle}>Unirse/Crear grupo</Text>
+        <View style={[styles.headerShell, { paddingTop: Math.max(insets.top, 10) + 8 }]}>
+          <View style={styles.headerRow}>
+            <Pressable onPress={() => navigation.goBack()} hitSlop={8} style={styles.backButton}>
+              <Ionicons name="chevron-back" size={18} color={colors.iconStrong} />
+            </Pressable>
+            <View style={styles.headerPill}>
+              <Ionicons name="people-outline" size={13} color={colors.primaryDeep} />
+              <Text allowFontScaling={false} style={styles.headerPillText}>Grupos</Text>
+            </View>
+          </View>
+          <Text allowFontScaling={false} style={styles.headerTitle}>Unirse o crear grupo</Text>
+          <Text allowFontScaling={false} style={styles.headerSubtitle}>
+            Elegí un grupo para competir ahora o creá el tuyo en segundos.
+          </Text>
+          <View style={styles.headerAccentBar} />
         </View>
       }
     >
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.flex}
-      >
-        {/* Tab switcher */}
-        <View style={styles.tabRow}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.keyboardContent}>
+        <View style={styles.segmentedControl}>
           <Pressable
             onPress={() => setActiveTab("buscar")}
-            style={[styles.tab, activeTab === "buscar" && styles.tabActive]}
+            style={[styles.segmentedTab, searchTabActive && styles.segmentedTabActive]}
           >
-            <Ionicons
-              name="search"
-              size={16}
-              color={activeTab === "buscar" ? colors.textTitle : colors.textMuted}
-            />
             <Text
               allowFontScaling={false}
-              style={[styles.tabText, activeTab === "buscar" && styles.tabTextActive]}
+              style={[styles.segmentedTabText, searchTabActive && styles.segmentedTabTextActive]}
             >
               Buscar grupo
             </Text>
           </Pressable>
           <Pressable
             onPress={() => setActiveTab("crear")}
-            style={[styles.tab, activeTab === "crear" && styles.tabActive]}
+            style={[styles.segmentedTab, !searchTabActive && styles.segmentedTabActive]}
           >
-            <Ionicons
-              name="add-circle-outline"
-              size={16}
-              color={activeTab === "crear" ? colors.textTitle : colors.textMuted}
-            />
             <Text
               allowFontScaling={false}
-              style={[styles.tabText, activeTab === "crear" && styles.tabTextActive]}
+              style={[styles.segmentedTabText, !searchTabActive && styles.segmentedTabTextActive]}
             >
               Crear grupo
             </Text>
           </Pressable>
         </View>
 
-        {activeTab === "buscar" ? <SearchTab /> : <CreateTab />}
+        {searchTabActive ? <SearchTab /> : <CreateTab />}
       </KeyboardAvoidingView>
     </ScreenFrame>
   );
 }
 
-// ─── Search Tab ──────────────────────────────────────────────────────────────
-
 function SearchTab() {
   const { refresh } = useAuth();
+  const { memberships } = useGroupSelection();
+  const dialog = useAppDialog();
   const [query, setQuery] = useState("");
   const [leagueFilter, setLeagueFilter] = useState<number | null>(null);
   const [results, setResults] = useState<GroupSearchResult[]>([]);
@@ -110,6 +116,8 @@ function SearchTab() {
   const [joining, setJoining] = useState<string | null>(null);
   const loadingMoreRef = useRef(false);
   const canTriggerLoadMoreRef = useRef(true);
+  const resultCountLabel = `${results.length} grupo${results.length === 1 ? "" : "s"}`.toUpperCase();
+  const memberGroupIds = useMemo(() => new Set(memberships.map((membership) => membership.groupId)), [memberships]);
 
   const doSearch = useCallback(async () => {
     setLoading(true);
@@ -128,11 +136,11 @@ function SearchTab() {
       setPage(response.page);
       setHasMore(response.hasMore);
     } catch {
-      Alert.alert("Error", "No se pudieron buscar grupos. Intentá de nuevo.");
+      dialog.alert("Error", "No se pudieron buscar grupos. Intentá de nuevo.");
     } finally {
       setLoading(false);
     }
-  }, [query, leagueFilter]);
+  }, [dialog, leagueFilter, query]);
 
   const loadMore = useCallback(async () => {
     if (loading || loadingMoreRef.current || !hasMore) {
@@ -158,12 +166,12 @@ function SearchTab() {
       setPage(response.page);
       setHasMore(response.hasMore);
     } catch {
-      Alert.alert("Error", "No se pudieron cargar más grupos. Intentá de nuevo.");
+      dialog.alert("Error", "No se pudieron cargar más grupos. Intentá de nuevo.");
     } finally {
       loadingMoreRef.current = false;
       setLoadingMore(false);
     }
-  }, [hasMore, leagueFilter, loading, page, query]);
+  }, [dialog, hasMore, leagueFilter, loading, page, query]);
 
   const handleResultsEndReached = useCallback(() => {
     if (!resultsScrollStarted || !hasMore || loading || loadingMoreRef.current) {
@@ -199,7 +207,7 @@ function SearchTab() {
 
   function handleJoin(group: GroupSearchResult) {
     if (group.visibility === "closed") {
-      Alert.alert(
+      dialog.alert(
         "Grupo cerrado",
         `"${group.name}" es un grupo cerrado. Se enviará una solicitud al admin para unirte.`,
         [
@@ -220,20 +228,18 @@ function SearchTab() {
     try {
       const result = await groupsRepository.joinGroup({ codeOrToken: group.id });
       if (result.status === "pending") {
-        Alert.alert(
+        dialog.alert(
           "Solicitud enviada",
           `Tu solicitud para unirte a "${group.name}" fue enviada. El admin del grupo la revisará.`,
           [{ text: "OK" }]
         );
       } else {
         await refresh();
-        Alert.alert("Listo", `Te uniste a "${group.name}"`, [
-          { text: "OK" }
-        ]);
+        dialog.alert("Listo", `Te uniste a "${group.name}"`, [{ text: "OK" }]);
       }
       await doSearch();
     } catch (error) {
-      Alert.alert("Error", error instanceof Error ? error.message : "No se pudo unir al grupo.");
+      dialog.alert("Error", error instanceof Error ? error.message : "No se pudo unir al grupo.");
     } finally {
       setJoining(null);
     }
@@ -241,55 +247,76 @@ function SearchTab() {
 
   return (
     <View style={styles.tabContent}>
-      {/* Search bar */}
-      <View style={styles.searchRow}>
-        <View style={styles.searchInputWrap}>
-          <Ionicons name="search" size={16} color={colors.textMuted} style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Buscar por nombre..."
-            placeholderTextColor={colors.textSoft}
-            returnKeyType="search"
-            onSubmitEditing={doSearch}
-          />
-        </View>
-        <Pressable onPress={doSearch} style={styles.searchButton}>
-          <Text allowFontScaling={false} style={styles.searchButtonText}>Buscar</Text>
-        </Pressable>
-      </View>
-
-      {/* League filter */}
-      <View style={styles.filterRow}>
-        <Text allowFontScaling={false} style={styles.filterLabel}>Liga:</Text>
-        <Pressable
-          onPress={() => setLeagueFilter(leagueFilter === null ? 128 : null)}
-          style={[styles.filterChip, leagueFilter === 128 && styles.filterChipActive]}
-        >
-          <Text
-            allowFontScaling={false}
-            style={[styles.filterChipText, leagueFilter === 128 && styles.filterChipTextActive]}
-          >
-            LPF: Apertura 2026
+      <View style={styles.sectionBlock}>
+        <Text allowFontScaling={false} style={styles.sectionCaption}>BUSCAR GRUPO</Text>
+        <View style={styles.panelCard}>
+          <Text allowFontScaling={false} style={styles.panelDescription}>
+            Buscá por nombre y aplicá filtros para encontrar comunidades activas.
           </Text>
-        </Pressable>
-        {leagueFilter !== null && (
-          <Pressable onPress={() => { setLeagueFilter(null); }} style={styles.filterClear}>
-            <Text allowFontScaling={false} style={styles.filterClearText}>Limpiar</Text>
-          </Pressable>
-        )}
+
+          <View style={styles.searchRow}>
+            <View style={styles.searchInputWrap}>
+              <Ionicons name="search" size={16} color={colors.textMuted} style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Ej: Amigos del fútbol"
+                placeholderTextColor={colors.textSoft}
+                returnKeyType="search"
+                onSubmitEditing={doSearch}
+              />
+            </View>
+            <Pressable onPress={doSearch} style={styles.searchButton}>
+              <Text allowFontScaling={false} style={styles.searchButtonText}>Buscar</Text>
+            </Pressable>
+          </View>
+
+          <View style={styles.filterRow}>
+            <Text allowFontScaling={false} style={styles.filterLabel}>Filtrar por liga</Text>
+            <Pressable
+              onPress={() => setLeagueFilter(leagueFilter === null ? LEAGUE_FILTER_ID : null)}
+              style={[styles.filterChip, leagueFilter === LEAGUE_FILTER_ID && styles.filterChipActive]}
+            >
+              <Text
+                allowFontScaling={false}
+                style={[styles.filterChipText, leagueFilter === LEAGUE_FILTER_ID && styles.filterChipTextActive]}
+              >
+                {LEAGUE_LABEL}
+              </Text>
+            </Pressable>
+            {leagueFilter !== null ? (
+              <Pressable onPress={() => setLeagueFilter(null)} style={styles.filterClear}>
+                <Text allowFontScaling={false} style={styles.filterClearText}>Limpiar</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </View>
       </View>
 
-      {/* Results */}
+      <View style={styles.resultsHeader}>
+        <Text allowFontScaling={false} style={styles.sectionCaption}>
+          {searched ? resultCountLabel : "GRUPOS DISPONIBLES"}
+        </Text>
+        <Pressable onPress={doSearch} style={styles.resultsRefreshChip}>
+          <Ionicons name="refresh" size={13} color={colors.textSecondary} />
+          <Text allowFontScaling={false} style={styles.resultsRefreshChipText}>Actualizar</Text>
+        </Pressable>
+      </View>
+
       {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator color={colors.primary} />
         </View>
       ) : results.length === 0 && searched ? (
-        <View style={styles.emptyState}>
-          <Ionicons name="search-outline" size={40} color={colors.textSoft} />
-          <Text allowFontScaling={false} style={styles.emptyText}>No se encontraron grupos</Text>
+        <View style={styles.emptyStateCard}>
+          <View style={styles.emptyStateIconWrap}>
+            <Ionicons name="search-outline" size={24} color={colors.textMuted} />
+          </View>
+          <Text allowFontScaling={false} style={styles.emptyStateTitle}>No encontramos grupos</Text>
+          <Text allowFontScaling={false} style={styles.emptyStateDescription}>
+            Probá con otro nombre o quitá los filtros para ver más resultados.
+          </Text>
         </View>
       ) : (
         <ScrollView
@@ -304,6 +331,7 @@ function SearchTab() {
             <GroupResultCard
               key={group.id}
               group={group}
+              isMember={memberGroupIds.has(group.id)}
               joining={joining === group.id}
               onJoin={() => handleJoin(group)}
             />
@@ -319,25 +347,24 @@ function SearchTab() {
   );
 }
 
-// ─── Group Result Card ───────────────────────────────────────────────────────
-
 function GroupResultCard({
   group,
+  isMember,
   joining,
   onJoin
 }: {
   group: GroupSearchResult;
+  isMember: boolean;
   joining: boolean;
   onJoin: () => void;
 }) {
   const isClosed = group.visibility === "closed";
-  const membersLabel = group.maxMembers
-    ? `${group.memberCount}/${group.maxMembers}`
-    : `${group.memberCount}`;
+  const membersLabel = group.maxMembers ? `${group.memberCount}/${group.maxMembers}` : `${group.memberCount}`;
+  const actionDisabled = joining;
 
   return (
     <View style={styles.resultCard}>
-      <View style={styles.resultCardTop}>
+      <View style={styles.resultTopRow}>
         <View style={styles.resultAvatar}>
           <Text allowFontScaling={false} style={styles.resultAvatarText}>
             {(group.name.trim()[0] ?? "G").toUpperCase()}
@@ -351,224 +378,338 @@ function GroupResultCard({
             {group.competitionName || group.leagueName}
           </Text>
         </View>
+        <View style={[styles.visibilityBadge, isClosed ? styles.visibilityBadgeClosed : styles.visibilityBadgeOpen]}>
+          <Ionicons
+            name={isClosed ? "lock-closed-outline" : "lock-open-outline"}
+            size={12}
+            color={isClosed ? colors.warningDeep : colors.successDeep}
+          />
+          <Text
+            allowFontScaling={false}
+            style={[styles.visibilityBadgeText, isClosed ? styles.visibilityBadgeTextClosed : styles.visibilityBadgeTextOpen]}
+          >
+            {isClosed ? "Cerrado" : "Abierto"}
+          </Text>
+        </View>
       </View>
 
-      <View style={styles.resultCardBottom}>
-        <View style={styles.resultBadges}>
-          <View style={styles.badge}>
+      <View style={styles.resultBottomRow}>
+        <View style={styles.resultTags}>
+          <View style={styles.membersTag}>
             <Ionicons name="people-outline" size={13} color={colors.textSecondary} />
-            <Text allowFontScaling={false} style={styles.badgeText}>{membersLabel}</Text>
+            <Text allowFontScaling={false} style={styles.membersTagText}>{membersLabel} miembros</Text>
           </View>
-          <View style={[styles.badge, isClosed ? styles.badgeClosed : styles.badgeOpen]}>
-            <Ionicons
-              name={isClosed ? "lock-closed-outline" : "lock-open-outline"}
-              size={12}
-              color={isClosed ? colors.warningDeep : colors.successDeep}
-            />
-            <Text
-              allowFontScaling={false}
-              style={[styles.badgeText, isClosed ? styles.badgeClosedText : styles.badgeOpenText]}
-            >
-              {isClosed ? "Cerrado" : "Abierto"}
-            </Text>
-          </View>
+          {isMember ? (
+            <View style={styles.memberTag}>
+              <Ionicons name="checkmark-circle" size={12} color={colors.primaryDeep} />
+              <Text allowFontScaling={false} style={styles.memberTagText}>Ya sos miembro</Text>
+            </View>
+          ) : null}
         </View>
-
-        <Pressable
-          onPress={onJoin}
-          disabled={joining}
-          style={[styles.joinBtn, joining && styles.joinBtnDisabled]}
-        >
-          {joining ? (
-            <ActivityIndicator size="small" color={colors.textTitle} />
-          ) : (
-            <Text allowFontScaling={false} style={styles.joinBtnText}>
-              {isClosed ? "Solicitar" : "Unirse"}
-            </Text>
-          )}
-        </Pressable>
+        {!isMember ? (
+          <Pressable
+            onPress={onJoin}
+            disabled={actionDisabled}
+            style={[styles.joinButton, joining && styles.joinButtonDisabled]}
+          >
+            {joining ? (
+              <ActivityIndicator size="small" color={colors.textTitle} />
+            ) : (
+              <Text allowFontScaling={false} style={styles.joinButtonText}>
+                {isClosed ? "Solicitar acceso" : "Unirse"}
+              </Text>
+            )}
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );
 }
 
-// ─── Create Tab ──────────────────────────────────────────────────────────────
+function DropdownSelect({
+  value,
+  options,
+  onChange,
+  placeholder
+}: {
+  value: string;
+  options: DropdownOption[];
+  onChange: (nextValue: string) => void;
+  placeholder: string;
+}) {
+  const triggerRef = useRef<View | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const selected = options.find((option) => option.id === value) ?? null;
+
+  function openMenu() {
+    const node = triggerRef.current;
+    setMenuOpen(true);
+    if (!node || typeof node.measureInWindow !== "function") {
+      return;
+    }
+    node.measureInWindow((x, y, width, height) => {
+      setMenuAnchor({ x, y, width, height });
+    });
+  }
+
+  function selectOption(nextId: string) {
+    onChange(nextId);
+    setMenuOpen(false);
+  }
+
+  return (
+    <>
+      <View ref={triggerRef} collapsable={false}>
+        <Pressable onPress={openMenu} style={styles.dropdownTrigger}>
+          <Text allowFontScaling={false} numberOfLines={1} style={styles.dropdownValue}>
+            {selected?.label ?? placeholder}
+          </Text>
+          <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
+        </Pressable>
+      </View>
+
+      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+        <View style={styles.dropdownModalRoot}>
+          <Pressable style={styles.dropdownBackdrop} onPress={() => setMenuOpen(false)} />
+          <View
+            style={[
+              styles.dropdownMenuCard,
+              {
+                top: (menuAnchor?.y ?? 84) + (menuAnchor?.height ?? 0) + spacing.xs,
+                left: menuAnchor?.x ?? spacing.md,
+                width: menuAnchor?.width ?? 320
+              }
+            ]}
+          >
+            <ScrollView style={styles.dropdownMenuScroll} contentContainerStyle={styles.dropdownMenuContent}>
+              {options.map((option) => {
+                const active = option.id === selected?.id;
+                return (
+                  <Pressable
+                    key={option.id}
+                    onPress={() => selectOption(option.id)}
+                    style={[styles.dropdownMenuRow, active ? styles.dropdownMenuRowActive : null]}
+                  >
+                    <Text allowFontScaling={false} style={[styles.dropdownMenuText, active ? styles.dropdownMenuTextActive : null]}>
+                      {option.label}
+                    </Text>
+                    {active ? <Ionicons name="checkmark" size={14} color={colors.primaryDeep} /> : null}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+}
 
 function CreateTab() {
   const { refresh } = useAuth();
+  const dialog = useAppDialog();
   const navigation = useNavigation<any>();
   const { options: fechaOptions } = usePeriod();
+  const leagueOptions: DropdownOption[] = [{ id: String(LEAGUE_FILTER_ID), label: LEAGUE_LABEL }];
   const [name, setName] = useState("");
+  const [leagueId, setLeagueId] = useState(String(LEAGUE_FILTER_ID));
   const [visibility, setVisibility] = useState<GroupVisibility>("open");
   const [startingFecha, setStartingFecha] = useState(fechaOptions[0]?.id ?? "");
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    if (fechaOptions.length === 0) {
+      return;
+    }
+    if (!startingFecha || !fechaOptions.some((option) => option.id === startingFecha)) {
+      setStartingFecha(fechaOptions[0].id);
+    }
+  }, [fechaOptions, startingFecha]);
+
   async function handleCreate() {
     const trimmedName = name.trim();
     if (!trimmedName) {
-      Alert.alert("Error", "Ingresá un nombre para el grupo.");
+      dialog.alert("Error", "Ingresá un nombre para el grupo.");
       return;
     }
     setSaving(true);
     try {
       await groupsRepository.createGroup({
         name: trimmedName,
-        leagueId: 128,
+        leagueId: Number(leagueId) || LEAGUE_FILTER_ID,
         season: "2026",
         competitionStage: "apertura",
-        competitionName: "LPF: Apertura (2026)",
+        competitionName: CREATE_COMPETITION_LABEL,
         competitionKey: "argentina-128",
         visibility,
         startingFecha: startingFecha || undefined
       });
       await refresh();
-      Alert.alert("Grupo creado", `"${trimmedName}" fue creado exitosamente.`, [
+      dialog.alert("Grupo creado", `"${trimmedName}" fue creado exitosamente.`, [
         { text: "OK", onPress: () => navigation.goBack() }
       ]);
     } catch (error) {
-      Alert.alert("Error", error instanceof Error ? error.message : "No se pudo crear el grupo.");
+      dialog.alert("Error", error instanceof Error ? error.message : "No se pudo crear el grupo.");
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <ScrollView
-      showsVerticalScrollIndicator={false}
-      contentContainerStyle={styles.createContent}
-      keyboardShouldPersistTaps="handled"
-    >
-      {/* Group name */}
-      <View style={styles.fieldGroup}>
-        <Text allowFontScaling={false} style={styles.fieldLabel}>Nombre del grupo</Text>
-        <TextInput
-          style={styles.fieldInput}
-          value={name}
-          onChangeText={setName}
-          placeholder="Ej: Amigos del fútbol"
-          placeholderTextColor={colors.textSoft}
-          maxLength={40}
-          autoFocus
-        />
+    <View style={styles.createContent}>
+      <View style={styles.sectionBlock}>
+        <Text allowFontScaling={false} style={styles.sectionCaption}>NOMBRE DEL GRUPO</Text>
+        <View style={styles.formCard}>
+          <Text allowFontScaling={false} style={styles.fieldHelp}>
+            Elegí un nombre claro para que tus amigos lo encuentren rápido.
+          </Text>
+          <TextInput
+            style={styles.fieldInput}
+            value={name}
+            onChangeText={setName}
+            placeholder="Ej: Amigos del fútbol"
+            placeholderTextColor={colors.textSoft}
+            maxLength={40}
+          />
+          <Text allowFontScaling={false} style={styles.counterText}>{name.length}/40</Text>
+        </View>
       </View>
 
-      {/* League */}
-      <View style={styles.fieldGroup}>
-        <Text allowFontScaling={false} style={styles.fieldLabel}>Liga</Text>
-        <View style={styles.leagueCard}>
-          <Ionicons name="football-outline" size={18} color={colors.primaryDeep} />
-          <Text allowFontScaling={false} style={styles.leagueCardText}>
-            LPF: Apertura 2026
+      <View style={styles.sectionBlock}>
+        <Text allowFontScaling={false} style={styles.sectionCaption}>LIGA</Text>
+        <View style={styles.formCard}>
+          <Text allowFontScaling={false} style={styles.fieldHelp}>
+            Elegí la competición para el grupo.
           </Text>
-          <View style={styles.leagueOnly}>
-            <Text allowFontScaling={false} style={styles.leagueOnlyText}>Única disponible</Text>
+          <DropdownSelect
+            value={leagueId}
+            options={leagueOptions}
+            onChange={setLeagueId}
+            placeholder="Seleccionar liga"
+          />
+        </View>
+      </View>
+
+      <View style={styles.sectionBlock}>
+        <Text allowFontScaling={false} style={styles.sectionCaption}>TIPO DE GRUPO</Text>
+        <View style={styles.formCard}>
+          <Text allowFontScaling={false} style={styles.fieldHelp}>Definí cómo se suman nuevos participantes.</Text>
+          <View style={styles.visibilityList}>
+            <Pressable
+              onPress={() => setVisibility("open")}
+              style={[styles.visibilityOption, visibility === "open" && styles.visibilityOptionActive]}
+            >
+              <View style={styles.visibilityOptionIcon}>
+                <Ionicons
+                  name="lock-open-outline"
+                  size={16}
+                  color={visibility === "open" ? colors.primaryDeep : colors.textMuted}
+                />
+              </View>
+              <View style={styles.visibilityTextWrap}>
+                <Text
+                  allowFontScaling={false}
+                  style={[styles.visibilityTitle, visibility === "open" && styles.visibilityTitleActive]}
+                >
+                  Abierto
+                </Text>
+                <Text allowFontScaling={false} style={styles.visibilityDesc}>Cualquiera puede unirse al instante</Text>
+              </View>
+              <Ionicons
+                name={visibility === "open" ? "checkmark-circle" : "ellipse-outline"}
+                size={18}
+                color={visibility === "open" ? colors.primaryDeep : colors.textSoft}
+              />
+            </Pressable>
+
+            <Pressable
+              onPress={() => setVisibility("closed")}
+              style={[styles.visibilityOption, visibility === "closed" && styles.visibilityOptionActive]}
+            >
+              <View style={styles.visibilityOptionIcon}>
+                <Ionicons
+                  name="lock-closed-outline"
+                  size={16}
+                  color={visibility === "closed" ? colors.primaryDeep : colors.textMuted}
+                />
+              </View>
+              <View style={styles.visibilityTextWrap}>
+                <Text
+                  allowFontScaling={false}
+                  style={[styles.visibilityTitle, visibility === "closed" && styles.visibilityTitleActive]}
+                >
+                  Cerrado
+                </Text>
+                <Text allowFontScaling={false} style={styles.visibilityDesc}>El admin aprueba cada solicitud</Text>
+              </View>
+              <Ionicons
+                name={visibility === "closed" ? "checkmark-circle" : "ellipse-outline"}
+                size={16}
+                color={visibility === "closed" ? colors.primaryDeep : colors.textSoft}
+              />
+            </Pressable>
           </View>
         </View>
       </View>
 
-      {/* Visibility */}
-      <View style={styles.fieldGroup}>
-        <Text allowFontScaling={false} style={styles.fieldLabel}>Tipo de grupo</Text>
-        <View style={styles.visibilityRow}>
-          <Pressable
-            onPress={() => setVisibility("open")}
-            style={[styles.visibilityOption, visibility === "open" && styles.visibilityOptionActive]}
-          >
-            <Ionicons
-              name="lock-open-outline"
-              size={18}
-              color={visibility === "open" ? colors.primaryDeep : colors.textMuted}
+      <View style={styles.sectionBlock}>
+        <Text allowFontScaling={false} style={styles.sectionCaption}>FECHA DE INICIO</Text>
+        <View style={styles.formCard}>
+          <Text allowFontScaling={false} style={styles.fieldHelp}>
+            Desde qué fecha comenzás a sumar puntos en el grupo.
+          </Text>
+          {fechaOptions.length > 0 ? (
+            <DropdownSelect
+              value={startingFecha}
+              options={fechaOptions}
+              onChange={setStartingFecha}
+              placeholder="Seleccionar fecha"
             />
-            <View style={styles.visibilityTextWrap}>
-              <Text
-                allowFontScaling={false}
-                style={[styles.visibilityTitle, visibility === "open" && styles.visibilityTitleActive]}
-              >
-                Abierto
-              </Text>
-              <Text allowFontScaling={false} style={styles.visibilityDesc}>
-                Cualquiera puede unirse
-              </Text>
+          ) : (
+            <View style={styles.noFechaState}>
+              <ActivityIndicator size="small" color={colors.textMuted} />
+              <Text allowFontScaling={false} style={styles.noFechaStateText}>Cargando fechas disponibles...</Text>
             </View>
-          </Pressable>
-          <Pressable
-            onPress={() => setVisibility("closed")}
-            style={[styles.visibilityOption, visibility === "closed" && styles.visibilityOptionActive]}
-          >
-            <Ionicons
-              name="lock-closed-outline"
-              size={18}
-              color={visibility === "closed" ? colors.primaryDeep : colors.textMuted}
-            />
-            <View style={styles.visibilityTextWrap}>
-              <Text
-                allowFontScaling={false}
-                style={[styles.visibilityTitle, visibility === "closed" && styles.visibilityTitleActive]}
-              >
-                Cerrado
-              </Text>
-              <Text allowFontScaling={false} style={styles.visibilityDesc}>
-                Admin aprueba solicitudes
-              </Text>
-            </View>
-          </Pressable>
+          )}
         </View>
       </View>
 
-      {/* Starting fecha */}
-      <View style={styles.fieldGroup}>
-        <Text allowFontScaling={false} style={styles.fieldLabel}>Fecha de inicio</Text>
-        <Text allowFontScaling={false} style={styles.fieldHint}>
-          Desde qué fecha se empiezan a sumar puntos
-        </Text>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.fechaList}
-        >
-          {fechaOptions.map((option) => (
-            <Pressable
-              key={option.id}
-              onPress={() => setStartingFecha(option.id)}
-              style={[
-                styles.fechaChip,
-                startingFecha === option.id && styles.fechaChipActive
-              ]}
-            >
-              <Text
-                allowFontScaling={false}
-                style={[
-                  styles.fechaChipText,
-                  startingFecha === option.id && styles.fechaChipTextActive
-                ]}
-              >
-                {option.label}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+      <View style={styles.summaryCard}>
+        <View style={styles.summaryRow}>
+          <Text allowFontScaling={false} style={styles.summaryLabel}>Acceso</Text>
+          <Text allowFontScaling={false} style={styles.summaryValue}>{visibility === "open" ? "Abierto" : "Cerrado"}</Text>
+        </View>
+        <View style={styles.summaryRow}>
+          <Text allowFontScaling={false} style={styles.summaryLabel}>Inicio</Text>
+          <Text allowFontScaling={false} style={styles.summaryValue}>
+            {fechaOptions.find((item) => item.id === startingFecha)?.label ?? "Primera fecha disponible"}
+          </Text>
+        </View>
       </View>
 
-      {/* Create button */}
       <Pressable
         onPress={handleCreate}
         disabled={saving || !name.trim()}
-        style={[styles.createBtn, (saving || !name.trim()) && styles.createBtnDisabled]}
+        style={[styles.createButton, (saving || !name.trim()) && styles.createButtonDisabled]}
       >
         {saving ? (
           <ActivityIndicator color={colors.textTitle} />
         ) : (
-          <Text allowFontScaling={false} style={styles.createBtnText}>Crear grupo</Text>
+          <>
+            <Ionicons name="sparkles-outline" size={16} color={colors.textTitle} />
+            <Text allowFontScaling={false} style={styles.createButtonText}>Crear grupo</Text>
+          </>
         )}
       </Pressable>
-    </ScrollView>
+    </View>
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
+  keyboardContent: {
+    gap: spacing.sm
+  },
   screenContainer: {
     paddingHorizontal: 12,
     paddingTop: 0,
@@ -576,83 +717,142 @@ const styles = StyleSheet.create({
     backgroundColor: colors.canvas
   },
   screenContent: {
-    flex: 1,
-    gap: 0
+    gap: 10,
+    marginTop: spacing.sm
   },
-  headerCard: {
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    backgroundColor: colors.surfaceSoft,
-    paddingHorizontal: 16,
-    paddingBottom: 14,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    marginHorizontal: -12,
+  headerShell: {
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+    marginHorizontal: -12
+  },
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12
+    justifyContent: "space-between"
   },
   backButton: {
-    height: 32,
-    width: 32,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.borderMuted
+  },
+  headerPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: colors.primarySoftAlt,
     borderRadius: 999,
-    backgroundColor: colors.brandTintAlt,
+    borderWidth: 1,
+    borderColor: colors.borderInfo,
+    paddingHorizontal: 10,
+    paddingVertical: 5
+  },
+  headerPillText: {
+    color: colors.primaryDeep,
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 0.4
+  },
+  headerTitle: {
+    marginTop: spacing.sm,
+    color: colors.textTitle,
+    fontSize: 22,
+    fontWeight: "800",
+    letterSpacing: -0.2
+  },
+  headerSubtitle: {
+    marginTop: 6,
+    color: colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 19,
+    fontWeight: "600"
+  },
+  headerAccentBar: {
+    marginTop: spacing.sm,
+    height: 3,
+    borderRadius: 999,
+    backgroundColor: colors.primaryStrong
+  },
+
+  segmentedControl: {
+    flexDirection: "row",
+    marginTop: 2,
+    marginBottom: spacing.sm,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceSoft,
+    padding: 3,
+    gap: 2
+  },
+  segmentedTab: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center"
   },
-  headerTitle: {
-    color: colors.textTitle,
-    fontSize: 18,
-    fontWeight: "900"
-  },
-
-  // ─── Tabs ────────────────────────────────────────────────────────────────
-  tabRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 14,
-    marginBottom: 14
-  },
-  tab: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    minHeight: 42,
-    borderRadius: 12,
-    backgroundColor: colors.surfaceMuted
-  },
-  tabActive: {
+  segmentedTabActive: {
     backgroundColor: colors.primaryStrong
   },
-  tabText: {
-    color: colors.textMuted,
-    fontSize: 13,
+  segmentedTabText: {
+    color: colors.textMutedAlt,
+    fontSize: 14,
     fontWeight: "800"
   },
-  tabTextActive: {
-    color: colors.textTitle
+  segmentedTabTextActive: {
+    color: colors.textHigh,
+    fontWeight: "800"
   },
 
-  // ─── Search ──────────────────────────────────────────────────────────────
+  sectionBlock: {
+    gap: 8
+  },
+  sectionCaption: {
+    color: colors.textMuted,
+    fontSize: 13,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    textTransform: "uppercase"
+  },
   tabContent: {
-    flex: 1
+    gap: spacing.sm
+  },
+  panelCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
+    padding: spacing.md,
+    gap: spacing.sm
+  },
+  panelDescription: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "600",
+    lineHeight: 17
   },
   searchRow: {
     flexDirection: "row",
-    gap: 8,
-    marginBottom: 10
+    alignItems: "center",
+    gap: 8
   },
   searchInputWrap: {
     flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
     minHeight: 44,
     borderRadius: 12,
-    backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.borderMuted,
+    backgroundColor: colors.surfaceSoft,
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 12
   },
   searchIcon: {
@@ -666,24 +866,22 @@ const styles = StyleSheet.create({
   },
   searchButton: {
     minHeight: 44,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     borderRadius: 12,
-    backgroundColor: colors.primaryStrong,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    backgroundColor: colors.primaryStrong
   },
   searchButtonText: {
     color: colors.textTitle,
     fontSize: 13,
     fontWeight: "800"
   },
-
-  // ─── Filters ─────────────────────────────────────────────────────────────
   filterRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 12
+    flexWrap: "wrap",
+    gap: 8
   },
   filterLabel: {
     color: colors.textSecondary,
@@ -693,22 +891,25 @@ const styles = StyleSheet.create({
   filterChip: {
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: colors.surfaceMuted
+    borderRadius: 999,
+    backgroundColor: colors.surfaceMuted,
+    borderWidth: 1,
+    borderColor: colors.borderMuted
   },
   filterChipActive: {
-    backgroundColor: colors.primarySoft
+    backgroundColor: colors.primarySoftAlt,
+    borderColor: colors.primaryStrong
   },
   filterChipText: {
     color: colors.textMuted,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700"
   },
   filterChipTextActive: {
     color: colors.primaryDeep
   },
   filterClear: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
     paddingVertical: 4
   },
   filterClearText: {
@@ -718,55 +919,90 @@ const styles = StyleSheet.create({
     textDecorationLine: "underline"
   },
 
-  // ─── Results ─────────────────────────────────────────────────────────────
+  resultsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 2
+  },
+  resultsRefreshChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: colors.surfaceMuted
+  },
+  resultsRefreshChipText: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "700"
+  },
   centered: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 40,
-    gap: 8
+    paddingVertical: spacing.xl
   },
-  emptyText: {
-    color: colors.textMuted,
-    fontSize: 14,
-    fontWeight: "700"
+  emptyStateCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
+    padding: spacing.lg,
+    alignItems: "center",
+    gap: spacing.sm
+  },
+  emptyStateIconWrap: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surfaceMuted
+  },
+  emptyStateTitle: {
+    color: colors.textTitle,
+    fontSize: 15,
+    fontWeight: "800"
+  },
+  emptyStateDescription: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
+    lineHeight: 17
   },
   resultsList: {
     gap: 8,
-    paddingBottom: 20
-  },
-  emptyState: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 40,
-    gap: 8
+    paddingBottom: spacing.md
   },
   loadMoreSpinner: {
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 10
+    paddingVertical: spacing.sm
   },
   resultCard: {
-    backgroundColor: colors.surface,
     borderRadius: 14,
-    padding: 14,
     borderWidth: 1,
-    borderColor: colors.borderLight,
-    gap: 10
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
+    padding: spacing.sm + 4,
+    gap: spacing.sm
   },
-  resultCardTop: {
+  resultTopRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10
+    gap: spacing.sm
   },
   resultAvatar: {
-    height: 38,
     width: 38,
+    height: 38,
     borderRadius: 10,
-    backgroundColor: colors.primarySoft,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    backgroundColor: colors.primarySoft
   },
   resultAvatarText: {
     color: colors.primaryDeep,
@@ -779,7 +1015,7 @@ const styles = StyleSheet.create({
   },
   resultName: {
     color: colors.textPrimary,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "800"
   },
   resultMeta: {
@@ -787,193 +1023,289 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600"
   },
-  resultCardBottom: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between"
-  },
-  resultBadges: {
-    flexDirection: "row",
-    gap: 6
-  },
-  badge: {
+  visibilityBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
+    borderRadius: 999,
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 6,
-    backgroundColor: colors.surfaceMuted
+    paddingVertical: 4
   },
-  badgeOpen: {
-    backgroundColor: "#ECFDF5"
+  visibilityBadgeOpen: {
+    backgroundColor: colors.primarySoftAlt
   },
-  badgeClosed: {
+  visibilityBadgeClosed: {
     backgroundColor: colors.surfaceTintWarning
   },
-  badgeText: {
+  visibilityBadgeText: {
+    fontSize: 11,
+    fontWeight: "700"
+  },
+  visibilityBadgeTextOpen: {
+    color: colors.successDeep
+  },
+  visibilityBadgeTextClosed: {
+    color: colors.warningDeep
+  },
+  resultBottomRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: spacing.sm
+  },
+  resultTags: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexWrap: "wrap"
+  },
+  membersTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderRadius: 8,
+    backgroundColor: colors.surfaceMuted,
+    paddingHorizontal: 8,
+    paddingVertical: 5
+  },
+  membersTagText: {
     color: colors.textSecondary,
     fontSize: 11,
     fontWeight: "700"
   },
-  badgeOpenText: {
-    color: colors.successDeep
+  memberTag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    borderRadius: 8,
+    backgroundColor: colors.primarySoftAlt,
+    paddingHorizontal: 8,
+    paddingVertical: 5
   },
-  badgeClosedText: {
-    color: colors.warningDeep
+  memberTagText: {
+    color: colors.primaryDeep,
+    fontSize: 11,
+    fontWeight: "700"
   },
-  joinBtn: {
+  joinButton: {
     minHeight: 34,
-    paddingHorizontal: 16,
     borderRadius: 10,
     backgroundColor: colors.primaryStrong,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    paddingHorizontal: 14
   },
-  joinBtnDisabled: {
+  joinButtonDisabled: {
     opacity: 0.5
   },
-  joinBtnText: {
+  joinButtonText: {
     color: colors.textTitle,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "800"
   },
 
-  // ─── Create ──────────────────────────────────────────────────────────────
   createContent: {
-    gap: 18,
-    paddingBottom: 30
+    gap: spacing.sm,
+    paddingBottom: spacing.xl + spacing.lg
   },
-  fieldGroup: {
-    gap: 6
+  formCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
+    padding: spacing.md,
+    gap: 8
   },
-  fieldLabel: {
-    color: colors.textPrimary,
-    fontSize: 14,
-    fontWeight: "800"
-  },
-  fieldHint: {
+  fieldHelp: {
     color: colors.textMuted,
     fontSize: 12,
-    fontWeight: "600"
+    fontWeight: "600",
+    lineHeight: 17
   },
   fieldInput: {
     minHeight: 46,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.borderMuted,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceSoft,
     paddingHorizontal: 14,
     color: colors.textPrimary,
     fontSize: 15,
     fontWeight: "700"
   },
-  leagueCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    minHeight: 46,
-    borderRadius: 12,
-    backgroundColor: colors.primarySoft,
-    paddingHorizontal: 14
-  },
-  leagueCardText: {
-    color: colors.primaryDeep,
-    fontSize: 14,
-    fontWeight: "800",
-    flex: 1
-  },
-  leagueOnly: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    backgroundColor: colors.surfaceMuted
-  },
-  leagueOnlyText: {
-    color: colors.textMuted,
-    fontSize: 10,
+  counterText: {
+    alignSelf: "flex-end",
+    color: colors.textSoft,
+    fontSize: 11,
     fontWeight: "700"
   },
-
-  // ─── Visibility ──────────────────────────────────────────────────────────
-  visibilityRow: {
-    flexDirection: "row",
+  visibilityList: {
     gap: 8
   },
   visibilityOption: {
-    flex: 1,
+    minHeight: 62,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+    backgroundColor: colors.surfaceSoft,
+    paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    minHeight: 60,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: colors.borderMuted,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 12
+    gap: 10
   },
   visibilityOptionActive: {
-    borderColor: colors.primaryStrong,
-    backgroundColor: colors.primaryHighlight
+    backgroundColor: colors.primaryHighlight,
+    borderColor: colors.primaryStrong
+  },
+  visibilityOptionIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.surface
   },
   visibilityTextWrap: {
     flex: 1,
     gap: 1
   },
   visibilityTitle: {
-    color: colors.textSecondary,
+    color: colors.textPrimary,
     fontSize: 13,
     fontWeight: "800"
   },
   visibilityTitleActive: {
-    color: colors.textTitle
+    color: colors.primaryDeep
   },
   visibilityDesc: {
     color: colors.textMuted,
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: "600"
   },
-
-  // ─── Fecha picker ────────────────────────────────────────────────────────
-  fechaList: {
-    gap: 6,
-    paddingVertical: 2
-  },
-  fechaChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+  dropdownTrigger: {
+    minHeight: 44,
     borderRadius: 10,
-    backgroundColor: colors.surfaceMuted,
-    borderWidth: 1.5,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceSoft,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8
+  },
+  dropdownValue: {
+    flex: 1,
+    color: colors.textTitle,
+    fontSize: 14,
+    fontWeight: "800"
+  },
+  dropdownModalRoot: {
+    flex: 1,
+    justifyContent: "flex-start",
+    alignItems: "flex-start"
+  },
+  dropdownBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: colors.overlaySubtle
+  },
+  dropdownMenuCard: {
+    position: "absolute",
+    maxHeight: "60%",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+    backgroundColor: colors.surface,
+    overflow: "hidden",
+    shadowColor: colors.textPrimary,
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6
+  },
+  dropdownMenuScroll: {
+    width: "100%"
+  },
+  dropdownMenuContent: {
+    padding: spacing.xs
+  },
+  dropdownMenuRow: {
+    minHeight: 44,
+    borderRadius: 8,
+    paddingHorizontal: spacing.sm,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
     borderColor: "transparent"
   },
-  fechaChipActive: {
-    backgroundColor: colors.primaryHighlight,
-    borderColor: colors.primaryStrong
+  dropdownMenuRowActive: {
+    backgroundColor: colors.primaryAlpha16,
+    borderColor: colors.borderInfo
   },
-  fechaChipText: {
-    color: colors.textSecondary,
+  dropdownMenuText: {
+    flex: 1,
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: "700"
+  },
+  dropdownMenuTextActive: {
+    color: colors.primaryDeep,
+    fontWeight: "900"
+  },
+  noFechaState: {
+    minHeight: 40,
+    borderRadius: 10,
+    backgroundColor: colors.surfaceSoft,
+    borderWidth: 1,
+    borderColor: colors.borderMuted,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8
+  },
+  noFechaStateText: {
+    color: colors.textMuted,
+    fontSize: 12,
+    fontWeight: "600"
+  },
+  summaryCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    backgroundColor: colors.surfaceSoft,
+    padding: spacing.sm,
+    gap: 6
+  },
+  summaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8
+  },
+  summaryLabel: {
+    color: colors.textMuted,
     fontSize: 12,
     fontWeight: "700"
   },
-  fechaChipTextActive: {
-    color: colors.textTitle,
+  summaryValue: {
+    color: colors.textPrimary,
+    fontSize: 12,
     fontWeight: "800"
   },
-
-  // ─── Create button ──────────────────────────────────────────────────────
-  createBtn: {
+  createButton: {
     minHeight: 48,
     borderRadius: 14,
     backgroundColor: colors.primaryStrong,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 6
+    flexDirection: "row",
+    gap: 8
   },
-  createBtnDisabled: {
+  createButtonDisabled: {
     opacity: 0.4
   },
-  createBtnText: {
+  createButtonText: {
     color: colors.textTitle,
     fontSize: 15,
     fontWeight: "900"

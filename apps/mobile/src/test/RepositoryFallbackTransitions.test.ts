@@ -10,8 +10,11 @@ jest.mock("@/repositories/httpAuthRepository", () => ({
   httpAuthRepository: {
     getSession: jest.fn(),
     loginWithPassword: jest.fn(),
+    loginWithGoogleIdToken: jest.fn(),
     registerWithPassword: jest.fn(),
     requestPasswordReset: jest.fn(),
+    changePassword: jest.fn(),
+    deleteAccount: jest.fn(),
     logout: jest.fn()
   }
 }));
@@ -40,8 +43,11 @@ jest.mock("@/repositories/mockAuthRepository", () => ({
   mockAuthRepository: {
     getSession: jest.fn(),
     loginWithPassword: jest.fn(),
+    loginWithGoogleIdToken: jest.fn(),
     registerWithPassword: jest.fn(),
     requestPasswordReset: jest.fn(),
+    changePassword: jest.fn(),
+    deleteAccount: jest.fn(),
     logout: jest.fn()
   }
 }));

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { jsonResponse } from "#http";
-import { getUserById, listGroupsForUser, updateUserProfile } from "@fulbito/server-core/m3-repo";
+import { deleteUserAccount, getUserById, listGroupsForUser, updateUserPassword, updateUserProfile } from "@fulbito/server-core/m3-repo";
 import { fetchProviderLeagues } from "@fulbito/server-core/liga-live-provider";
 import { getSessionPocketBaseTokenFromRequest, getSessionUserIdFromRequest } from "@fulbito/server-core/request-auth";
 import type { Membership, User } from "@fulbito/domain";
@@ -8,11 +8,16 @@ import { parseJsonBody, RequestBodyValidationError } from "../../../validation";
 
 const USERNAME_PATTERN = /^[a-zA-Z0-9._-]+$/;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD_LENGTH = 8;
 const updateProfilePayloadSchema = z.object({
   name: z.string().nullable().optional(),
   username: z.string().nullable().optional(),
   email: z.string().nullable().optional(),
   favoriteTeam: z.string().nullable().optional()
+});
+const changePasswordPayloadSchema = z.object({
+  password: z.string().optional(),
+  oldPassword: z.string().nullable().optional()
 });
 const LPF_APERTURA_2026_LABEL = "LPF: Apertura (2026)";
 
@@ -168,5 +173,63 @@ export async function PATCH(request: Request) {
       return jsonResponse({ error: error.message }, { status: error.status });
     }
     return jsonResponse({ error: "Invalid payload" }, { status: 400 });
+  }
+}
+
+export async function POST(request: Request) {
+  const userId = getSessionUserIdFromRequest(request);
+  const pbToken = getSessionPocketBaseTokenFromRequest(request);
+  if (!userId || !pbToken) {
+    return jsonResponse({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    const body = await parseJsonBody(request, changePasswordPayloadSchema);
+    const nextPassword = body.password?.trim() || "";
+    const oldPassword = body.oldPassword?.trim() || undefined;
+
+    if (!nextPassword) {
+      return jsonResponse({ error: "Password is required" }, { status: 400 });
+    }
+    if (nextPassword.length < MIN_PASSWORD_LENGTH) {
+      return jsonResponse({ error: "Password must be at least 8 characters" }, { status: 400 });
+    }
+
+    await updateUserPassword(
+      userId,
+      {
+        password: nextPassword,
+        oldPassword
+      },
+      pbToken
+    );
+
+    return jsonResponse({ ok: true }, { status: 200 });
+  } catch (error) {
+    if (error instanceof RequestBodyValidationError) {
+      return jsonResponse({ error: error.message }, { status: error.status });
+    }
+    if (error instanceof Error && error.message.trim().length > 0) {
+      return jsonResponse({ error: error.message }, { status: 400 });
+    }
+    return jsonResponse({ error: "Invalid payload" }, { status: 400 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  const userId = getSessionUserIdFromRequest(request);
+  const pbToken = getSessionPocketBaseTokenFromRequest(request);
+  if (!userId || !pbToken) {
+    return jsonResponse({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    await deleteUserAccount(userId, pbToken);
+    return jsonResponse({ ok: true }, { status: 200 });
+  } catch (error) {
+    if (error instanceof Error && error.message.trim().length > 0) {
+      return jsonResponse({ error: error.message }, { status: 400 });
+    }
+    return jsonResponse({ error: "Could not delete account" }, { status: 400 });
   }
 }

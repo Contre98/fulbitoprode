@@ -593,6 +593,30 @@ export const authRepository: AuthRepository = {
       return mockAuthRepository.requestPasswordReset(email);
     }
   },
+  async changePassword(input) {
+    try {
+      const result = await httpAuthRepository.changePassword(input);
+      setUseHttpSession(true);
+      clearFallbackFailure();
+      return result;
+    } catch (error) {
+      maybeFallback("auth.changePassword", error);
+      setUseHttpSession(false);
+      return mockAuthRepository.changePassword(input);
+    }
+  },
+  async deleteAccount() {
+    try {
+      const result = await httpAuthRepository.deleteAccount();
+      setUseHttpSession(false);
+      clearFallbackFailure();
+      return result;
+    } catch (error) {
+      maybeFallback("auth.deleteAccount", error);
+      setUseHttpSession(false);
+      return mockAuthRepository.deleteAccount();
+    }
+  },
   async logout() {
     if (canUseHttpSession()) {
       try {

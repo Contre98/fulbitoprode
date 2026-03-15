@@ -1,7 +1,7 @@
 import { NavigationContainer, createNavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { Alert, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { Linking } from "react-native";
 import { useMemo, useEffect, useRef } from "react";
 import { Ionicons } from "@expo/vector-icons";
@@ -28,6 +28,7 @@ import { useRegisterPushToken } from "@/lib/pushNotifications";
 import { usePendingInvite } from "@/state/PendingInviteContext";
 import { parseInviteTokenFromUrl } from "@/lib/inviteDeepLink";
 import { groupsRepository } from "@/repositories";
+import { AppDialogProvider, useAppDialog } from "@/state/AppDialogContext";
 
 const RootStack = createNativeStackNavigator();
 const Tabs = createBottomTabNavigator();
@@ -94,6 +95,7 @@ function InviteLinkHandler() {
 function InviteAutoJoinHandler() {
   const { loading, isAuthenticated, refresh } = useAuth();
   const { pendingInviteToken, clearPendingInviteToken } = usePendingInvite();
+  const dialog = useAppDialog();
   const joiningRef = useRef(false);
 
   useEffect(() => {
@@ -123,12 +125,12 @@ function InviteAutoJoinHandler() {
         if (shouldClearToken) {
           await clearPendingInviteToken();
         }
-        Alert.alert("Invitación", message);
+        dialog.alert("Invitación", message);
       } finally {
         joiningRef.current = false;
       }
     })();
-  }, [pendingInviteToken, loading, isAuthenticated, refresh, clearPendingInviteToken]);
+  }, [pendingInviteToken, loading, isAuthenticated, refresh, clearPendingInviteToken, dialog]);
 
   return null;
 }
@@ -221,19 +223,21 @@ export function AppNavigation() {
 
   return (
     <AuthProvider>
-      <PendingInviteProvider>
-        <InviteLinkHandler />
-        <InviteAutoJoinHandler />
-        <GroupProvider>
-          <GroupSelectorOverlayProvider>
-            <PeriodProvider>
-              <NavigationContainer ref={navigationRef} linking={linking}>
-                <RootNavigator />
-              </NavigationContainer>
-            </PeriodProvider>
-          </GroupSelectorOverlayProvider>
-        </GroupProvider>
-      </PendingInviteProvider>
+      <AppDialogProvider>
+        <PendingInviteProvider>
+          <InviteLinkHandler />
+          <InviteAutoJoinHandler />
+          <GroupProvider>
+            <GroupSelectorOverlayProvider>
+              <PeriodProvider>
+                <NavigationContainer ref={navigationRef} linking={linking}>
+                  <RootNavigator />
+                </NavigationContainer>
+              </PeriodProvider>
+            </GroupSelectorOverlayProvider>
+          </GroupProvider>
+        </PendingInviteProvider>
+      </AppDialogProvider>
     </AuthProvider>
   );
 }
