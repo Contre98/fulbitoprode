@@ -145,7 +145,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
     if (!actionsMembership) return;
     dismissPopover();
     try {
-      const { invite, canRefresh, inviteUrl } = await groupsRepository.getInvite({ groupId: actionsMembership.groupId });
+      const { invite, canRefresh } = await groupsRepository.getInvite({ groupId: actionsMembership.groupId });
       let inviteToken = invite?.token ?? null;
 
       if (!inviteToken && canRefresh) {
@@ -159,7 +159,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
       }
 
       const apiBase = process.env.EXPO_PUBLIC_API_BASE_URL || "https://api.fulbitoprode.com";
-      const link = inviteUrl || `${apiBase}/join?invite=${encodeURIComponent(inviteToken)}`;
+      const link = `${apiBase}/join?invite=${encodeURIComponent(inviteToken)}`;
       await Share.share({
         message: `Unite a mi grupo "${actionsMembership.groupName}" en Fulbito Prode:\n${link}`
       });
