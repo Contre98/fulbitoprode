@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
-import { Animated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Animated as NativeAnimated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@fulbito/design-tokens";
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
 import { TeamCrest } from "@/components/TeamCrest";
 
 const SCORE_MIN = 0;
@@ -13,6 +14,17 @@ const WHEEL_HEIGHT = ITEM_HEIGHT * VISIBLE_ROWS;
 const CENTER_PADDING = (WHEEL_HEIGHT - ITEM_HEIGHT) / 2;
 
 type SavePhase = "idle" | "saving" | "saved";
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const PRESS_IN_SPRING = {
+  damping: 22,
+  stiffness: 430,
+  mass: 0.4
+} as const;
+const PRESS_OUT_SPRING = {
+  damping: 18,
+  stiffness: 340,
+  mass: 0.45
+} as const;
 
 interface ScorePickerModalProps {
   visible: boolean;
@@ -24,6 +36,32 @@ interface ScorePickerModalProps {
   initialAway: number;
   onSave: (value: { home: number; away: number }) => Promise<void> | void;
   onClose: () => void;
+}
+
+function usePressScale(scaleDown: number, disabled = false) {
+  const reducedMotion = useReducedMotion();
+  const pressScale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressScale.value }]
+  }));
+
+  const onPressIn = useCallback(() => {
+    if (reducedMotion || disabled) {
+      pressScale.value = 1;
+      return;
+    }
+    pressScale.value = withSpring(scaleDown, PRESS_IN_SPRING);
+  }, [disabled, pressScale, reducedMotion, scaleDown]);
+
+  const onPressOut = useCallback(() => {
+    if (reducedMotion || disabled) {
+      pressScale.value = 1;
+      return;
+    }
+    pressScale.value = withSpring(1, PRESS_OUT_SPRING);
+  }, [disabled, pressScale, reducedMotion]);
+
+  return { animatedStyle, onPressIn, onPressOut };
 }
 
 function clampScore(value: number) {
@@ -44,6 +82,8 @@ function ScoreWheel({
   const hasMomentumRef = useRef(false);
   const dragEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   valueRef.current = value;
+  const upPress = usePressScale(0.94);
+  const downPress = usePressScale(0.94);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ y: value * ITEM_HEIGHT, animated: false });
@@ -80,14 +120,18 @@ function ScoreWheel({
 
   return (
     <>
-      <Pressable
-        testID={`${testIdPrefix}-inc`}
-        accessibilityRole="button"
-        onPress={() => nudge(-1)}
-        style={styles.arrowButton}
-      >
-        <Ionicons name="chevron-up" size={14} color={colors.textSecondary} />
-      </Pressable>
+      <Animated.View style={upPress.animatedStyle}>
+        <Pressable
+          testID={`${testIdPrefix}-inc`}
+          accessibilityRole="button"
+          onPress={() => nudge(-1)}
+          onPressIn={upPress.onPressIn}
+          onPressOut={upPress.onPressOut}
+          style={styles.arrowButton}
+        >
+          <Ionicons name="chevron-up" size={14} color={colors.textSecondary} />
+        </Pressable>
+      </Animated.View>
       <View style={styles.wheelWrap} testID={testIdPrefix}>
         <ScrollView
           ref={scrollRef}
@@ -131,14 +175,18 @@ function ScoreWheel({
         </ScrollView>
         <View pointerEvents="none" style={styles.wheelActiveBand} />
       </View>
-      <Pressable
-        testID={`${testIdPrefix}-dec`}
-        accessibilityRole="button"
-        onPress={() => nudge(1)}
-        style={styles.arrowButton}
-      >
-        <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
-      </Pressable>
+      <Animated.View style={downPress.animatedStyle}>
+        <Pressable
+          testID={`${testIdPrefix}-dec`}
+          accessibilityRole="button"
+          onPress={() => nudge(1)}
+          onPressIn={downPress.onPressIn}
+          onPressOut={downPress.onPressOut}
+          style={styles.arrowButton}
+        >
+          <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
+        </Pressable>
+      </Animated.View>
     </>
   );
 }
@@ -160,8 +208,9 @@ export function ScorePickerModal({
   const savePhaseRef = useRef<SavePhase>("idle");
   const saveStartedRef = useRef(false);
   const savedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const progressAnim = useRef(new Animated.Value(0)).current;
-  const checkmarkScale = useRef(new Animated.Value(0)).current;
+  const progressAnim = useRef(new NativeAnimated.Value(0)).current;
+  const checkmarkScale = useRef(new NativeAnimated.Value(0)).current;
+  const savePress = usePressScale(0.97, savePhase !== "idle");
 
   useEffect(() => {
     if (!visible) return;
@@ -184,7 +233,7 @@ export function ScorePickerModal({
     savePhaseRef.current = "saving";
     setSavePhase("saving");
 
-    Animated.timing(progressAnim, {
+    NativeAnimated.timing(progressAnim, {
       toValue: 0.7,
       duration: 400,
       useNativeDriver: false
@@ -193,14 +242,14 @@ export function ScorePickerModal({
     try {
       await onSave({ home, away });
 
-      Animated.timing(progressAnim, {
+      NativeAnimated.timing(progressAnim, {
         toValue: 1,
         duration: 200,
         useNativeDriver: false
       }).start(() => {
         savePhaseRef.current = "saved";
         setSavePhase("saved");
-        Animated.spring(checkmarkScale, {
+        NativeAnimated.spring(checkmarkScale, {
           toValue: 1,
           friction: 4,
           tension: 120,
@@ -271,40 +320,43 @@ export function ScorePickerModal({
           </View>
 
           {/* Save button */}
-          <Pressable
-            testID="score-picker-apply"
-            onPressIn={triggerSave}
-            onPress={triggerSave}
-            disabled={savePhase !== "idle"}
-            hitSlop={8}
-            style={styles.saveButtonWrap}
-          >
-            <Animated.View style={[styles.saveButton, { backgroundColor: buttonBgColor }]}>
-              {savePhase === "saving" ? (
-                <Animated.View style={[styles.progressBar, { width: progressWidth }]} />
-              ) : null}
-              <View style={styles.saveButtonContent}>
-                {savePhase === "saved" ? (
-                  <View style={styles.savedRow}>
-                    <Animated.View style={{ transform: [{ scale: checkmarkScale }] }}>
-                      <Ionicons name="checkmark-circle" size={18} color={colors.textHigh} />
-                    </Animated.View>
+          <Animated.View style={savePress.animatedStyle}>
+            <Pressable
+              testID="score-picker-apply"
+              onPressIn={savePress.onPressIn}
+              onPressOut={savePress.onPressOut}
+              onPress={triggerSave}
+              disabled={savePhase !== "idle"}
+              hitSlop={8}
+              style={styles.saveButtonWrap}
+            >
+              <NativeAnimated.View style={[styles.saveButton, { backgroundColor: buttonBgColor }]}>
+                {savePhase === "saving" ? (
+                  <NativeAnimated.View style={[styles.progressBar, { width: progressWidth }]} />
+                ) : null}
+                <View style={styles.saveButtonContent}>
+                  {savePhase === "saved" ? (
+                    <View style={styles.savedRow}>
+                      <NativeAnimated.View style={{ transform: [{ scale: checkmarkScale }] }}>
+                        <Ionicons name="checkmark-circle" size={18} color={colors.textHigh} />
+                      </NativeAnimated.View>
+                      <Text allowFontScaling={false} style={styles.saveLabel}>
+                        Guardado
+                      </Text>
+                    </View>
+                  ) : savePhase === "saving" ? (
                     <Text allowFontScaling={false} style={styles.saveLabel}>
-                      Guardado
+                      Guardando...
                     </Text>
-                  </View>
-                ) : savePhase === "saving" ? (
-                  <Text allowFontScaling={false} style={styles.saveLabel}>
-                    Guardando...
-                  </Text>
-                ) : (
-                  <Text allowFontScaling={false} style={styles.saveLabel}>
-                    Guardar
-                  </Text>
-                )}
-              </View>
-            </Animated.View>
-          </Pressable>
+                  ) : (
+                    <Text allowFontScaling={false} style={styles.saveLabel}>
+                      Guardar
+                    </Text>
+                  )}
+                </View>
+              </NativeAnimated.View>
+            </Pressable>
+          </Animated.View>
         </View>
       </View>
     </Modal>

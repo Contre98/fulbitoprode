@@ -1,6 +1,33 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
+import type { Membership } from "@fulbito/domain";
 import { colors, spacing } from "@fulbito/design-tokens";
+import { usePressScale } from "@/lib/usePressScale";
 import { useGroupSelection } from "@/state/GroupContext";
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+function GroupOptionChip({
+  membership,
+  active,
+  onPress
+}: {
+  membership: Membership;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const optionPress = usePressScale(0.97);
+  return (
+    <AnimatedPressable
+      onPress={onPress}
+      onPressIn={optionPress.onPressIn}
+      onPressOut={optionPress.onPressOut}
+      style={[styles.option, active ? styles.optionActive : null, optionPress.animatedStyle]}
+    >
+      <Text style={[styles.optionLabel, active ? styles.optionLabelActive : null]}>{membership.groupName}</Text>
+    </AnimatedPressable>
+  );
+}
 
 export function GroupSelector() {
   const { memberships, selectedGroupId, setSelectedGroupId } = useGroupSelection();
@@ -15,13 +42,12 @@ export function GroupSelector() {
         {memberships.map((membership) => {
           const active = membership.groupId === selectedGroupId;
           return (
-            <Pressable
+            <GroupOptionChip
               key={membership.groupId}
+              membership={membership}
+              active={active}
               onPress={() => setSelectedGroupId(membership.groupId)}
-              style={({ pressed }) => [styles.option, active ? styles.optionActive : null, pressed ? styles.optionPressed : null]}
-            >
-              <Text style={[styles.optionLabel, active ? styles.optionLabelActive : null]}>{membership.groupName}</Text>
-            </Pressable>
+            />
           );
         })}
       </ScrollView>
@@ -51,9 +77,6 @@ const styles = StyleSheet.create({
   optionActive: {
     borderColor: colors.primary,
     backgroundColor: colors.dataLiveBg
-  },
-  optionPressed: {
-    opacity: 0.8
   },
   optionLabel: {
     color: colors.textSecondary,

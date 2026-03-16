@@ -1,12 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Animated, PanResponder, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Animated as NativeAnimated, PanResponder, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { colors } from "@fulbito/design-tokens";
+import Animated from "react-native-reanimated";
 import type { NotificationEventType, NotificationItem } from "@fulbito/domain";
 import { notificationsRepository } from "@/repositories";
+import { usePressScale } from "@/lib/usePressScale";
 import { useNotificationsOverlay } from "@/state/NotificationsOverlayContext";
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 type IoniconsName = keyof typeof Ionicons.glyphMap;
 
@@ -42,8 +46,8 @@ function formatDate(iso: string) {
 
 function NotificationBubble({ item, onDismiss }: { item: NotificationItem; onDismiss: (id: string) => void }) {
   const meta = getEventMeta(item.type);
-  const translateX = useRef(new Animated.Value(0)).current;
-  const opacity = useRef(new Animated.Value(1)).current;
+  const translateX = useRef(new NativeAnimated.Value(0)).current;
+  const opacity = useRef(new NativeAnimated.Value(1)).current;
 
   const panResponder = useMemo(
     () =>
@@ -57,7 +61,7 @@ function NotificationBubble({ item, onDismiss }: { item: NotificationItem; onDis
         onPanResponderRelease: (_, gestureState) => {
           const shouldDismiss = Math.abs(gestureState.dx) > 84 || Math.abs(gestureState.vx) > 0.85;
           if (!shouldDismiss) {
-            Animated.spring(translateX, {
+            NativeAnimated.spring(translateX, {
               toValue: 0,
               speed: 25,
               bounciness: 0,
@@ -67,13 +71,13 @@ function NotificationBubble({ item, onDismiss }: { item: NotificationItem; onDis
           }
 
           const direction = gestureState.dx >= 0 ? 1 : -1;
-          Animated.parallel([
-            Animated.timing(translateX, {
+          NativeAnimated.parallel([
+            NativeAnimated.timing(translateX, {
               toValue: direction * 320,
               duration: 170,
               useNativeDriver: true
             }),
-            Animated.timing(opacity, {
+            NativeAnimated.timing(opacity, {
               toValue: 0,
               duration: 150,
               useNativeDriver: true
@@ -85,7 +89,7 @@ function NotificationBubble({ item, onDismiss }: { item: NotificationItem; onDis
           });
         },
         onPanResponderTerminate: () => {
-          Animated.spring(translateX, {
+          NativeAnimated.spring(translateX, {
             toValue: 0,
             speed: 24,
             bounciness: 0,
@@ -97,7 +101,7 @@ function NotificationBubble({ item, onDismiss }: { item: NotificationItem; onDis
   );
 
   return (
-    <Animated.View
+    <NativeAnimated.View
       style={[
         styles.bubble,
         !item.read && styles.bubbleUnread,
@@ -119,7 +123,7 @@ function NotificationBubble({ item, onDismiss }: { item: NotificationItem; onDis
         <Text allowFontScaling={false} numberOfLines={2} style={styles.bubbleText}>{item.body}</Text>
       </View>
       {!item.read ? <View style={styles.unreadDot} /> : null}
-    </Animated.View>
+    </NativeAnimated.View>
   );
 }
 
@@ -139,6 +143,8 @@ export function NotificationsBubbleOverlay() {
   const visibleItems = useMemo(() => items.filter((item) => !dismissedIds.has(item.id)), [dismissedIds, items]);
   const unreadCount = useMemo(() => visibleItems.filter((item) => !item.read).length, [visibleItems]);
   const maxListHeight = useMemo(() => Math.max(220, height - insets.top - insets.bottom - 130), [height, insets.bottom, insets.top]);
+  const markReadPress = usePressScale(0.97, unreadCount === 0);
+  const closePress = usePressScale(0.93);
 
   useEffect(() => {
     if (dismissedIds.size === 0) return;
@@ -206,13 +212,25 @@ export function NotificationsBubbleOverlay() {
             </View>
             <View style={styles.headerActions}>
               {unreadCount > 0 ? (
-                <Pressable hitSlop={6} onPress={() => void handleMarkAllRead()} style={styles.markReadBtn}>
+                <AnimatedPressable
+                  hitSlop={6}
+                  onPress={() => void handleMarkAllRead()}
+                  onPressIn={markReadPress.onPressIn}
+                  onPressOut={markReadPress.onPressOut}
+                  style={[styles.markReadBtn, markReadPress.animatedStyle]}
+                >
                   <Text allowFontScaling={false} style={styles.markReadText}>Marcar</Text>
-                </Pressable>
+                </AnimatedPressable>
               ) : null}
-              <Pressable hitSlop={6} onPress={hide} style={styles.closeBtn}>
+              <AnimatedPressable
+                hitSlop={6}
+                onPress={hide}
+                onPressIn={closePress.onPressIn}
+                onPressOut={closePress.onPressOut}
+                style={[styles.closeBtn, closePress.animatedStyle]}
+              >
                 <Ionicons name="close" size={17} color={colors.textSecondary} />
-              </Pressable>
+              </AnimatedPressable>
             </View>
           </View>
         </View>

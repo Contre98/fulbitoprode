@@ -127,6 +127,7 @@ type ProviderLeagueStatus = "ongoing" | "upcoming" | "expired";
 
 const PROVIDER_CACHE_TTL_MS = {
   fixturesLive: 60_000,
+  fixturesNearKickoff: 60_000,
   fixturesStable: 3 * 60 * 60 * 1000,
   fixturesEmpty: 60_000,
   fechas: 3 * 60 * 60 * 1000,
@@ -134,6 +135,7 @@ const PROVIDER_CACHE_TTL_MS = {
   leagues: 60_000,
   standings: 60_000
 } as const;
+const FIXTURE_NEAR_KICKOFF_WINDOW_MS = 2 * 60 * 60 * 1000;
 const LPF_APERTURA_2026_LABEL = "LPF: Apertura (2026)";
 
 const providerCache = new Map<string, { expiresAt: number; value: unknown }>();
@@ -209,7 +211,20 @@ function fixtureCacheTtl(fixtures: LiveFixture[]) {
   if (fixtures.length === 0) {
     return PROVIDER_CACHE_TTL_MS.fixturesEmpty;
   }
-  return isLiveFixtureSet(fixtures) ? PROVIDER_CACHE_TTL_MS.fixturesLive : PROVIDER_CACHE_TTL_MS.fixturesStable;
+  if (isLiveFixtureSet(fixtures)) {
+    return PROVIDER_CACHE_TTL_MS.fixturesLive;
+  }
+
+  const now = Date.now();
+  const hasNearKickoffFixture = fixtures.some((fixture) => {
+    const kickoffMs = new Date(fixture.kickoffAt).getTime();
+    if (!Number.isFinite(kickoffMs)) {
+      return false;
+    }
+    return Math.abs(kickoffMs - now) <= FIXTURE_NEAR_KICKOFF_WINDOW_MS;
+  });
+
+  return hasNearKickoffFixture ? PROVIDER_CACHE_TTL_MS.fixturesNearKickoff : PROVIDER_CACHE_TTL_MS.fixturesStable;
 }
 
 function scheduleFechasPrewarm(input: {

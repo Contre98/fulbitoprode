@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated as NativeAnimated, Pressable, StyleSheet, Text, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Fixture, Prediction, PredictionHistoryEntry } from "@fulbito/domain";
 import { colors, spacing } from "@fulbito/design-tokens";
 import { calculatePredictionPoints, isPredictionInputComplete, normalizePredictionInput } from "@fulbito/domain";
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { AppHeader } from "@/components/AppHeader";
 import { FechaSelector } from "@/components/FechaSelector";
@@ -25,6 +26,32 @@ type DraftByFixture = Record<string, { home: string; away: string }>;
 type PronosticosMode = "upcoming" | "history";
 type FixtureSaveStatus = "idle" | "saving" | "error";
 const LPF_APERTURA_2026_LABEL = "LPF: Apertura (2026)";
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const MODE_TAB_PRESS_IN_SPRING = {
+  damping: 22,
+  stiffness: 430,
+  mass: 0.4
+} as const;
+const MODE_TAB_PRESS_OUT_SPRING = {
+  damping: 18,
+  stiffness: 340,
+  mass: 0.45
+} as const;
+const MODE_INDICATOR_SPRING = {
+  damping: 20,
+  stiffness: 290,
+  mass: 0.5
+} as const;
+const SCORE_PILL_PRESS_IN_SPRING = {
+  damping: 22,
+  stiffness: 420,
+  mass: 0.4
+} as const;
+const SCORE_PILL_PRESS_OUT_SPRING = {
+  damping: 18,
+  stiffness: 330,
+  mass: 0.45
+} as const;
 
 function toTeamCode(name: string) {
   const clean = name.trim();
@@ -75,8 +102,109 @@ function isOpenUpcomingFixture(fixture: Fixture) {
   return Number.isFinite(kickoffMs) && kickoffMs > Date.now();
 }
 
+function ModeFilterTab({
+  label,
+  active,
+  onPress
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const reducedMotion = useReducedMotion();
+  const pressScale = useSharedValue(1);
+  const pressAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressScale.value }]
+  }));
+
+  const handlePressIn = useCallback(() => {
+    if (reducedMotion) {
+      pressScale.value = 1;
+      return;
+    }
+    pressScale.value = withSpring(0.97, MODE_TAB_PRESS_IN_SPRING);
+  }, [pressScale, reducedMotion]);
+
+  const handlePressOut = useCallback(() => {
+    if (reducedMotion) {
+      pressScale.value = 1;
+      return;
+    }
+    pressScale.value = withSpring(1, MODE_TAB_PRESS_OUT_SPRING);
+  }, [pressScale, reducedMotion]);
+
+  return (
+    <AnimatedPressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={[styles.filterTab, pressAnimatedStyle]}
+    >
+      <Text allowFontScaling={false} style={active ? styles.filterTabLabelActive : styles.filterTabLabel}>{label}</Text>
+    </AnimatedPressable>
+  );
+}
+
+function EditableScorePill({
+  fixtureId,
+  homeValue,
+  awayValue,
+  active,
+  onPress
+}: {
+  fixtureId: string;
+  homeValue: string;
+  awayValue: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const reducedMotion = useReducedMotion();
+  const pressScale = useSharedValue(1);
+  const pressAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressScale.value }]
+  }));
+
+  const handlePressIn = useCallback(() => {
+    if (reducedMotion) {
+      pressScale.value = 1;
+      return;
+    }
+    pressScale.value = withSpring(0.98, SCORE_PILL_PRESS_IN_SPRING);
+  }, [pressScale, reducedMotion]);
+
+  const handlePressOut = useCallback(() => {
+    if (reducedMotion) {
+      pressScale.value = 1;
+      return;
+    }
+    pressScale.value = withSpring(1, SCORE_PILL_PRESS_OUT_SPRING);
+  }, [pressScale, reducedMotion]);
+
+  return (
+    <AnimatedPressable
+      accessibilityRole="button"
+      testID={`score-open-${fixtureId}-home`}
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={[styles.inputsPill, active ? styles.inputsPillActive : null, pressAnimatedStyle]}
+    >
+      <Text allowFontScaling={false} style={styles.scoreInput}>
+        {homeValue.length > 0 ? homeValue : "-"}
+      </Text>
+      <Text allowFontScaling={false} style={styles.separator}>:</Text>
+      <Text allowFontScaling={false} style={styles.scoreInput}>
+        {awayValue.length > 0 ? awayValue : "-"}
+      </Text>
+    </AnimatedPressable>
+  );
+}
+
 export function PronosticosScreen() {
   const queryClient = useQueryClient();
+  const reducedMotion = useReducedMotion();
   const { memberships, selectedGroupId } = useGroupSelection();
   const { fecha, options, setFecha } = usePeriod();
   const hasMemberships = memberships.length > 0;
@@ -87,6 +215,7 @@ export function PronosticosScreen() {
   const [draftByFixture, setDraftByFixture] = useState<DraftByFixture>({});
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [mode, setMode] = useState<PronosticosMode>("upcoming");
+  const [modeTabsWidth, setModeTabsWidth] = useState(0);
   const [scoreModalFixtureId, setScoreModalFixtureId] = useState<string | null>(null);
   const [saveStatusByFixture, setSaveStatusByFixture] = useState<Record<string, FixtureSaveStatus>>({});
   const [saveErrorByFixture, setSaveErrorByFixture] = useState<Record<string, string>>({});
@@ -96,6 +225,7 @@ export function PronosticosScreen() {
   const autoSaveInFlightRef = useRef<Set<string>>(new Set());
   const missingFinalScoreLoggedRef = useRef<Set<string>>(new Set());
   const lastAutoModeKeyRef = useRef<string>("");
+  const modeIndicatorX = useSharedValue(0);
 
   const fixtureQuery = useQuery({
     queryKey: ["fixture", groupId, fecha],
@@ -290,6 +420,22 @@ export function PronosticosScreen() {
 
     return historyFixtures.length > 0 ? historyFixtures : fallbackHistoryFixtures;
   }, [mode, upcomingFixtures, historyFixtures, fallbackHistoryFixtures]);
+  const activeModeIndex = mode === "upcoming" ? 0 : 1;
+  const modeTabWidth = modeTabsWidth > 0 ? (modeTabsWidth - 8) / 2 : 0;
+  const modeIndicatorStyle = useAnimatedStyle(() => ({
+    opacity: modeTabWidth > 0 ? 1 : 0,
+    transform: [{ translateX: modeIndicatorX.value }]
+  }));
+
+  useEffect(() => {
+    if (modeTabWidth <= 0) return;
+    const target = activeModeIndex * (modeTabWidth + 2);
+    if (reducedMotion) {
+      modeIndicatorX.value = target;
+      return;
+    }
+    modeIndicatorX.value = withSpring(target, MODE_INDICATOR_SPRING);
+  }, [activeModeIndex, modeIndicatorX, modeTabWidth, reducedMotion]);
   const predictionByFixture = useMemo(
     () => new Map((predictionsQuery.data ?? []).map((prediction) => [prediction.fixtureId, prediction])),
     [predictionsQuery.data]
@@ -558,28 +704,22 @@ export function PronosticosScreen() {
               </View>
 
               {isEditable ? (
-                <Pressable
-                  testID={`score-open-${fixture.id}-home`}
+                <EditableScorePill
+                  fixtureId={fixture.id}
+                  homeValue={draft.home}
+                  awayValue={draft.away}
+                  active={hasDraft}
                   onPress={() => openScorePicker(fixture.id)}
-                  style={[styles.inputsPill, hasDraft ? styles.inputsPillActive : null]}
-                >
-                  <Text allowFontScaling={false} style={styles.scoreInput}>
-                    {draft.home.length > 0 ? draft.home : "-"}
-                  </Text>
-                  <Text allowFontScaling={false} style={styles.separator}>:</Text>
-                  <Text allowFontScaling={false} style={styles.scoreInput}>
-                    {draft.away.length > 0 ? draft.away : "-"}
-                  </Text>
-                </Pressable>
+                />
               ) : (
                 <View style={styles.resultPill}>
                   <Text allowFontScaling={false} style={styles.resultText}>
                     {readOnlyHome} - {readOnlyAway}
                   </Text>
                   {isLive && liveMinuteLabel ? (
-                    <Animated.Text allowFontScaling={false} style={[styles.resultSub, styles.resultSubLive, { opacity: livePulseOpacity }]}>
+                    <NativeAnimated.Text allowFontScaling={false} style={[styles.resultSub, styles.resultSubLive, { opacity: livePulseOpacity }]}>
                       {liveMinuteLabel}
-                    </Animated.Text>
+                    </NativeAnimated.Text>
                   ) : (
                     <Text allowFontScaling={false} style={styles.resultSub}>{statusBadgeLabel.toUpperCase()}</Text>
                   )}
@@ -698,13 +838,17 @@ export function PronosticosScreen() {
                   </View>
                 </View>
 
-                <View style={styles.filterTabs}>
-                  <Pressable onPress={() => setMode("upcoming")} style={[styles.filterTab, mode === "upcoming" ? styles.filterTabActive : null]}>
-                    <Text allowFontScaling={false} style={mode === "upcoming" ? styles.filterTabLabelActive : styles.filterTabLabel}>Por Jugar</Text>
-                  </Pressable>
-                  <Pressable onPress={() => setMode("history")} style={[styles.filterTab, mode === "history" ? styles.filterTabActive : null]}>
-                    <Text allowFontScaling={false} style={mode === "history" ? styles.filterTabLabelActive : styles.filterTabLabel}>Jugados</Text>
-                  </Pressable>
+                <View style={styles.filterTabs} onLayout={(event) => setModeTabsWidth(event.nativeEvent.layout.width)}>
+                  <Animated.View
+                    pointerEvents="none"
+                    style={[
+                      styles.filterTabIndicator,
+                      { width: modeTabWidth > 0 ? modeTabWidth : undefined },
+                      modeIndicatorStyle
+                    ]}
+                  />
+                  <ModeFilterTab label="Por Jugar" active={mode === "upcoming"} onPress={() => setMode("upcoming")} />
+                  <ModeFilterTab label="Jugados" active={mode === "history"} onPress={() => setMode("history")} />
                 </View>
                 {visibleFixtures.length === 0 ? (
                   <EmptyState
@@ -957,13 +1101,23 @@ const styles = StyleSheet.create({
     fontSize: 12
   },
   filterTabs: {
+    position: "relative",
     flexDirection: "row",
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
     backgroundColor: colors.surfaceSoft,
     padding: 3,
+    overflow: "hidden",
     gap: 2
+  },
+  filterTabIndicator: {
+    position: "absolute",
+    left: 3,
+    top: 3,
+    bottom: 3,
+    borderRadius: 8,
+    backgroundColor: colors.primaryStrong
   },
   filterTab: {
     flex: 1,
@@ -971,9 +1125,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center"
-  },
-  filterTabActive: {
-    backgroundColor: colors.primaryStrong
   },
   filterTabLabel: {
     color: colors.textMutedAlt,

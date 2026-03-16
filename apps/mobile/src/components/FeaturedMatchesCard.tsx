@@ -1,6 +1,7 @@
-import { useMemo } from "react";
-import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useMemo } from "react";
+import { Animated as NativeAnimated, Pressable, StyleSheet, Text, View } from "react-native";
 import { colors } from "@fulbito/design-tokens";
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
 import type { Fixture, Prediction } from "@fulbito/domain";
 import { TeamCrest } from "@/components/TeamCrest";
 import { LivePulseBorder, estimateMatchMinute, useLivePulse } from "@/components/LiveMatchIndicator";
@@ -14,6 +15,17 @@ interface FeaturedMatchesCardProps {
   predictions: Prediction[];
   onPressPrediction?: (fixtureId: string) => void;
 }
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const EDIT_CTA_PRESS_IN_SPRING = {
+  damping: 22,
+  stiffness: 420,
+  mass: 0.4
+} as const;
+const EDIT_CTA_PRESS_OUT_SPRING = {
+  damping: 18,
+  stiffness: 340,
+  mass: 0.45
+} as const;
 
 function toTeamCode(name: string): string {
   return name.replace(/\s+/g, "").slice(0, 3).toUpperCase();
@@ -146,9 +158,9 @@ function StatusScorePill({ fixture }: { fixture: Fixture }) {
   return (
     <View style={[styles.resultPill, !isLive ? styles.resultPillUpcoming : null]}>
       {isLive ? (
-        <Animated.Text allowFontScaling={false} style={[styles.resultSub, styles.resultSubLive, { opacity: livePulseOpacity }]}>
+        <NativeAnimated.Text allowFontScaling={false} style={[styles.resultSub, styles.resultSubLive, { opacity: livePulseOpacity }]}>
           {liveMinute || "0'"}
-        </Animated.Text>
+        </NativeAnimated.Text>
       ) : (
         <Text allowFontScaling={false} style={styles.resultSub}>{statusText}</Text>
       )}
@@ -199,17 +211,41 @@ function EditPredictionButton({
   prediction?: Prediction;
   onPress: () => void;
 }) {
+  const reducedMotion = useReducedMotion();
+  const buttonScale = useSharedValue(1);
   const label = prediction
     ? `Editar Pronóstico (${prediction.home} - ${prediction.away})`
     : "Cargar Pronóstico";
+  const buttonAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: buttonScale.value }]
+  }));
+
+  const handlePressIn = useCallback(() => {
+    if (reducedMotion) {
+      buttonScale.value = 1;
+      return;
+    }
+    buttonScale.value = withSpring(0.97, EDIT_CTA_PRESS_IN_SPRING);
+  }, [buttonScale, reducedMotion]);
+
+  const handlePressOut = useCallback(() => {
+    if (reducedMotion) {
+      buttonScale.value = 1;
+      return;
+    }
+    buttonScale.value = withSpring(1, EDIT_CTA_PRESS_OUT_SPRING);
+  }, [buttonScale, reducedMotion]);
 
   return (
-    <Pressable
-      style={({ pressed }) => [styles.editBtn, pressed && styles.editBtnPressed]}
+    <AnimatedPressable
+      accessibilityRole="button"
+      style={[styles.editBtn, buttonAnimatedStyle]}
       onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
     >
       <Text allowFontScaling={false} style={styles.editBtnText}>{label}</Text>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -353,9 +389,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     alignItems: "center",
     justifyContent: "center"
-  },
-  editBtnPressed: {
-    opacity: 0.8
   },
   editBtnText: {
     color: colors.primaryDeep,

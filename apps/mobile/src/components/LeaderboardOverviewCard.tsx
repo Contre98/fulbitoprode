@@ -1,6 +1,8 @@
-import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
+import { useCallback } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@fulbito/design-tokens";
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
 import type { LeaderboardStatsRow, LeaderboardAward } from "@fulbito/domain";
 import { CardSideAccentGradient } from "@/components/MatchCardVisuals";
 
@@ -21,11 +23,43 @@ const awardGlyph: Record<string, { icon: string; tone: string }> = {
   "el-casi": { icon: "⌖", tone: colors.info },
   "el-mufa": { icon: "☂", tone: colors.slateMuted }
 };
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const CHEVRON_PRESS_IN_SPRING = {
+  damping: 20,
+  stiffness: 430,
+  mass: 0.4
+} as const;
+const CHEVRON_PRESS_OUT_SPRING = {
+  damping: 17,
+  stiffness: 340,
+  mass: 0.45
+} as const;
 
 export function LeaderboardOverviewCard({ groupLabel, row, awards, currentUserId, onPress }: LeaderboardOverviewCardProps) {
+  const reducedMotion = useReducedMotion();
+  const chevronScale = useSharedValue(1);
   const delta = row.deltaRank ?? 0;
   const streak = row.streak ?? 0;
   const myAwards = awards?.filter((a) => a.winnerUserId === (row.userId ?? currentUserId)) ?? [];
+  const chevronAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: chevronScale.value }]
+  }));
+
+  const handleChevronPressIn = useCallback(() => {
+    if (reducedMotion) {
+      chevronScale.value = 1;
+      return;
+    }
+    chevronScale.value = withSpring(0.92, CHEVRON_PRESS_IN_SPRING);
+  }, [chevronScale, reducedMotion]);
+
+  const handleChevronPressOut = useCallback(() => {
+    if (reducedMotion) {
+      chevronScale.value = 1;
+      return;
+    }
+    chevronScale.value = withSpring(1, CHEVRON_PRESS_OUT_SPRING);
+  }, [chevronScale, reducedMotion]);
 
   const awardBadges = myAwards.map((award) => {
     const visual = awardGlyph[award.id] ?? { icon: "◈", tone: colors.trophy };
@@ -48,9 +82,16 @@ export function LeaderboardOverviewCard({ groupLabel, row, awards, currentUserId
       <View style={styles.headerRow}>
         <Text style={styles.header}>{groupLabel.toUpperCase()}</Text>
         {onPress && (
-          <TouchableOpacity onPress={onPress} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <AnimatedPressable
+            accessibilityRole="button"
+            onPress={onPress}
+            onPressIn={handleChevronPressIn}
+            onPressOut={handleChevronPressOut}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={chevronAnimatedStyle}
+          >
             <Ionicons name="chevron-forward" size={18} color={colors.textGray} />
-          </TouchableOpacity>
+          </AnimatedPressable>
         )}
       </View>
 

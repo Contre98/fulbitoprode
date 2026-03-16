@@ -1,5 +1,9 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { colors, spacing } from "@fulbito/design-tokens";
+import { usePressScale } from "@/lib/usePressScale";
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function ErrorState({
   message,
@@ -10,13 +14,20 @@ export function ErrorState({
   retryLabel?: string;
   onRetry?: () => void;
 }) {
+  const retryPress = usePressScale(0.97, !onRetry);
+
   return (
     <View style={styles.container}>
       <Text style={styles.message}>{message}</Text>
       {retryLabel && onRetry ? (
-        <Pressable onPress={onRetry} style={({ pressed }) => [styles.retryButton, pressed ? styles.retryButtonPressed : null]}>
+        <AnimatedPressable
+          onPress={onRetry}
+          onPressIn={retryPress.onPressIn}
+          onPressOut={retryPress.onPressOut}
+          style={[styles.retryButton, retryPress.animatedStyle]}
+        >
           <Text style={styles.retryLabel}>{retryLabel}</Text>
-        </Pressable>
+        </AnimatedPressable>
       ) : null}
     </View>
   );
@@ -40,9 +51,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: colors.surface
-  },
-  retryButtonPressed: {
-    opacity: 0.8
   },
   retryLabel: {
     color: colors.textPrimary,

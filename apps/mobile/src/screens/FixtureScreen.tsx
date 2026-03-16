@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated as NativeAnimated, Pressable, StyleSheet, Text, View } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { compareFixturesByStatusAndKickoff, groupFixturesByDate } from "@fulbito/domain";
 import { colors } from "@fulbito/design-tokens";
 import type { Fixture } from "@fulbito/domain";
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
 import { fixtureRepository } from "@/repositories";
 import { useGroupSelection } from "@/state/GroupContext";
 import { usePeriod } from "@/state/PeriodContext";
@@ -21,6 +22,7 @@ import { formatClock24 } from "@/lib/dateTime";
 import { buildTeamFormLookup } from "@/lib/matchVisuals";
 
 type FixtureFilter = "all" | "live" | "final" | "upcoming";
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const filterLabels: Record<FixtureFilter, string> = {
   all: "Todos",
@@ -28,6 +30,22 @@ const filterLabels: Record<FixtureFilter, string> = {
   final: "Finalizados",
   upcoming: "Próximos"
 };
+const filterOrder: FixtureFilter[] = ["all", "live", "final", "upcoming"];
+const FILTER_TAB_PRESS_IN_SPRING = {
+  damping: 22,
+  stiffness: 430,
+  mass: 0.4
+} as const;
+const FILTER_TAB_PRESS_OUT_SPRING = {
+  damping: 18,
+  stiffness: 340,
+  mass: 0.45
+} as const;
+const FILTER_INDICATOR_SPRING = {
+  damping: 20,
+  stiffness: 290,
+  mass: 0.5
+} as const;
 const LPF_APERTURA_2026_LABEL = "LPF: Apertura (2026)";
 
 function stageLabel(value: string | undefined) {
@@ -67,11 +85,61 @@ function statusLabel(status: Fixture["status"]) {
   return "PRÓXIMO";
 }
 
+function FilterTabButton({
+  label,
+  active,
+  onPress
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const reducedMotion = useReducedMotion();
+  const pressScale = useSharedValue(1);
+  const pressAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressScale.value }]
+  }));
+
+  const handlePressIn = useCallback(() => {
+    if (reducedMotion) {
+      pressScale.value = 1;
+      return;
+    }
+    pressScale.value = withSpring(0.97, FILTER_TAB_PRESS_IN_SPRING);
+  }, [pressScale, reducedMotion]);
+
+  const handlePressOut = useCallback(() => {
+    if (reducedMotion) {
+      pressScale.value = 1;
+      return;
+    }
+    pressScale.value = withSpring(1, FILTER_TAB_PRESS_OUT_SPRING);
+  }, [pressScale, reducedMotion]);
+
+  return (
+    <AnimatedPressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={[styles.filterTab, pressAnimatedStyle]}
+    >
+      <Text allowFontScaling={false} style={[styles.filterTabLabel, active ? styles.filterTabLabelActive : null]}>
+        {label}
+      </Text>
+    </AnimatedPressable>
+  );
+}
+
 export function FixtureScreen() {
   const queryClient = useQueryClient();
+  const reducedMotion = useReducedMotion();
   const { memberships, selectedGroupId } = useGroupSelection();
   const { fecha, options, setFecha } = usePeriod();
   const [filter, setFilter] = useState<FixtureFilter>("all");
+  const [filterTabsWidth, setFilterTabsWidth] = useState(0);
+  const filterIndicatorX = useSharedValue(0);
   const hasMemberships = memberships.length > 0;
 
   const groupId = memberships.find((membership) => membership.groupId === selectedGroupId)?.groupId ?? memberships[0]?.groupId ?? null;
@@ -139,6 +207,24 @@ export function FixtureScreen() {
       }))
       .filter((group) => group.fixtures.length > 0);
   }, [filter, grouped]);
+  const activeFilterIndex = filterOrder.indexOf(filter);
+  const filterTabWidth = filterTabsWidth > 0 ? (filterTabsWidth - 12) / filterOrder.length : 0;
+  const filterIndicatorStyle = useAnimatedStyle(() => ({
+    opacity: filterTabWidth > 0 ? 1 : 0,
+    transform: [{ translateX: filterIndicatorX.value }]
+  }));
+
+  useEffect(() => {
+    if (filterTabWidth <= 0 || activeFilterIndex < 0) {
+      return;
+    }
+    const target = activeFilterIndex * (filterTabWidth + 2);
+    if (reducedMotion) {
+      filterIndicatorX.value = target;
+      return;
+    }
+    filterIndicatorX.value = withSpring(target, FILTER_INDICATOR_SPRING);
+  }, [activeFilterIndex, filterIndicatorX, filterTabWidth, reducedMotion]);
 
   const handleRefresh = useCallback(async () => {
     await queryClient.resetQueries();
@@ -179,17 +265,18 @@ export function FixtureScreen() {
         <>
           <FechaSelector />
 
-          <View style={styles.filterTabs}>
-            {(Object.keys(filterLabels) as FixtureFilter[]).map((key) => {
-              const selected = filter === key;
-              return (
-                <Pressable key={key} onPress={() => setFilter(key)} style={[styles.filterTab, selected ? styles.filterTabActive : null]}>
-                  <Text allowFontScaling={false} style={[styles.filterTabLabel, selected ? styles.filterTabLabelActive : null]}>
-                    {filterLabels[key]}
-                  </Text>
-                </Pressable>
-              );
-            })}
+          <View style={styles.filterTabs} onLayout={(event) => setFilterTabsWidth(event.nativeEvent.layout.width)}>
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.filterTabIndicator,
+                { width: filterTabWidth > 0 ? filterTabWidth : undefined },
+                filterIndicatorStyle
+              ]}
+            />
+            {filterOrder.map((key) => (
+              <FilterTabButton key={key} label={filterLabels[key]} active={filter === key} onPress={() => setFilter(key)} />
+            ))}
           </View>
 
           {fixtureQuery.isLoading ? <LoadingState message="Cargando fixture..." variant="fixtures" /> : null}
@@ -233,9 +320,9 @@ export function FixtureScreen() {
 
                     <View style={styles.middleCol}>
                       {isLive ? (
-                        <Animated.Text allowFontScaling={false} style={[styles.metaLabel, styles.metaLabelLive, { opacity: livePulseOpacity }]}>
+                        <NativeAnimated.Text allowFontScaling={false} style={[styles.metaLabel, styles.metaLabelLive, { opacity: livePulseOpacity }]}>
                           {rowMetaLabel}
-                        </Animated.Text>
+                        </NativeAnimated.Text>
                       ) : (
                         <Text allowFontScaling={false} style={styles.metaLabel}>{rowMetaLabel}</Text>
                       )}
@@ -333,13 +420,23 @@ const styles = StyleSheet.create({
     fontSize: 14
   },
   filterTabs: {
+    position: "relative",
     flexDirection: "row",
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
     backgroundColor: colors.surfaceSoft,
     padding: 3,
+    overflow: "hidden",
     gap: 2
+  },
+  filterTabIndicator: {
+    position: "absolute",
+    left: 3,
+    top: 3,
+    bottom: 3,
+    borderRadius: 8,
+    backgroundColor: colors.primaryStrong
   },
   filterTab: {
     flex: 1,
@@ -347,9 +444,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     minHeight: 44
-  },
-  filterTabActive: {
-    backgroundColor: colors.primaryStrong
   },
   filterTabLabel: {
     color: colors.textMutedAlt,

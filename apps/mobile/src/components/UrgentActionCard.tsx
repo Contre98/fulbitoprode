@@ -1,5 +1,7 @@
+import { useCallback } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors } from "@fulbito/design-tokens";
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
 import { CardSideAccentGradient } from "@/components/MatchCardVisuals";
 
 interface UrgentActionCardProps {
@@ -9,9 +11,41 @@ interface UrgentActionCardProps {
   complete: boolean;
   onPress: () => void;
 }
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const CTA_PRESS_IN_SPRING = {
+  damping: 21,
+  stiffness: 420,
+  mass: 0.4
+} as const;
+const CTA_PRESS_OUT_SPRING = {
+  damping: 17,
+  stiffness: 330,
+  mass: 0.45
+} as const;
 
 export function UrgentActionCard({ message, filled, total, complete, onPress }: UrgentActionCardProps) {
+  const reducedMotion = useReducedMotion();
+  const ctaScale = useSharedValue(1);
   const progressPct = total > 0 ? Math.min(filled / total, 1) : 0;
+  const ctaAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: ctaScale.value }]
+  }));
+
+  const handleCtaPressIn = useCallback(() => {
+    if (reducedMotion) {
+      ctaScale.value = 1;
+      return;
+    }
+    ctaScale.value = withSpring(0.94, CTA_PRESS_IN_SPRING);
+  }, [ctaScale, reducedMotion]);
+
+  const handleCtaPressOut = useCallback(() => {
+    if (reducedMotion) {
+      ctaScale.value = 1;
+      return;
+    }
+    ctaScale.value = withSpring(1, CTA_PRESS_OUT_SPRING);
+  }, [ctaScale, reducedMotion]);
 
   return (
     <View style={styles.card}>
@@ -21,9 +55,15 @@ export function UrgentActionCard({ message, filled, total, complete, onPress }: 
           {complete ? "PRONÓSTICOS COMPLETOS" : "PRONÓSTICOS PENDIENTES"}
         </Text>
         {!complete && (
-          <Pressable style={styles.ctaBtn} onPress={onPress}>
+          <AnimatedPressable
+            accessibilityRole="button"
+            style={[styles.ctaBtn, ctaAnimatedStyle]}
+            onPress={onPress}
+            onPressIn={handleCtaPressIn}
+            onPressOut={handleCtaPressOut}
+          >
             <Text style={styles.ctaBtnLabel}>Jugar</Text>
-          </Pressable>
+          </AnimatedPressable>
         )}
       </View>
 

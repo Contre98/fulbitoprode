@@ -1,12 +1,18 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { colors, spacing } from "@fulbito/design-tokens";
 import { formatClock24 } from "@/lib/dateTime";
+import { usePressScale } from "@/lib/usePressScale";
 import { useAuth } from "@/state/AuthContext";
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function DataModeBadge() {
   const { dataMode, fallbackIssue, fallbackHistory, retryHttpMode, clearFallbackDiagnosticsHistory } = useAuth();
   const httpMode = dataMode === "http";
   const recentFailures = __DEV__ ? fallbackHistory.slice(0, 3) : [];
+  const retryPress = usePressScale(0.97, httpMode);
+  const clearPress = usePressScale(0.97, httpMode || recentFailures.length === 0 || !__DEV__);
 
   return (
     <View style={styles.container}>
@@ -26,17 +32,24 @@ export function DataModeBadge() {
         </View>
       ) : null}
       {!httpMode ? (
-        <Pressable onPress={() => void retryHttpMode()} style={({ pressed }) => [styles.retryButton, pressed ? styles.retryButtonPressed : null]}>
+        <AnimatedPressable
+          onPress={() => void retryHttpMode()}
+          onPressIn={retryPress.onPressIn}
+          onPressOut={retryPress.onPressOut}
+          style={[styles.retryButton, retryPress.animatedStyle]}
+        >
           <Text style={styles.retryLabel}>Reintentar HTTP</Text>
-        </Pressable>
+        </AnimatedPressable>
       ) : null}
       {!httpMode && recentFailures.length > 0 && __DEV__ ? (
-        <Pressable
+        <AnimatedPressable
           onPress={() => clearFallbackDiagnosticsHistory()}
-          style={({ pressed }) => [styles.clearHistoryButton, pressed ? styles.retryButtonPressed : null]}
+          onPressIn={clearPress.onPressIn}
+          onPressOut={clearPress.onPressOut}
+          style={[styles.clearHistoryButton, clearPress.animatedStyle]}
         >
           <Text style={styles.clearHistoryLabel}>Limpiar historial</Text>
-        </Pressable>
+        </AnimatedPressable>
       ) : null}
     </View>
   );
@@ -90,9 +103,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.surfaceMuted,
     backgroundColor: colors.surface
-  },
-  retryButtonPressed: {
-    opacity: 0.8
   },
   retryLabel: {
     color: colors.textPrimary,

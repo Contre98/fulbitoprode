@@ -173,4 +173,81 @@ describe("@fulbito/server-core liga-live-provider", () => {
     expect(fechas).toEqual(["fecha14", "fecha15"]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it("uses short cache ttl when a fixture is close to kickoff", async () => {
+    vi.useFakeTimers();
+    try {
+      const now = new Date("2026-03-16T20:00:00.000Z");
+      vi.setSystemTime(now);
+
+      const fetchMock = vi.fn<Promise<MockFetchResponse>, [string, RequestInit | undefined]>();
+      fetchMock
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            response: [
+              {
+                fixture: {
+                  id: 7001,
+                  date: "2026-03-16T20:10:00.000Z",
+                  status: { short: "NS", long: "Not Started", elapsed: null },
+                  venue: { name: "Bombonera" }
+                },
+                teams: {
+                  home: { name: "Boca Juniors", logo: "https://example.com/boca.png" },
+                  away: { name: "Union Santa Fe", logo: "https://example.com/union.png" }
+                },
+                goals: { home: null, away: null }
+              }
+            ]
+          })
+        })
+        .mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            response: [
+              {
+                fixture: {
+                  id: 7001,
+                  date: "2026-03-16T20:10:00.000Z",
+                  status: { short: "1H", long: "First Half", elapsed: 8 },
+                  venue: { name: "Bombonera" }
+                },
+                teams: {
+                  home: { name: "Boca Juniors", logo: "https://example.com/boca.png" },
+                  away: { name: "Union Santa Fe", logo: "https://example.com/union.png" }
+                },
+                goals: { home: 1, away: 0 }
+              }
+            ]
+          })
+        });
+      global.fetch = fetchMock as unknown as typeof global.fetch;
+
+      const { fetchLigaArgentinaFixtures } = await import("@fulbito/server-core/liga-live-provider");
+
+      const first = await fetchLigaArgentinaFixtures({
+        period: "Fecha 10",
+        leagueId: 128,
+        season: "2026",
+        competitionStage: "apertura"
+      });
+      expect(first[0]?.statusShort).toBe("NS");
+
+      vi.setSystemTime(new Date(now.getTime() + 61_000));
+
+      const second = await fetchLigaArgentinaFixtures({
+        period: "Fecha 10",
+        leagueId: 128,
+        season: "2026",
+        competitionStage: "apertura"
+      });
+      expect(second[0]?.statusShort).toBe("1H");
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

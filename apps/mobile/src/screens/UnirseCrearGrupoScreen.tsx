@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import type { GroupSearchResult, GroupVisibility } from "@fulbito/domain";
 import { colors, spacing } from "@fulbito/design-tokens";
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { groupsRepository } from "@/repositories";
 import { useAuth } from "@/state/AuthContext";
@@ -31,17 +32,112 @@ const AUTO_LOAD_THRESHOLD_PX = 96;
 const LEAGUE_FILTER_ID = 128;
 const LEAGUE_LABEL = "LPF: Apertura 2026";
 const CREATE_COMPETITION_LABEL = "LPF: Apertura (2026)";
+const TAB_ORDER: Tab[] = ["buscar", "crear"];
+const PRESS_IN_SPRING = {
+  damping: 22,
+  stiffness: 430,
+  mass: 0.4
+} as const;
+const PRESS_OUT_SPRING = {
+  damping: 18,
+  stiffness: 340,
+  mass: 0.45
+} as const;
+const SEGMENT_INDICATOR_SPRING = {
+  damping: 20,
+  stiffness: 290,
+  mass: 0.5
+} as const;
 
 interface DropdownOption {
   id: string;
   label: string;
 }
 
+function usePressScale(scaleDown: number, disabled = false) {
+  const reducedMotion = useReducedMotion();
+  const pressScale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressScale.value }]
+  }));
+
+  const onPressIn = useCallback(() => {
+    if (reducedMotion || disabled) {
+      pressScale.value = 1;
+      return;
+    }
+    pressScale.value = withSpring(scaleDown, PRESS_IN_SPRING);
+  }, [disabled, pressScale, reducedMotion, scaleDown]);
+
+  const onPressOut = useCallback(() => {
+    if (reducedMotion || disabled) {
+      pressScale.value = 1;
+      return;
+    }
+    pressScale.value = withSpring(1, PRESS_OUT_SPRING);
+  }, [disabled, pressScale, reducedMotion]);
+
+  return { animatedStyle, onPressIn, onPressOut };
+}
+
+function SegmentedTabButton({
+  label,
+  active,
+  onPress
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const press = usePressScale(0.97);
+  return (
+    <Animated.View style={[styles.segmentedTabWrap, press.animatedStyle]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ selected: active }}
+        onPress={onPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        style={styles.segmentedTab}
+      >
+        <Text
+          allowFontScaling={false}
+          style={[styles.segmentedTabText, active && styles.segmentedTabTextActive]}
+        >
+          {label}
+        </Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 export function UnirseCrearGrupoScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
+  const reducedMotion = useReducedMotion();
   const [activeTab, setActiveTab] = useState<Tab>("buscar");
+  const [segmentedWidth, setSegmentedWidth] = useState(0);
   const searchTabActive = activeTab === "buscar";
+  const tabIndicatorX = useSharedValue(0);
+  const backPress = usePressScale(0.94);
+  const activeTabIndex = TAB_ORDER.indexOf(activeTab);
+  const segmentTabWidth = segmentedWidth > 0 ? (segmentedWidth - 8) / TAB_ORDER.length : 0;
+  const segmentedIndicatorStyle = useAnimatedStyle(() => ({
+    opacity: segmentTabWidth > 0 ? 1 : 0,
+    transform: [{ translateX: tabIndicatorX.value }]
+  }));
+
+  useEffect(() => {
+    if (segmentTabWidth <= 0 || activeTabIndex < 0) {
+      return;
+    }
+    const target = activeTabIndex * (segmentTabWidth + 2);
+    if (reducedMotion) {
+      tabIndicatorX.value = target;
+      return;
+    }
+    tabIndicatorX.value = withSpring(target, SEGMENT_INDICATOR_SPRING);
+  }, [activeTabIndex, reducedMotion, segmentTabWidth, tabIndicatorX]);
 
   return (
     <ScreenFrame
@@ -52,13 +148,17 @@ export function UnirseCrearGrupoScreen() {
       header={
         <View style={[styles.headerShell, { paddingTop: Math.max(insets.top, 10) + 8 }]}>
           <View style={styles.headerRow}>
-            <Pressable onPress={() => navigation.goBack()} hitSlop={8} style={styles.backButton}>
-              <Ionicons name="chevron-back" size={18} color={colors.iconStrong} />
-            </Pressable>
-            <View style={styles.headerPill}>
-              <Ionicons name="people-outline" size={13} color={colors.primaryDeep} />
-              <Text allowFontScaling={false} style={styles.headerPillText}>Grupos</Text>
-            </View>
+            <Animated.View style={backPress.animatedStyle}>
+              <Pressable
+                onPress={() => navigation.goBack()}
+                onPressIn={backPress.onPressIn}
+                onPressOut={backPress.onPressOut}
+                hitSlop={8}
+                style={styles.backButton}
+              >
+                <Ionicons name="chevron-back" size={18} color={colors.iconStrong} />
+              </Pressable>
+            </Animated.View>
           </View>
           <Text allowFontScaling={false} style={styles.headerTitle}>Unirse o crear grupo</Text>
           <Text allowFontScaling={false} style={styles.headerSubtitle}>
@@ -69,29 +169,17 @@ export function UnirseCrearGrupoScreen() {
       }
     >
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.keyboardContent}>
-        <View style={styles.segmentedControl}>
-          <Pressable
-            onPress={() => setActiveTab("buscar")}
-            style={[styles.segmentedTab, searchTabActive && styles.segmentedTabActive]}
-          >
-            <Text
-              allowFontScaling={false}
-              style={[styles.segmentedTabText, searchTabActive && styles.segmentedTabTextActive]}
-            >
-              Buscar grupo
-            </Text>
-          </Pressable>
-          <Pressable
-            onPress={() => setActiveTab("crear")}
-            style={[styles.segmentedTab, !searchTabActive && styles.segmentedTabActive]}
-          >
-            <Text
-              allowFontScaling={false}
-              style={[styles.segmentedTabText, !searchTabActive && styles.segmentedTabTextActive]}
-            >
-              Crear grupo
-            </Text>
-          </Pressable>
+        <View style={styles.segmentedControl} onLayout={(event) => setSegmentedWidth(event.nativeEvent.layout.width)}>
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.segmentedIndicator,
+              { width: segmentTabWidth > 0 ? segmentTabWidth : undefined },
+              segmentedIndicatorStyle
+            ]}
+          />
+          <SegmentedTabButton label="Buscar grupo" active={searchTabActive} onPress={() => setActiveTab("buscar")} />
+          <SegmentedTabButton label="Crear grupo" active={!searchTabActive} onPress={() => setActiveTab("crear")} />
         </View>
 
         {searchTabActive ? <SearchTab /> : <CreateTab />}
@@ -118,6 +206,10 @@ function SearchTab() {
   const canTriggerLoadMoreRef = useRef(true);
   const resultCountLabel = `${results.length} grupo${results.length === 1 ? "" : "s"}`.toUpperCase();
   const memberGroupIds = useMemo(() => new Set(memberships.map((membership) => membership.groupId)), [memberships]);
+  const searchPress = usePressScale(0.97, loading);
+  const refreshPress = usePressScale(0.97, loading || loadingMore);
+  const filterChipPress = usePressScale(0.97);
+  const filterClearPress = usePressScale(0.97, leagueFilter === null);
 
   const doSearch = useCallback(async () => {
     setLoading(true);
@@ -267,28 +359,46 @@ function SearchTab() {
                 onSubmitEditing={doSearch}
               />
             </View>
-            <Pressable onPress={doSearch} style={styles.searchButton}>
-              <Text allowFontScaling={false} style={styles.searchButtonText}>Buscar</Text>
-            </Pressable>
+            <Animated.View style={searchPress.animatedStyle}>
+              <Pressable
+                onPress={doSearch}
+                onPressIn={searchPress.onPressIn}
+                onPressOut={searchPress.onPressOut}
+                style={styles.searchButton}
+              >
+                <Text allowFontScaling={false} style={styles.searchButtonText}>Buscar</Text>
+              </Pressable>
+            </Animated.View>
           </View>
 
           <View style={styles.filterRow}>
             <Text allowFontScaling={false} style={styles.filterLabel}>Filtrar por liga</Text>
-            <Pressable
-              onPress={() => setLeagueFilter(leagueFilter === null ? LEAGUE_FILTER_ID : null)}
-              style={[styles.filterChip, leagueFilter === LEAGUE_FILTER_ID && styles.filterChipActive]}
-            >
-              <Text
-                allowFontScaling={false}
-                style={[styles.filterChipText, leagueFilter === LEAGUE_FILTER_ID && styles.filterChipTextActive]}
+            <Animated.View style={filterChipPress.animatedStyle}>
+              <Pressable
+                onPress={() => setLeagueFilter(leagueFilter === null ? LEAGUE_FILTER_ID : null)}
+                onPressIn={filterChipPress.onPressIn}
+                onPressOut={filterChipPress.onPressOut}
+                style={[styles.filterChip, leagueFilter === LEAGUE_FILTER_ID && styles.filterChipActive]}
               >
-                {LEAGUE_LABEL}
-              </Text>
-            </Pressable>
-            {leagueFilter !== null ? (
-              <Pressable onPress={() => setLeagueFilter(null)} style={styles.filterClear}>
-                <Text allowFontScaling={false} style={styles.filterClearText}>Limpiar</Text>
+                <Text
+                  allowFontScaling={false}
+                  style={[styles.filterChipText, leagueFilter === LEAGUE_FILTER_ID && styles.filterChipTextActive]}
+                >
+                  {LEAGUE_LABEL}
+                </Text>
               </Pressable>
+            </Animated.View>
+            {leagueFilter !== null ? (
+              <Animated.View style={filterClearPress.animatedStyle}>
+                <Pressable
+                  onPress={() => setLeagueFilter(null)}
+                  onPressIn={filterClearPress.onPressIn}
+                  onPressOut={filterClearPress.onPressOut}
+                  style={styles.filterClear}
+                >
+                  <Text allowFontScaling={false} style={styles.filterClearText}>Limpiar</Text>
+                </Pressable>
+              </Animated.View>
             ) : null}
           </View>
         </View>
@@ -298,10 +408,17 @@ function SearchTab() {
         <Text allowFontScaling={false} style={styles.sectionCaption}>
           {searched ? resultCountLabel : "GRUPOS DISPONIBLES"}
         </Text>
-        <Pressable onPress={doSearch} style={styles.resultsRefreshChip}>
-          <Ionicons name="refresh" size={13} color={colors.textSecondary} />
-          <Text allowFontScaling={false} style={styles.resultsRefreshChipText}>Actualizar</Text>
-        </Pressable>
+        <Animated.View style={refreshPress.animatedStyle}>
+          <Pressable
+            onPress={doSearch}
+            onPressIn={refreshPress.onPressIn}
+            onPressOut={refreshPress.onPressOut}
+            style={styles.resultsRefreshChip}
+          >
+            <Ionicons name="refresh" size={13} color={colors.textSecondary} />
+            <Text allowFontScaling={false} style={styles.resultsRefreshChipText}>Actualizar</Text>
+          </Pressable>
+        </Animated.View>
       </View>
 
       {loading ? (
@@ -361,6 +478,7 @@ function GroupResultCard({
   const isClosed = group.visibility === "closed";
   const membersLabel = group.maxMembers ? `${group.memberCount}/${group.maxMembers}` : `${group.memberCount}`;
   const actionDisabled = joining;
+  const joinPress = usePressScale(0.97, actionDisabled);
 
   return (
     <View style={styles.resultCard}>
@@ -407,19 +525,23 @@ function GroupResultCard({
           ) : null}
         </View>
         {!isMember ? (
-          <Pressable
-            onPress={onJoin}
-            disabled={actionDisabled}
-            style={[styles.joinButton, joining && styles.joinButtonDisabled]}
-          >
-            {joining ? (
-              <ActivityIndicator size="small" color={colors.textTitle} />
-            ) : (
-              <Text allowFontScaling={false} style={styles.joinButtonText}>
-                {isClosed ? "Solicitar acceso" : "Unirse"}
-              </Text>
-            )}
-          </Pressable>
+          <Animated.View style={joinPress.animatedStyle}>
+            <Pressable
+              onPress={onJoin}
+              onPressIn={joinPress.onPressIn}
+              onPressOut={joinPress.onPressOut}
+              disabled={actionDisabled}
+              style={[styles.joinButton, joining && styles.joinButtonDisabled]}
+            >
+              {joining ? (
+                <ActivityIndicator size="small" color={colors.textTitle} />
+              ) : (
+                <Text allowFontScaling={false} style={styles.joinButtonText}>
+                  {isClosed ? "Solicitar acceso" : "Unirse"}
+                </Text>
+              )}
+            </Pressable>
+          </Animated.View>
         ) : null}
       </View>
     </View>
@@ -437,10 +559,38 @@ function DropdownSelect({
   onChange: (nextValue: string) => void;
   placeholder: string;
 }) {
+  function DropdownOptionRow({
+    label,
+    active,
+    onPress
+  }: {
+    label: string;
+    active: boolean;
+    onPress: () => void;
+  }) {
+    const optionPress = usePressScale(0.985);
+    return (
+      <Animated.View style={optionPress.animatedStyle}>
+        <Pressable
+          onPress={onPress}
+          onPressIn={optionPress.onPressIn}
+          onPressOut={optionPress.onPressOut}
+          style={[styles.dropdownMenuRow, active ? styles.dropdownMenuRowActive : null]}
+        >
+          <Text allowFontScaling={false} style={[styles.dropdownMenuText, active ? styles.dropdownMenuTextActive : null]}>
+            {label}
+          </Text>
+          {active ? <Ionicons name="checkmark" size={14} color={colors.primaryDeep} /> : null}
+        </Pressable>
+      </Animated.View>
+    );
+  }
+
   const triggerRef = useRef<View | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const selected = options.find((option) => option.id === value) ?? null;
+  const triggerPress = usePressScale(0.99);
 
   function openMenu() {
     const node = triggerRef.current;
@@ -461,12 +611,19 @@ function DropdownSelect({
   return (
     <>
       <View ref={triggerRef} collapsable={false}>
-        <Pressable onPress={openMenu} style={styles.dropdownTrigger}>
-          <Text allowFontScaling={false} numberOfLines={1} style={styles.dropdownValue}>
-            {selected?.label ?? placeholder}
-          </Text>
-          <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
-        </Pressable>
+        <Animated.View style={triggerPress.animatedStyle}>
+          <Pressable
+            onPress={openMenu}
+            onPressIn={triggerPress.onPressIn}
+            onPressOut={triggerPress.onPressOut}
+            style={styles.dropdownTrigger}
+          >
+            <Text allowFontScaling={false} numberOfLines={1} style={styles.dropdownValue}>
+              {selected?.label ?? placeholder}
+            </Text>
+            <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
+          </Pressable>
+        </Animated.View>
       </View>
 
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
@@ -486,16 +643,12 @@ function DropdownSelect({
               {options.map((option) => {
                 const active = option.id === selected?.id;
                 return (
-                  <Pressable
+                  <DropdownOptionRow
                     key={option.id}
+                    label={option.label}
+                    active={active}
                     onPress={() => selectOption(option.id)}
-                    style={[styles.dropdownMenuRow, active ? styles.dropdownMenuRowActive : null]}
-                  >
-                    <Text allowFontScaling={false} style={[styles.dropdownMenuText, active ? styles.dropdownMenuTextActive : null]}>
-                      {option.label}
-                    </Text>
-                    {active ? <Ionicons name="checkmark" size={14} color={colors.primaryDeep} /> : null}
-                  </Pressable>
+                  />
                 );
               })}
             </ScrollView>
@@ -517,6 +670,10 @@ function CreateTab() {
   const [visibility, setVisibility] = useState<GroupVisibility>("open");
   const [startingFecha, setStartingFecha] = useState(fechaOptions[0]?.id ?? "");
   const [saving, setSaving] = useState(false);
+  const openVisibilityPress = usePressScale(0.985);
+  const closedVisibilityPress = usePressScale(0.985);
+  const canCreate = name.trim().length > 0;
+  const createPress = usePressScale(0.97, saving || !canCreate);
 
   useEffect(() => {
     if (fechaOptions.length === 0) {
@@ -596,59 +753,67 @@ function CreateTab() {
         <View style={styles.formCard}>
           <Text allowFontScaling={false} style={styles.fieldHelp}>Definí cómo se suman nuevos participantes.</Text>
           <View style={styles.visibilityList}>
-            <Pressable
-              onPress={() => setVisibility("open")}
-              style={[styles.visibilityOption, visibility === "open" && styles.visibilityOptionActive]}
-            >
-              <View style={styles.visibilityOptionIcon}>
+            <Animated.View style={openVisibilityPress.animatedStyle}>
+              <Pressable
+                onPress={() => setVisibility("open")}
+                onPressIn={openVisibilityPress.onPressIn}
+                onPressOut={openVisibilityPress.onPressOut}
+                style={[styles.visibilityOption, visibility === "open" && styles.visibilityOptionActive]}
+              >
+                <View style={styles.visibilityOptionIcon}>
+                  <Ionicons
+                    name="lock-open-outline"
+                    size={16}
+                    color={visibility === "open" ? colors.primaryDeep : colors.textMuted}
+                  />
+                </View>
+                <View style={styles.visibilityTextWrap}>
+                  <Text
+                    allowFontScaling={false}
+                    style={[styles.visibilityTitle, visibility === "open" && styles.visibilityTitleActive]}
+                  >
+                    Abierto
+                  </Text>
+                  <Text allowFontScaling={false} style={styles.visibilityDesc}>Cualquiera puede unirse al instante</Text>
+                </View>
                 <Ionicons
-                  name="lock-open-outline"
-                  size={16}
-                  color={visibility === "open" ? colors.primaryDeep : colors.textMuted}
+                  name={visibility === "open" ? "checkmark-circle" : "ellipse-outline"}
+                  size={18}
+                  color={visibility === "open" ? colors.primaryDeep : colors.textSoft}
                 />
-              </View>
-              <View style={styles.visibilityTextWrap}>
-                <Text
-                  allowFontScaling={false}
-                  style={[styles.visibilityTitle, visibility === "open" && styles.visibilityTitleActive]}
-                >
-                  Abierto
-                </Text>
-                <Text allowFontScaling={false} style={styles.visibilityDesc}>Cualquiera puede unirse al instante</Text>
-              </View>
-              <Ionicons
-                name={visibility === "open" ? "checkmark-circle" : "ellipse-outline"}
-                size={18}
-                color={visibility === "open" ? colors.primaryDeep : colors.textSoft}
-              />
-            </Pressable>
+              </Pressable>
+            </Animated.View>
 
-            <Pressable
-              onPress={() => setVisibility("closed")}
-              style={[styles.visibilityOption, visibility === "closed" && styles.visibilityOptionActive]}
-            >
-              <View style={styles.visibilityOptionIcon}>
+            <Animated.View style={closedVisibilityPress.animatedStyle}>
+              <Pressable
+                onPress={() => setVisibility("closed")}
+                onPressIn={closedVisibilityPress.onPressIn}
+                onPressOut={closedVisibilityPress.onPressOut}
+                style={[styles.visibilityOption, visibility === "closed" && styles.visibilityOptionActive]}
+              >
+                <View style={styles.visibilityOptionIcon}>
+                  <Ionicons
+                    name="lock-closed-outline"
+                    size={16}
+                    color={visibility === "closed" ? colors.primaryDeep : colors.textMuted}
+                  />
+                </View>
+                <View style={styles.visibilityTextWrap}>
+                  <Text
+                    allowFontScaling={false}
+                    style={[styles.visibilityTitle, visibility === "closed" && styles.visibilityTitleActive]}
+                  >
+                    Cerrado
+                  </Text>
+                  <Text allowFontScaling={false} style={styles.visibilityDesc}>El admin aprueba cada solicitud</Text>
+                </View>
                 <Ionicons
-                  name="lock-closed-outline"
+                  name={visibility === "closed" ? "checkmark-circle" : "ellipse-outline"}
                   size={16}
-                  color={visibility === "closed" ? colors.primaryDeep : colors.textMuted}
+                  color={visibility === "closed" ? colors.primaryDeep : colors.textSoft}
                 />
-              </View>
-              <View style={styles.visibilityTextWrap}>
-                <Text
-                  allowFontScaling={false}
-                  style={[styles.visibilityTitle, visibility === "closed" && styles.visibilityTitleActive]}
-                >
-                  Cerrado
-                </Text>
-                <Text allowFontScaling={false} style={styles.visibilityDesc}>El admin aprueba cada solicitud</Text>
-              </View>
-              <Ionicons
-                name={visibility === "closed" ? "checkmark-circle" : "ellipse-outline"}
-                size={16}
-                color={visibility === "closed" ? colors.primaryDeep : colors.textSoft}
-              />
-            </Pressable>
+              </Pressable>
+            </Animated.View>
           </View>
         </View>
       </View>
@@ -688,20 +853,24 @@ function CreateTab() {
         </View>
       </View>
 
-      <Pressable
-        onPress={handleCreate}
-        disabled={saving || !name.trim()}
-        style={[styles.createButton, (saving || !name.trim()) && styles.createButtonDisabled]}
-      >
-        {saving ? (
-          <ActivityIndicator color={colors.textTitle} />
-        ) : (
-          <>
-            <Ionicons name="sparkles-outline" size={16} color={colors.textTitle} />
-            <Text allowFontScaling={false} style={styles.createButtonText}>Crear grupo</Text>
-          </>
-        )}
-      </Pressable>
+      <Animated.View style={createPress.animatedStyle}>
+        <Pressable
+          onPress={handleCreate}
+          onPressIn={createPress.onPressIn}
+          onPressOut={createPress.onPressOut}
+          disabled={saving || !canCreate}
+          style={[styles.createButton, (saving || !canCreate) && styles.createButtonDisabled]}
+        >
+          {saving ? (
+            <ActivityIndicator color={colors.textTitle} />
+          ) : (
+            <>
+              <Ionicons name="sparkles-outline" size={16} color={colors.textTitle} />
+              <Text allowFontScaling={false} style={styles.createButtonText}>Crear grupo</Text>
+            </>
+          )}
+        </Pressable>
+      </Animated.View>
     </View>
   );
 }
@@ -743,23 +912,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderMuted
   },
-  headerPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: colors.primarySoftAlt,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.borderInfo,
-    paddingHorizontal: 10,
-    paddingVertical: 5
-  },
-  headerPillText: {
-    color: colors.primaryDeep,
-    fontSize: 11,
-    fontWeight: "800",
-    letterSpacing: 0.4
-  },
   headerTitle: {
     marginTop: spacing.sm,
     color: colors.textTitle,
@@ -782,14 +934,14 @@ const styles = StyleSheet.create({
   },
 
   segmentedControl: {
+    position: "relative",
     flexDirection: "row",
-    marginTop: 2,
-    marginBottom: spacing.sm,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
     backgroundColor: colors.surfaceSoft,
     padding: 3,
+    overflow: "hidden",
     gap: 2
   },
   segmentedTab: {
@@ -799,7 +951,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center"
   },
-  segmentedTabActive: {
+  segmentedTabWrap: {
+    flex: 1
+  },
+  segmentedIndicator: {
+    position: "absolute",
+    left: 3,
+    top: 3,
+    bottom: 3,
+    borderRadius: 8,
     backgroundColor: colors.primaryStrong
   },
   segmentedTabText: {

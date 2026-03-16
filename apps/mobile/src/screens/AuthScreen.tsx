@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Animated
+  Animated as NativeAnimated
 } from "react-native";
 import Constants from "expo-constants";
 import * as AuthSession from "expo-auth-session";
@@ -19,12 +19,59 @@ import { colors, spacing } from "@fulbito/design-tokens";
 import { translateBackendError } from "@fulbito/domain";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Path, Rect } from "react-native-svg";
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSpring
+} from "react-native-reanimated";
 import { useAuth } from "@/state/AuthContext";
 import { usePendingInvite } from "@/state/PendingInviteContext";
 
 WebBrowser.maybeCompleteAuthSession();
 
 const EXPO_PROXY_REDIRECT_URI = "https://auth.expo.io/@fcontre/fulbito-prode-monorepo";
+const PRESS_IN_SPRING = {
+  damping: 20,
+  stiffness: 420,
+  mass: 0.4
+} as const;
+const PRESS_OUT_SPRING = {
+  damping: 18,
+  stiffness: 340,
+  mass: 0.45
+} as const;
+const TAB_INDICATOR_SPRING = {
+  damping: 20,
+  stiffness: 290,
+  mass: 0.5
+} as const;
+
+function usePressScale(scaleDown: number, disabled = false) {
+  const reducedMotion = useReducedMotion();
+  const pressScale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressScale.value }]
+  }));
+
+  const onPressIn = useCallback(() => {
+    if (reducedMotion || disabled) {
+      pressScale.value = 1;
+      return;
+    }
+    pressScale.value = withSpring(scaleDown, PRESS_IN_SPRING);
+  }, [disabled, pressScale, reducedMotion, scaleDown]);
+
+  const onPressOut = useCallback(() => {
+    if (reducedMotion || disabled) {
+      pressScale.value = 1;
+      return;
+    }
+    pressScale.value = withSpring(1, PRESS_OUT_SPRING);
+  }, [disabled, pressScale, reducedMotion]);
+
+  return { animatedStyle, onPressIn, onPressOut };
+}
 
 export function AuthScreen() {
   const insets = useSafeAreaInsets();
@@ -39,6 +86,8 @@ export function AuthScreen() {
   const [info, setInfo] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
+  const [modeTabsWidth, setModeTabsWidth] = useState(0);
+  const reducedMotion = useReducedMotion();
 
   const googleExpoClientId = process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID;
   const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
@@ -64,23 +113,31 @@ export function AuthScreen() {
     scopes: ["profile", "email"]
   });
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(20)).current;
+  const fadeAnim = useRef(new NativeAnimated.Value(0)).current;
+  const slideAnim = useRef(new NativeAnimated.Value(20)).current;
+  const modeIndicatorX = useSharedValue(0);
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
+    if (reducedMotion) {
+      fadeAnim.setValue(1);
+      slideAnim.setValue(0);
+      return;
+    }
+    fadeAnim.setValue(0);
+    slideAnim.setValue(20);
+    NativeAnimated.parallel([
+      NativeAnimated.timing(fadeAnim, {
         toValue: 1,
         duration: 600,
         useNativeDriver: true,
       }),
-      Animated.timing(slideAnim, {
+      NativeAnimated.timing(slideAnim, {
         toValue: 0,
         duration: 600,
         useNativeDriver: true,
       }),
     ]).start();
-  }, [fadeAnim, slideAnim]);
+  }, [fadeAnim, reducedMotion, slideAnim]);
 
   function switchMode() {
     setError(null);
@@ -158,6 +215,32 @@ export function AuthScreen() {
   }
 
   const isLogin = mode === "login";
+  const tabWidth = modeTabsWidth > 0 ? (modeTabsWidth - 6) / 2 : 0;
+  const activeTabIndex = isLogin ? 0 : 1;
+  const modeIndicatorStyle = useAnimatedStyle(() => ({
+    opacity: tabWidth > 0 ? 1 : 0,
+    transform: [{ translateX: modeIndicatorX.value }]
+  }));
+  const loginTabPress = usePressScale(0.98, isLogin);
+  const signupTabPress = usePressScale(0.98, !isLogin);
+  const eyePress = usePressScale(0.92);
+  const canInteract = !(submitting || googleSubmitting);
+  const forgotPress = usePressScale(0.98, !isLogin || !canInteract);
+  const submitPress = usePressScale(0.98, !canInteract);
+  const googleDisabled = !hasGoogleClientConfig || !googleRequest || submitting || googleSubmitting;
+  const googlePress = usePressScale(0.98, googleDisabled);
+
+  useEffect(() => {
+    if (tabWidth <= 0) {
+      return;
+    }
+    const target = activeTabIndex * (tabWidth + 0);
+    if (reducedMotion) {
+      modeIndicatorX.value = target;
+      return;
+    }
+    modeIndicatorX.value = withSpring(target, TAB_INDICATOR_SPRING);
+  }, [activeTabIndex, modeIndicatorX, reducedMotion, tabWidth]);
 
   return (
     <View style={styles.root}>
@@ -173,7 +256,7 @@ export function AuthScreen() {
           {/* ── Hero section ── */}
           <View style={[styles.hero, { paddingTop: insets.top + 32 }]}>
             <View style={styles.heroAccentBar} />
-            <Animated.View
+            <NativeAnimated.View
               style={[
                 styles.logoContainer,
                 { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
@@ -188,39 +271,55 @@ export function AuthScreen() {
                   ? "Volvé a competir con tus amigos"
                   : "Competí contra tus amigos"}
               </Text>
-            </Animated.View>
+            </NativeAnimated.View>
           </View>
 
           {/* ── Form section ── */}
           <View style={styles.formSection}>
             <View style={styles.formCard}>
-              <View style={styles.modeTabRow}>
-                <Pressable
-                  onPress={() => !isLogin && switchMode()}
-                  style={[styles.modeTab, isLogin && styles.modeTabActive]}
-                >
-                  <Text
-                    style={[
-                      styles.modeTabText,
-                      isLogin && styles.modeTabTextActive,
-                    ]}
+              <View style={styles.modeTabRow} onLayout={(event) => setModeTabsWidth(event.nativeEvent.layout.width)}>
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    styles.modeTabIndicator,
+                    { width: tabWidth > 0 ? tabWidth : undefined },
+                    modeIndicatorStyle
+                  ]}
+                />
+                <Animated.View style={[styles.modeTabWrapper, loginTabPress.animatedStyle]}>
+                  <Pressable
+                    onPress={() => !isLogin && switchMode()}
+                    onPressIn={loginTabPress.onPressIn}
+                    onPressOut={loginTabPress.onPressOut}
+                    style={styles.modeTab}
                   >
-                    Iniciar sesión
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => isLogin && switchMode()}
-                  style={[styles.modeTab, !isLogin && styles.modeTabActive]}
-                >
-                  <Text
-                    style={[
-                      styles.modeTabText,
-                      !isLogin && styles.modeTabTextActive,
-                    ]}
+                    <Text
+                      style={[
+                        styles.modeTabText,
+                        isLogin && styles.modeTabTextActive,
+                      ]}
+                    >
+                      Iniciar sesión
+                    </Text>
+                  </Pressable>
+                </Animated.View>
+                <Animated.View style={[styles.modeTabWrapper, signupTabPress.animatedStyle]}>
+                  <Pressable
+                    onPress={() => isLogin && switchMode()}
+                    onPressIn={signupTabPress.onPressIn}
+                    onPressOut={signupTabPress.onPressOut}
+                    style={styles.modeTab}
                   >
-                    Crear cuenta
-                  </Text>
-                </Pressable>
+                    <Text
+                      style={[
+                        styles.modeTabText,
+                        !isLogin && styles.modeTabTextActive,
+                      ]}
+                    >
+                      Crear cuenta
+                    </Text>
+                  </Pressable>
+                </Animated.View>
               </View>
 
               {pendingInviteToken ? (
@@ -289,30 +388,37 @@ export function AuthScreen() {
                   placeholder="Contraseña"
                   placeholderTextColor={colors.textSoft}
                 />
-                <Pressable
-                  onPress={() => setShowPassword((v) => !v)}
-                  style={styles.eyeButton}
-                  hitSlop={8}
-                >
-                  <Ionicons
-                    name={showPassword ? "eye-off-outline" : "eye-outline"}
-                    size={20}
-                    color={colors.textMuted}
-                  />
-                </Pressable>
+                <Animated.View style={[styles.eyeButton, eyePress.animatedStyle]}>
+                  <Pressable
+                    onPress={() => setShowPassword((v) => !v)}
+                    onPressIn={eyePress.onPressIn}
+                    onPressOut={eyePress.onPressOut}
+                    style={styles.eyeButtonHit}
+                    hitSlop={8}
+                  >
+                    <Ionicons
+                      name={showPassword ? "eye-off-outline" : "eye-outline"}
+                      size={20}
+                      color={colors.textMuted}
+                    />
+                  </Pressable>
+                </Animated.View>
               </View>
 
               {isLogin ? (
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => void submitForgotPassword()}
-                  disabled={submitting || googleSubmitting}
-                  style={styles.forgotRow}
-                >
-                  <Text style={styles.forgotText}>
-                    {submitting ? "Enviando..." : "¿Olvidaste tu contraseña?"}
-                  </Text>
-                </Pressable>
+                <Animated.View style={[styles.forgotRow, forgotPress.animatedStyle]}>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => void submitForgotPassword()}
+                    onPressIn={forgotPress.onPressIn}
+                    onPressOut={forgotPress.onPressOut}
+                    disabled={submitting || googleSubmitting}
+                  >
+                    <Text style={styles.forgotText}>
+                      {submitting ? "Enviando..." : "¿Olvidaste tu contraseña?"}
+                    </Text>
+                  </Pressable>
+                </Animated.View>
               ) : null}
 
               {error ? (
@@ -337,30 +443,33 @@ export function AuthScreen() {
                 </View>
               ) : null}
 
-              <Pressable
-                onPress={() => void submit()}
-                style={({ pressed }) => [
-                  styles.submitButton,
-                  (submitting || googleSubmitting) && styles.submitButtonDisabled,
-                  pressed && !(submitting || googleSubmitting) && styles.submitButtonPressed
-                ]}
-                disabled={submitting || googleSubmitting}
-              >
-                <Text style={styles.submitButtonText}>
-                  {submitting
-                    ? "Validando..."
-                    : isLogin
-                      ? "Entrar"
-                      : "Crear cuenta"}
-                </Text>
-                {!submitting ? (
-                  <Ionicons
-                    name="arrow-forward"
-                    size={18}
-                    color={colors.primaryText}
-                  />
-                ) : null}
-              </Pressable>
+              <Animated.View style={submitPress.animatedStyle}>
+                <Pressable
+                  onPress={() => void submit()}
+                  onPressIn={submitPress.onPressIn}
+                  onPressOut={submitPress.onPressOut}
+                  style={[
+                    styles.submitButton,
+                    (submitting || googleSubmitting) && styles.submitButtonDisabled
+                  ]}
+                  disabled={submitting || googleSubmitting}
+                >
+                  <Text style={styles.submitButtonText}>
+                    {submitting
+                      ? "Validando..."
+                      : isLogin
+                        ? "Entrar"
+                        : "Crear cuenta"}
+                  </Text>
+                  {!submitting ? (
+                    <Ionicons
+                      name="arrow-forward"
+                      size={18}
+                      color={colors.primaryText}
+                    />
+                  ) : null}
+                </Pressable>
+              </Animated.View>
 
               <View style={styles.separatorRow}>
                 <View style={styles.separatorLine} />
@@ -368,20 +477,23 @@ export function AuthScreen() {
                 <View style={styles.separatorLine} />
               </View>
 
-              <Pressable
-                onPress={() => void submitGoogleAuth()}
-                style={({ pressed }) => [
-                  styles.googleButton,
-                  (!hasGoogleClientConfig || !googleRequest || submitting || googleSubmitting) && styles.submitButtonDisabled,
-                  pressed && googleRequest && !(submitting || googleSubmitting) && styles.submitButtonPressed
-                ]}
-                disabled={!hasGoogleClientConfig || !googleRequest || submitting || googleSubmitting}
-              >
-                <Ionicons name="logo-google" size={18} color={colors.textPrimary} />
-                <Text style={styles.googleButtonText}>
-                  {googleSubmitting ? "Conectando..." : "Continuar con Google"}
-                </Text>
-              </Pressable>
+              <Animated.View style={googlePress.animatedStyle}>
+                <Pressable
+                  onPress={() => void submitGoogleAuth()}
+                  onPressIn={googlePress.onPressIn}
+                  onPressOut={googlePress.onPressOut}
+                  style={[
+                    styles.googleButton,
+                    googleDisabled && styles.submitButtonDisabled
+                  ]}
+                  disabled={googleDisabled}
+                >
+                  <Ionicons name="logo-google" size={18} color={colors.textPrimary} />
+                  <Text style={styles.googleButtonText}>
+                    {googleSubmitting ? "Conectando..." : "Continuar con Google"}
+                  </Text>
+                </Pressable>
+              </Animated.View>
             </View>
           </View>
         </ScrollView>
@@ -483,17 +595,28 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 3,
     marginBottom: 4,
+    gap: 0,
+    position: "relative",
+    overflow: "hidden"
+  },
+  modeTabIndicator: {
+    position: "absolute",
+    left: 3,
+    top: 3,
+    bottom: 3,
+    borderRadius: 10,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderMuted
+  },
+  modeTabWrapper: {
+    flex: 1
   },
   modeTab: {
     flex: 1,
     paddingVertical: 10,
     borderRadius: 10,
     alignItems: "center",
-  },
-  modeTabActive: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderMuted,
   },
   modeTabText: {
     fontSize: 14,
@@ -548,7 +671,9 @@ const styles = StyleSheet.create({
   eyeButton: {
     position: "absolute",
     right: 14,
-    padding: 4,
+  },
+  eyeButtonHit: {
+    padding: 4
   },
 
   // ── Forgot password ──
@@ -612,9 +737,6 @@ const styles = StyleSheet.create({
   },
   submitButtonDisabled: {
     opacity: 0.55,
-  },
-  submitButtonPressed: {
-    opacity: 0.85
   },
   separatorRow: {
     flexDirection: "row",

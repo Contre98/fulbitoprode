@@ -5,8 +5,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@fulbito/design-tokens";
+import Animated from "react-native-reanimated";
 import type { NotificationEventType, NotificationItem } from "@fulbito/domain";
 import { notificationsRepository } from "@/repositories";
+import { usePressScale } from "@/lib/usePressScale";
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 // ─── Icon per event type ──────────────────────────────────────────────────────
 
@@ -86,6 +90,8 @@ export function NotificacionesScreen() {
 
   const items = data?.items ?? [];
   const unreadCount = data?.unreadCount ?? 0;
+  const backPress = usePressScale(0.94);
+  const markReadPress = usePressScale(0.97, unreadCount === 0);
 
   const handleMarkAllRead = useCallback(async () => {
     if (unreadCount === 0) return;
@@ -101,9 +107,15 @@ export function NotificacionesScreen() {
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={8} style={styles.backBtn}>
+        <AnimatedPressable
+          onPress={() => navigation.goBack()}
+          onPressIn={backPress.onPressIn}
+          onPressOut={backPress.onPressOut}
+          hitSlop={8}
+          style={[styles.backBtn, backPress.animatedStyle]}
+        >
           <Ionicons name="chevron-back" size={20} color={colors.iconStrong} />
-        </Pressable>
+        </AnimatedPressable>
         <View style={styles.headerText}>
           <Text allowFontScaling={false} style={styles.headerTitle}>Notificaciones</Text>
           {unreadCount > 0 && (
@@ -113,9 +125,15 @@ export function NotificacionesScreen() {
           )}
         </View>
         {unreadCount > 0 && (
-          <Pressable onPress={handleMarkAllRead} hitSlop={8} style={styles.markReadBtn}>
+          <AnimatedPressable
+            onPress={handleMarkAllRead}
+            onPressIn={markReadPress.onPressIn}
+            onPressOut={markReadPress.onPressOut}
+            hitSlop={8}
+            style={[styles.markReadBtn, markReadPress.animatedStyle]}
+          >
             <Text allowFontScaling={false} style={styles.markReadText}>Marcar leídas</Text>
-          </Pressable>
+          </AnimatedPressable>
         )}
       </View>
 

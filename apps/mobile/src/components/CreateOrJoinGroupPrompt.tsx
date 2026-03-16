@@ -1,10 +1,15 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
+import Animated from "react-native-reanimated";
 import { colors, spacing } from "@fulbito/design-tokens";
+import { usePressScale } from "@/lib/usePressScale";
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function CreateOrJoinGroupPrompt() {
   const navigation = useNavigation<any>();
+  const ctaPress = usePressScale(0.98);
 
   return (
     <View style={styles.card}>
@@ -15,9 +20,14 @@ export function CreateOrJoinGroupPrompt() {
       <Text allowFontScaling={false} style={styles.description}>
         Para ver posiciones, fixture y pronósticos, primero creá un grupo o unite a uno existente.
       </Text>
-      <Pressable style={styles.ctaButton} onPress={() => navigation.navigate("UnirseCrearGrupo")}>
+      <AnimatedPressable
+        style={[styles.ctaButton, ctaPress.animatedStyle]}
+        onPress={() => navigation.navigate("UnirseCrearGrupo")}
+        onPressIn={ctaPress.onPressIn}
+        onPressOut={ctaPress.onPressOut}
+      >
         <Text allowFontScaling={false} style={styles.ctaText}>Crear o unirse a un grupo</Text>
-      </Pressable>
+      </AnimatedPressable>
     </View>
   );
 }

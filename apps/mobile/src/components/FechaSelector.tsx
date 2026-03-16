@@ -1,6 +1,7 @@
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, spacing } from "@fulbito/design-tokens";
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
 import { usePeriod } from "@/state/PeriodContext";
 
 interface FechaSelectorProps {
@@ -8,6 +9,75 @@ interface FechaSelectorProps {
   value?: string;
   options?: Array<{ id: string; label: string }>;
   onChange?: (nextFecha: string) => void;
+}
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const PRESS_IN_SPRING = {
+  damping: 22,
+  stiffness: 430,
+  mass: 0.4
+} as const;
+const PRESS_OUT_SPRING = {
+  damping: 18,
+  stiffness: 340,
+  mass: 0.45
+} as const;
+
+function usePressScale(scaleDown: number, disabled = false) {
+  const reducedMotion = useReducedMotion();
+  const pressScale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressScale.value }]
+  }));
+
+  const onPressIn = useCallback(() => {
+    if (reducedMotion || disabled) {
+      pressScale.value = 1;
+      return;
+    }
+    pressScale.value = withSpring(scaleDown, PRESS_IN_SPRING);
+  }, [disabled, pressScale, reducedMotion, scaleDown]);
+
+  const onPressOut = useCallback(() => {
+    if (reducedMotion || disabled) {
+      pressScale.value = 1;
+      return;
+    }
+    pressScale.value = withSpring(1, PRESS_OUT_SPRING);
+  }, [disabled, pressScale, reducedMotion]);
+
+  return { animatedStyle, onPressIn, onPressOut };
+}
+
+function MenuOptionRow({
+  active,
+  label,
+  onPress,
+  testID
+}: {
+  active: boolean;
+  label: string;
+  onPress: () => void;
+  testID: string;
+}) {
+  const press = usePressScale(0.985);
+
+  return (
+    <Animated.View style={press.animatedStyle}>
+      <Pressable
+        testID={testID}
+        accessibilityRole="button"
+        onPress={onPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        style={[styles.menuRow, active ? styles.menuRowActive : null]}
+      >
+        <Text allowFontScaling={false} numberOfLines={1} style={[styles.menuLabel, active ? styles.menuLabelActive : null]}>
+          {label}
+        </Text>
+        {active ? <Text allowFontScaling={false} style={styles.menuCheck}>✓</Text> : null}
+      </Pressable>
+    </Animated.View>
+  );
 }
 
 export function FechaSelector({ labelOverride, value, options, onChange }: FechaSelectorProps) {
@@ -59,38 +129,53 @@ export function FechaSelector({ labelOverride, value, options, onChange }: Fecha
   const menuTop = (menuAnchor?.y ?? 80) + (menuAnchor?.height ?? 0) + spacing.xs;
   const menuLeft = menuAnchor?.x ?? spacing.md;
   const menuWidth = menuAnchor?.width ?? 320;
+  const prevPress = usePressScale(0.95);
+  const nextPress = usePressScale(0.95);
+  const centerPress = usePressScale(0.99);
 
   return (
     <>
       <View ref={triggerRef} collapsable={false} style={styles.fechaBlock}>
-        <Pressable
-          testID="fecha-prev"
-          onPress={selectPrevious}
-          hitSlop={8}
-          style={styles.fechaNavButton}
-          accessibilityLabel="Fecha anterior"
-        >
-          <Text allowFontScaling={false} style={styles.fechaNavLabel}>‹</Text>
-        </Pressable>
-        <Pressable
-          testID="fecha-dropdown-trigger"
-          accessibilityRole="button"
-          accessibilityLabel="Seleccionar fecha"
-          onPress={openMenu}
-          style={styles.fechaCenterTrigger}
-        >
-          <Text allowFontScaling={false} numberOfLines={1} style={styles.fechaTitle}>{displayLabel}</Text>
-          <Text allowFontScaling={false} style={styles.fechaChevron}>⌄</Text>
-        </Pressable>
-        <Pressable
-          testID="fecha-next"
-          onPress={selectNext}
-          hitSlop={8}
-          style={styles.fechaNavButton}
-          accessibilityLabel="Fecha siguiente"
-        >
-          <Text allowFontScaling={false} style={styles.fechaNavLabel}>›</Text>
-        </Pressable>
+        <Animated.View style={prevPress.animatedStyle}>
+          <Pressable
+            testID="fecha-prev"
+            onPress={selectPrevious}
+            onPressIn={prevPress.onPressIn}
+            onPressOut={prevPress.onPressOut}
+            hitSlop={8}
+            style={styles.fechaNavButton}
+            accessibilityLabel="Fecha anterior"
+          >
+            <Text allowFontScaling={false} style={styles.fechaNavLabel}>‹</Text>
+          </Pressable>
+        </Animated.View>
+        <Animated.View style={[styles.fechaCenterWrap, centerPress.animatedStyle]}>
+          <Pressable
+            testID="fecha-dropdown-trigger"
+            accessibilityRole="button"
+            accessibilityLabel="Seleccionar fecha"
+            onPress={openMenu}
+            onPressIn={centerPress.onPressIn}
+            onPressOut={centerPress.onPressOut}
+            style={styles.fechaCenterTrigger}
+          >
+            <Text allowFontScaling={false} numberOfLines={1} style={styles.fechaTitle}>{displayLabel}</Text>
+            <Text allowFontScaling={false} style={styles.fechaChevron}>⌄</Text>
+          </Pressable>
+        </Animated.View>
+        <Animated.View style={nextPress.animatedStyle}>
+          <Pressable
+            testID="fecha-next"
+            onPress={selectNext}
+            onPressIn={nextPress.onPressIn}
+            onPressOut={nextPress.onPressOut}
+            hitSlop={8}
+            style={styles.fechaNavButton}
+            accessibilityLabel="Fecha siguiente"
+          >
+            <Text allowFontScaling={false} style={styles.fechaNavLabel}>›</Text>
+          </Pressable>
+        </Animated.View>
       </View>
 
       <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
@@ -101,18 +186,13 @@ export function FechaSelector({ labelOverride, value, options, onChange }: Fecha
               {safeOptions.map((option, index) => {
                 const active = option.id === current.id;
                 return (
-                  <Pressable
+                  <MenuOptionRow
                     key={option.id}
                     testID={`fecha-option-${index}`}
-                    accessibilityRole="button"
+                    active={active}
+                    label={option.label}
                     onPress={() => selectById(option.id)}
-                    style={[styles.menuRow, active ? styles.menuRowActive : null]}
-                  >
-                    <Text allowFontScaling={false} numberOfLines={1} style={[styles.menuLabel, active ? styles.menuLabelActive : null]}>
-                      {option.label}
-                    </Text>
-                    {active ? <Text allowFontScaling={false} style={styles.menuCheck}>✓</Text> : null}
-                  </Pressable>
+                  />
                 );
               })}
             </ScrollView>
@@ -150,6 +230,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: spacing.xs
+  },
+  fechaCenterWrap: {
+    flex: 1
   },
   fechaNavLabel: {
     color: colors.textSoft,

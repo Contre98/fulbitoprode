@@ -9,15 +9,53 @@ import { useAuth } from "@/state/AuthContext";
 import { useAppDialog } from "@/state/AppDialogContext";
 import { useNotificationsOverlay } from "@/state/NotificationsOverlayContext";
 import Constants from "expo-constants";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
 
 if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
 const APP_VERSION = Constants.expoConfig?.version ?? "1.0.0";
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const PRESS_IN_SPRING = {
+  damping: 22,
+  stiffness: 430,
+  mass: 0.4
+} as const;
+const PRESS_OUT_SPRING = {
+  damping: 18,
+  stiffness: 340,
+  mass: 0.45
+} as const;
 
 type IoniconsName = keyof typeof Ionicons.glyphMap;
+
+function usePressScale(scaleDown: number, disabled = false) {
+  const reducedMotion = useReducedMotion();
+  const pressScale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressScale.value }]
+  }));
+
+  const onPressIn = useCallback(() => {
+    if (reducedMotion || disabled) {
+      pressScale.value = 1;
+      return;
+    }
+    pressScale.value = withSpring(scaleDown, PRESS_IN_SPRING);
+  }, [disabled, pressScale, reducedMotion, scaleDown]);
+
+  const onPressOut = useCallback(() => {
+    if (reducedMotion || disabled) {
+      pressScale.value = 1;
+      return;
+    }
+    pressScale.value = withSpring(1, PRESS_OUT_SPRING);
+  }, [disabled, pressScale, reducedMotion]);
+
+  return { animatedStyle, onPressIn, onPressOut };
+}
 
 // ─── SettingsRow ────────────────────────────────────────────────────────────
 
@@ -34,29 +72,37 @@ interface SettingsRowProps {
 }
 
 function SettingsRow({ icon, label, onPress, rightText, chevron = true, danger, expanded, navigate }: SettingsRowProps) {
+  const disabled = !onPress;
+  const press = usePressScale(0.992, disabled);
+
   return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-    >
-      <View style={[styles.rowIconWrap, danger && styles.rowIconWrapDanger]}>
-        <Ionicons name={icon} size={18} color={danger ? colors.dangerAccent : colors.textSecondary} />
-      </View>
-      <Text allowFontScaling={false} style={[styles.rowLabel, danger && styles.rowLabelDanger]}>
-        {label}
-      </Text>
-      {rightText ? (
-        <Text allowFontScaling={false} numberOfLines={1} ellipsizeMode="tail" style={styles.rowValue}>{rightText}</Text>
-      ) : null}
-      {chevron ? (
-        <Ionicons
-          name={navigate ? "open-outline" : expanded ? "chevron-down" : "chevron-forward"}
-          size={navigate ? 15 : 16}
-          color={colors.textSoft}
-        />
-      ) : null}
-    </Pressable>
+    <Animated.View style={press.animatedStyle}>
+      <Pressable
+        accessibilityRole="button"
+        disabled={disabled}
+        onPress={onPress}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        style={styles.row}
+      >
+        <View style={[styles.rowIconWrap, danger && styles.rowIconWrapDanger]}>
+          <Ionicons name={icon} size={18} color={danger ? colors.dangerAccent : colors.textSecondary} />
+        </View>
+        <Text allowFontScaling={false} style={[styles.rowLabel, danger && styles.rowLabelDanger]}>
+          {label}
+        </Text>
+        {rightText ? (
+          <Text allowFontScaling={false} numberOfLines={1} ellipsizeMode="tail" style={styles.rowValue}>{rightText}</Text>
+        ) : null}
+        {chevron ? (
+          <Ionicons
+            name={navigate ? "open-outline" : expanded ? "chevron-down" : "chevron-forward"}
+            size={navigate ? 15 : 16}
+            color={colors.textSoft}
+          />
+        ) : null}
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -97,6 +143,9 @@ function InlineEditField({
   const [confirm, setConfirm] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const dialog = useAppDialog();
+  const canSave = nextValueCanBeSaved(draft, secureTextEntry);
+  const cancelPress = usePressScale(0.97, submitting);
+  const savePress = usePressScale(0.97, submitting || !canSave);
 
   useEffect(() => {
     setDraft(value);
@@ -158,16 +207,24 @@ function InlineEditField({
       ) : null}
 
       <View style={styles.inlineActions}>
-        <Pressable disabled={submitting} onPress={onClose} style={styles.inlineCancelBtn}>
+        <AnimatedPressable
+          disabled={submitting}
+          onPress={onClose}
+          onPressIn={cancelPress.onPressIn}
+          onPressOut={cancelPress.onPressOut}
+          style={[styles.inlineCancelBtn, cancelPress.animatedStyle]}
+        >
           <Text allowFontScaling={false} style={styles.inlineCancelText}>Cancelar</Text>
-        </Pressable>
-        <Pressable
+        </AnimatedPressable>
+        <AnimatedPressable
           onPress={handleSave}
-          disabled={submitting || !nextValueCanBeSaved(draft, secureTextEntry)}
-          style={[styles.inlineSaveBtn, (submitting || !nextValueCanBeSaved(draft, secureTextEntry)) && styles.inlineBtnDisabled]}
+          disabled={submitting || !canSave}
+          onPressIn={savePress.onPressIn}
+          onPressOut={savePress.onPressOut}
+          style={[styles.inlineSaveBtn, (submitting || !canSave) && styles.inlineBtnDisabled, savePress.animatedStyle]}
         >
           <Text allowFontScaling={false} style={styles.inlineSaveText}>{submitting ? "Guardando..." : "Guardar"}</Text>
-        </Pressable>
+        </AnimatedPressable>
       </View>
     </View>
   );
@@ -187,6 +244,8 @@ function InlineDeleteField({ onConfirm, onClose }: { onConfirm: () => Promise<bo
   const [submitting, setSubmitting] = useState(false);
   const dialog = useAppDialog();
   const confirmed = text.trim().toLowerCase() === "eliminar";
+  const cancelPress = usePressScale(0.97, submitting);
+  const deletePress = usePressScale(0.97, submitting || !confirmed);
 
   async function handleConfirm() {
     if (!confirmed) return;
@@ -225,16 +284,24 @@ function InlineDeleteField({ onConfirm, onClose }: { onConfirm: () => Promise<bo
       />
 
       <View style={styles.inlineActions}>
-        <Pressable disabled={submitting} onPress={onClose} style={styles.inlineCancelBtn}>
+        <AnimatedPressable
+          disabled={submitting}
+          onPress={onClose}
+          onPressIn={cancelPress.onPressIn}
+          onPressOut={cancelPress.onPressOut}
+          style={[styles.inlineCancelBtn, cancelPress.animatedStyle]}
+        >
           <Text allowFontScaling={false} style={styles.inlineCancelText}>Cancelar</Text>
-        </Pressable>
-        <Pressable
+        </AnimatedPressable>
+        <AnimatedPressable
           onPress={handleConfirm}
           disabled={submitting || !confirmed}
-          style={[styles.inlineDeleteBtn, (submitting || !confirmed) && styles.inlineBtnDisabled]}
+          onPressIn={deletePress.onPressIn}
+          onPressOut={deletePress.onPressOut}
+          style={[styles.inlineDeleteBtn, (submitting || !confirmed) && styles.inlineBtnDisabled, deletePress.animatedStyle]}
         >
           <Text allowFontScaling={false} style={styles.inlineDeleteText}>{submitting ? "Eliminando..." : "Eliminar"}</Text>
-        </Pressable>
+        </AnimatedPressable>
       </View>
     </View>
   );
@@ -258,6 +325,7 @@ export function PerfilScreen() {
   const [expanded, setExpanded] = useState<ExpandedSection>(null);
   const [displayName, setDisplayName] = useState(session?.user?.name || "Jugador");
   const [displayEmail, setDisplayEmail] = useState(session?.user?.email || "");
+  const logoutPress = usePressScale(0.975);
 
   useEffect(() => {
     setDisplayName(session?.user?.name || "Jugador");
@@ -458,14 +526,18 @@ export function PerfilScreen() {
         </View>
 
         {/* Logout */}
-        <Pressable
-          accessibilityRole="button"
-          onPress={handleLogout}
-          style={({ pressed }) => [styles.logoutButton, pressed && styles.logoutButtonPressed]}
-        >
-          <Ionicons name="log-out-outline" size={18} color={colors.dangerAccent} />
-          <Text allowFontScaling={false} style={styles.logoutText}>Cerrar sesión</Text>
-        </Pressable>
+        <Animated.View style={logoutPress.animatedStyle}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={handleLogout}
+            onPressIn={logoutPress.onPressIn}
+            onPressOut={logoutPress.onPressOut}
+            style={styles.logoutButton}
+          >
+            <Ionicons name="log-out-outline" size={18} color={colors.dangerAccent} />
+            <Text allowFontScaling={false} style={styles.logoutText}>Cerrar sesión</Text>
+          </Pressable>
+        </Animated.View>
 
         <Text allowFontScaling={false} style={styles.versionFooter}>
           Fulbito Prode v{APP_VERSION}
@@ -536,9 +608,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     gap: 12
   },
-  rowPressed: {
-    backgroundColor: colors.surfaceMuted
-  },
   rowIconWrap: {
     width: 30,
     height: 30,
@@ -580,9 +649,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8
-  },
-  logoutButtonPressed: {
-    opacity: 0.7
   },
   logoutText: {
     color: colors.dangerAccent,

@@ -1,11 +1,13 @@
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, LayoutAnimation, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, UIManager, View } from "react-native";
 import { NavigationContext } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
 import type { Membership, MembershipRole } from "@fulbito/domain";
 import type { GroupMemberRecord, JoinRequestRecord } from "@fulbito/api-contracts";
 import { colors, spacing } from "@fulbito/design-tokens";
 import { groupsRepository } from "@/repositories";
+import { usePressScale } from "@/lib/usePressScale";
 import { useAppDialog } from "@/state/AppDialogContext";
 import { useAuth } from "@/state/AuthContext";
 
@@ -47,8 +49,65 @@ function animate() {
   LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
 }
 
+const CHEVRON_SPRING = {
+  damping: 18,
+  stiffness: 280,
+  mass: 0.45
+} as const;
+const TRIGGER_PRESS_IN_SPRING = {
+  damping: 22,
+  stiffness: 460,
+  mass: 0.4
+} as const;
+const TRIGGER_PRESS_OUT_SPRING = {
+  damping: 18,
+  stiffness: 340,
+  mass: 0.45
+} as const;
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+type PressScaleTouchableProps = Omit<React.ComponentProps<typeof Pressable>, "children"> & {
+  children: React.ReactNode;
+  pressScale?: number;
+};
+
+function PressScaleTouchable({
+  children,
+  pressScale = 0.97,
+  disabled,
+  onPressIn,
+  onPressOut,
+  style,
+  ...rest
+}: PressScaleTouchableProps) {
+  const press = usePressScale(pressScale, Boolean(disabled));
+  const handlePressIn = useCallback((event: any) => {
+    press.onPressIn();
+    onPressIn?.(event);
+  }, [onPressIn, press.onPressIn]);
+  const handlePressOut = useCallback((event: any) => {
+    press.onPressOut();
+    onPressOut?.(event);
+  }, [onPressOut, press.onPressOut]);
+
+  return (
+    <Animated.View style={press.animatedStyle}>
+      <Pressable
+        {...rest}
+        disabled={disabled}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={style}
+      >
+        {children}
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGroup, onRenameGroup, onCheckLeave, onLeaveGroup, onDeleteGroup, onOpenChange, forceClose, actionIcons }: HeaderGroupSelectorProps) {
   const { session } = useAuth();
+  const reducedMotion = useReducedMotion();
   const [saving, setSaving] = useState(false);
   const dialog = useAppDialog();
   const navigation = useContext(NavigationContext) as { navigate?: (route: string) => void } | null;
@@ -68,6 +127,8 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
   const [membersCanManage, setMembersCanManage] = useState(false);
   const [membersViewerRole, setMembersViewerRole] = useState<MembershipRole>("member");
   const [updatingMemberUserId, setUpdatingMemberUserId] = useState<string | null>(null);
+  const triggerScale = useSharedValue(1);
+  const chevronRotation = useSharedValue(open ? 180 : 0);
   const currentUserId = session?.user?.id ?? null;
 
   const activeMembership = useMemo(
@@ -90,6 +151,38 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
   const showJoinRequests = joinRequestsGroupId !== null;
   const showMembers = membersGroupId !== null;
   const showSubPanel = showEditName || showJoinRequests || showMembers;
+
+  useEffect(() => {
+    const target = open ? 180 : 0;
+    if (reducedMotion) {
+      chevronRotation.value = target;
+      return;
+    }
+    chevronRotation.value = withSpring(target, CHEVRON_SPRING);
+  }, [chevronRotation, open, reducedMotion]);
+
+  const chevronAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${chevronRotation.value}deg` }]
+  }));
+  const triggerAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: triggerScale.value }]
+  }));
+
+  const handleTriggerPressIn = useCallback(() => {
+    if (memberships.length === 0 || reducedMotion) {
+      triggerScale.value = 1;
+      return;
+    }
+    triggerScale.value = withSpring(0.985, TRIGGER_PRESS_IN_SPRING);
+  }, [memberships.length, reducedMotion, triggerScale]);
+
+  const handleTriggerPressOut = useCallback(() => {
+    if (memberships.length === 0 || reducedMotion) {
+      triggerScale.value = 1;
+      return;
+    }
+    triggerScale.value = withSpring(1, TRIGGER_PRESS_OUT_SPRING);
+  }, [memberships.length, reducedMotion, triggerScale]);
 
   function toggleOpen() {
     if (memberships.length === 0) return;
@@ -519,11 +612,13 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
     <View>
       {/* Top row: trigger + action icons */}
       <View style={styles.topRow}>
-        <Pressable
+        <AnimatedPressable
           accessibilityRole="button"
           accessibilityLabel="Seleccionar grupo"
           onPress={toggleOpen}
-          style={[styles.trigger, memberships.length === 0 && styles.triggerDisabled]}
+          onPressIn={handleTriggerPressIn}
+          onPressOut={handleTriggerPressOut}
+          style={[styles.trigger, memberships.length === 0 && styles.triggerDisabled, triggerAnimatedStyle]}
         >
           <View style={styles.triggerAvatar}>
             <Ionicons name="people" size={18} color={colors.textTitle} />
@@ -538,8 +633,10 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
               </Text>
             ) : null}
           </View>
-          <Ionicons name={open ? "chevron-up" : "chevron-down"} size={14} color={colors.textSecondary} />
-        </Pressable>
+          <Animated.View style={chevronAnimatedStyle}>
+            <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
+          </Animated.View>
+        </AnimatedPressable>
         {actionIcons}
       </View>
 
@@ -552,45 +649,91 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
               <Text allowFontScaling={false} style={styles.panelTitle}>Mis Grupos</Text>
               <Text allowFontScaling={false} style={styles.panelCount}>{memberships.length}</Text>
               <View style={{ flex: 1 }} />
-              <Pressable accessibilityRole="button" accessibilityLabel="Cerrar" onPress={closePanel} hitSlop={6} style={styles.closeButton}>
+              <PressScaleTouchable
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar"
+                onPress={closePanel}
+                hitSlop={6}
+                style={styles.closeButton}
+                pressScale={0.93}
+              >
                 <Ionicons name="close" size={14} color={colors.textMuted} />
-              </Pressable>
+              </PressScaleTouchable>
             </View>
           ) : showEditName ? (
             <View style={styles.panelHeader}>
-              <Pressable accessibilityRole="button" accessibilityLabel="Volver" onPress={cancelEditName} style={styles.backButton}>
+              <PressScaleTouchable
+                accessibilityRole="button"
+                accessibilityLabel="Volver"
+                onPress={cancelEditName}
+                style={styles.backButton}
+                pressScale={0.93}
+              >
                 <Ionicons name="chevron-back" size={16} color={colors.textSecondary} />
-              </Pressable>
+              </PressScaleTouchable>
               <Text allowFontScaling={false} numberOfLines={1} style={styles.panelTitleFlex}>
                 {editingMembership?.groupName ?? ""}
               </Text>
-              <Pressable accessibilityRole="button" accessibilityLabel="Cerrar" onPress={closePanel} hitSlop={6} style={styles.closeButton}>
+              <PressScaleTouchable
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar"
+                onPress={closePanel}
+                hitSlop={6}
+                style={styles.closeButton}
+                pressScale={0.93}
+              >
                 <Ionicons name="close" size={14} color={colors.textMuted} />
-              </Pressable>
+              </PressScaleTouchable>
             </View>
           ) : showJoinRequests ? (
             <View style={styles.panelHeader}>
-              <Pressable accessibilityRole="button" accessibilityLabel="Volver" onPress={cancelJoinRequests} style={styles.backButton}>
+              <PressScaleTouchable
+                accessibilityRole="button"
+                accessibilityLabel="Volver"
+                onPress={cancelJoinRequests}
+                style={styles.backButton}
+                pressScale={0.93}
+              >
                 <Ionicons name="chevron-back" size={16} color={colors.textSecondary} />
-              </Pressable>
+              </PressScaleTouchable>
               <Text allowFontScaling={false} numberOfLines={1} style={styles.panelTitleFlex}>
                 Solicitudes
               </Text>
-              <Pressable accessibilityRole="button" accessibilityLabel="Cerrar" onPress={closePanel} hitSlop={6} style={styles.closeButton}>
+              <PressScaleTouchable
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar"
+                onPress={closePanel}
+                hitSlop={6}
+                style={styles.closeButton}
+                pressScale={0.93}
+              >
                 <Ionicons name="close" size={14} color={colors.textMuted} />
-              </Pressable>
+              </PressScaleTouchable>
             </View>
           ) : (
             <View style={styles.panelHeader}>
-              <Pressable accessibilityRole="button" accessibilityLabel="Volver" onPress={cancelMembersView} style={styles.backButton}>
+              <PressScaleTouchable
+                accessibilityRole="button"
+                accessibilityLabel="Volver"
+                onPress={cancelMembersView}
+                style={styles.backButton}
+                pressScale={0.93}
+              >
                 <Ionicons name="chevron-back" size={16} color={colors.textSecondary} />
-              </Pressable>
+              </PressScaleTouchable>
               <Text allowFontScaling={false} numberOfLines={1} style={styles.panelTitleFlex}>
                 Miembros
               </Text>
-              <Pressable accessibilityRole="button" accessibilityLabel="Cerrar" onPress={closePanel} hitSlop={6} style={styles.closeButton}>
+              <PressScaleTouchable
+                accessibilityRole="button"
+                accessibilityLabel="Cerrar"
+                onPress={closePanel}
+                hitSlop={6}
+                style={styles.closeButton}
+                pressScale={0.93}
+              >
                 <Ionicons name="close" size={14} color={colors.textMuted} />
-              </Pressable>
+              </PressScaleTouchable>
             </View>
           )}
 
@@ -619,52 +762,58 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
               </ScrollView>
 
               <View style={styles.footerDivider} />
-              <Pressable accessibilityRole="button" accessibilityLabel="Unirse o crear grupo" onPress={goToUnirseCrearGrupo} style={styles.joinButton}>
+              <PressScaleTouchable
+                accessibilityRole="button"
+                accessibilityLabel="Unirse o crear grupo"
+                onPress={goToUnirseCrearGrupo}
+                style={styles.joinButton}
+                pressScale={0.98}
+              >
                 <View style={styles.joinIconWrap}>
                   <Text allowFontScaling={false} style={styles.joinIcon}>+</Text>
                 </View>
                 <Text allowFontScaling={false} style={styles.joinText}>Unirse/Crear grupo</Text>
-              </Pressable>
+              </PressScaleTouchable>
 
               {/* Actions popover overlay */}
               {actionsGroupId && actionsMembership ? (
                 <>
                   <Pressable style={styles.popoverBackdrop} onPress={dismissPopover} />
                   <View style={[styles.popover, { top: popoverPos.top, right: popoverPos.right }]}>
-                    <Pressable onPress={() => void handleShare()} style={styles.popoverRow}>
+                    <PressScaleTouchable onPress={() => void handleShare()} style={styles.popoverRow} pressScale={0.98}>
                       <Ionicons name="share-outline" size={17} color={colors.textSecondary} />
                       <Text allowFontScaling={false} style={styles.popoverLabel}>Compartir link</Text>
-                    </Pressable>
-                    <Pressable onPress={handleViewMembers} style={styles.popoverRow}>
+                    </PressScaleTouchable>
+                    <PressScaleTouchable onPress={handleViewMembers} style={styles.popoverRow} pressScale={0.98}>
                       <Ionicons name="people-outline" size={17} color={colors.textSecondary} />
                       <Text allowFontScaling={false} style={styles.popoverLabel}>Miembros</Text>
-                    </Pressable>
+                    </PressScaleTouchable>
 
                     {actionsIsAdmin ? (
                       <>
-                        <Pressable onPress={handleEditName} style={styles.popoverRow}>
+                        <PressScaleTouchable onPress={handleEditName} style={styles.popoverRow} pressScale={0.98}>
                           <Ionicons name="pencil-outline" size={17} color={colors.textSecondary} />
                           <Text allowFontScaling={false} style={styles.popoverLabel}>Editar nombre</Text>
-                        </Pressable>
-                        <Pressable onPress={handleViewJoinRequests} style={styles.popoverRow}>
+                        </PressScaleTouchable>
+                        <PressScaleTouchable onPress={handleViewJoinRequests} style={styles.popoverRow} pressScale={0.98}>
                           <Ionicons name="person-add-outline" size={17} color={colors.textSecondary} />
                           <Text allowFontScaling={false} style={styles.popoverLabel}>Solicitudes</Text>
-                        </Pressable>
+                        </PressScaleTouchable>
                       </>
                     ) : null}
 
                     <View style={styles.popoverDivider} />
 
-                    <Pressable onPress={handleLeave} style={styles.popoverRow}>
+                    <PressScaleTouchable onPress={handleLeave} style={styles.popoverRow} pressScale={0.98}>
                       <Ionicons name="log-out-outline" size={17} color={colors.dangerAccent} />
                       <Text allowFontScaling={false} style={styles.popoverLabelDanger}>Salir</Text>
-                    </Pressable>
+                    </PressScaleTouchable>
 
                     {actionsIsAdmin ? (
-                      <Pressable onPress={handleDelete} style={styles.popoverRow}>
+                      <PressScaleTouchable onPress={handleDelete} style={styles.popoverRow} pressScale={0.98}>
                         <Ionicons name="trash-outline" size={17} color={colors.dangerAccent} />
                         <Text allowFontScaling={false} style={styles.popoverLabelDanger}>Eliminar</Text>
-                      </Pressable>
+                      </PressScaleTouchable>
                     ) : null}
                   </View>
                 </>
@@ -685,12 +834,17 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                 maxLength={40}
               />
               <View style={styles.editNameActions}>
-                <Pressable onPress={cancelEditName} style={styles.editNameCancel}>
+                <PressScaleTouchable onPress={cancelEditName} style={styles.editNameCancel} pressScale={0.97}>
                   <Text allowFontScaling={false} style={styles.editNameCancelText}>Cancelar</Text>
-                </Pressable>
-                <Pressable onPress={handleSaveName} style={[styles.editNameSave, (!editingName.trim() || saving) && styles.editNameSaveDisabled]}>
+                </PressScaleTouchable>
+                <PressScaleTouchable
+                  onPress={handleSaveName}
+                  disabled={!editingName.trim() || saving}
+                  style={[styles.editNameSave, (!editingName.trim() || saving) && styles.editNameSaveDisabled]}
+                  pressScale={0.97}
+                >
                   <Text allowFontScaling={false} style={styles.editNameSaveText}>{saving ? "Guardando..." : "Guardar"}</Text>
-                </Pressable>
+                </PressScaleTouchable>
               </View>
             </View>
           ) : null}
@@ -725,18 +879,20 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                         <ActivityIndicator size="small" color={colors.primaryDeep} />
                       ) : (
                         <View style={styles.joinRequestActions}>
-                          <Pressable
+                          <PressScaleTouchable
                             onPress={() => handleRespondToRequest(request.userId, "approve")}
                             style={styles.joinRequestApproveBtn}
+                            pressScale={0.92}
                           >
                             <Ionicons name="checkmark" size={18} color={colors.successDeep} />
-                          </Pressable>
-                          <Pressable
+                          </PressScaleTouchable>
+                          <PressScaleTouchable
                             onPress={() => handleRespondToRequest(request.userId, "reject")}
                             style={styles.joinRequestRejectBtn}
+                            pressScale={0.92}
                           >
                             <Ionicons name="close" size={18} color={colors.dangerAccent} />
-                          </Pressable>
+                          </PressScaleTouchable>
                         </View>
                       )}
                     </View>
@@ -784,9 +940,10 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                           <ActivityIndicator size="small" color={colors.primaryDeep} />
                         ) : showManageActions ? (
                           <View style={styles.memberActions}>
-                            <Pressable
+                            <PressScaleTouchable
                               onPress={() => handleToggleMemberAdmin(member)}
                               style={styles.memberActionBtn}
+                              pressScale={0.97}
                             >
                               <Ionicons
                                 name={member.role === "admin" ? "remove-circle-outline" : "shield-checkmark-outline"}
@@ -796,14 +953,15 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                               <Text allowFontScaling={false} style={styles.memberActionText}>
                                 {member.role === "admin" ? "Quitar admin" : "Dar admin"}
                               </Text>
-                            </Pressable>
-                            <Pressable
+                            </PressScaleTouchable>
+                            <PressScaleTouchable
                               onPress={() => handleKickMember(member)}
                               style={[styles.memberActionBtn, styles.memberActionBtnDanger]}
+                              pressScale={0.97}
                             >
                               <Ionicons name="person-remove-outline" size={16} color={colors.dangerAccent} />
                               <Text allowFontScaling={false} style={styles.memberActionTextDanger}>Quitar</Text>
-                            </Pressable>
+                            </PressScaleTouchable>
                           </View>
                         ) : null}
                       </View>
@@ -831,40 +989,49 @@ interface MembershipRowProps {
 
 function MembershipRow({ membership, active, isLast, onSelect, onMore }: MembershipRowProps) {
   const moreRef = useRef<View | null>(null);
+  const rowPress = usePressScale(0.985);
+  const morePress = usePressScale(0.93);
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onSelect}
-      style={({ pressed }) => [
-        styles.membershipRow,
-        active && styles.membershipRowActive,
-        pressed && !active && styles.membershipRowPressed,
-        !isLast && styles.membershipRowGap
-      ]}
-    >
-      <View style={[styles.rowAvatar, active && styles.rowAvatarActive]}>
-        <Text allowFontScaling={false} style={[styles.rowAvatarText, active && styles.rowAvatarTextActive]}>
-          {groupInitial(membership.groupName)}
-        </Text>
-      </View>
-      <View style={styles.rowTextWrap}>
-        <Text allowFontScaling={false} numberOfLines={1} style={[styles.groupName, active && styles.groupNameActive]}>
-          {membership.groupName}
-        </Text>
-        <Text allowFontScaling={false} numberOfLines={1} style={styles.groupMeta}>{competitionLabel(membership)}</Text>
-      </View>
+    <Animated.View style={rowPress.animatedStyle}>
       <Pressable
-        ref={moreRef}
         accessibilityRole="button"
-        accessibilityLabel="Opciones del grupo"
-        hitSlop={8}
-        onPress={() => onMore(moreRef.current)}
-        style={[styles.moreButton, active && styles.moreButtonActive]}
+        onPress={onSelect}
+        onPressIn={rowPress.onPressIn}
+        onPressOut={rowPress.onPressOut}
+        style={[
+          styles.membershipRow,
+          active && styles.membershipRowActive,
+          !isLast && styles.membershipRowGap
+        ]}
       >
-        <Ionicons name="ellipsis-horizontal" size={18} color={colors.textMuted} />
+        <View style={[styles.rowAvatar, active && styles.rowAvatarActive]}>
+          <Text allowFontScaling={false} style={[styles.rowAvatarText, active && styles.rowAvatarTextActive]}>
+            {groupInitial(membership.groupName)}
+          </Text>
+        </View>
+        <View style={styles.rowTextWrap}>
+          <Text allowFontScaling={false} numberOfLines={1} style={[styles.groupName, active && styles.groupNameActive]}>
+            {membership.groupName}
+          </Text>
+          <Text allowFontScaling={false} numberOfLines={1} style={styles.groupMeta}>{competitionLabel(membership)}</Text>
+        </View>
+        <Animated.View style={morePress.animatedStyle}>
+          <Pressable
+            ref={moreRef}
+            accessibilityRole="button"
+            accessibilityLabel="Opciones del grupo"
+            hitSlop={8}
+            onPress={() => onMore(moreRef.current)}
+            onPressIn={morePress.onPressIn}
+            onPressOut={morePress.onPressOut}
+            style={[styles.moreButton, active && styles.moreButtonActive]}
+          >
+            <Ionicons name="ellipsis-horizontal" size={18} color={colors.textMuted} />
+          </Pressable>
+        </Animated.View>
       </Pressable>
-    </Pressable>
+    </Animated.View>
   );
 }
 
@@ -986,9 +1153,6 @@ const styles = StyleSheet.create({
   },
   membershipRowActive: {
     backgroundColor: colors.primaryHighlight
-  },
-  membershipRowPressed: {
-    backgroundColor: colors.surfaceMuted
   },
   membershipRowGap: {
     marginBottom: 2

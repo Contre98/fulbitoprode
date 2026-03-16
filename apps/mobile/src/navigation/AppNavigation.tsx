@@ -1,11 +1,14 @@
 import { NavigationContainer, createNavigationContainerRef } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { StyleSheet, View } from "react-native";
+import { BottomTabBar, createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import type { BottomTabBarButtonProps, BottomTabBarProps } from "@react-navigation/bottom-tabs";
+import { Pressable, StyleSheet, View } from "react-native";
+import type { GestureResponderEvent } from "react-native";
 import { Linking } from "react-native";
-import { useMemo, useEffect, useRef } from "react";
+import { useCallback, useMemo, useEffect, useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@fulbito/design-tokens";
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
 import { AuthProvider, useAuth } from "@/state/AuthContext";
 import { PeriodProvider } from "@/state/PeriodContext";
 import { AuthScreen } from "@/screens/AuthScreen";
@@ -34,6 +37,32 @@ import { NotificationsBubbleOverlay } from "@/components/NotificationsBubbleOver
 const RootStack = createNativeStackNavigator();
 const Tabs = createBottomTabNavigator();
 const navigationRef = createNavigationContainerRef<Record<string, object | undefined>>();
+const TAB_INDICATOR_WIDTH = 18;
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+const TAB_ICON_SPRING = {
+  damping: 17,
+  stiffness: 320,
+  mass: 0.45
+} as const;
+
+const TAB_BUTTON_PRESS_IN_SPRING = {
+  damping: 22,
+  stiffness: 420,
+  mass: 0.42
+} as const;
+
+const TAB_BUTTON_PRESS_OUT_SPRING = {
+  damping: 18,
+  stiffness: 340,
+  mass: 0.45
+} as const;
+
+const TAB_INDICATOR_SPRING = {
+  damping: 18,
+  stiffness: 260,
+  mass: 0.5
+} as const;
 
 const tabIconByName: Record<string, { active: keyof typeof Ionicons.glyphMap; inactive: keyof typeof Ionicons.glyphMap }> = {
   Inicio: { active: "home", inactive: "home-outline" },
@@ -44,30 +73,118 @@ const tabIconByName: Record<string, { active: keyof typeof Ionicons.glyphMap; in
 };
 
 function TabIcon({ routeName, focused }: { routeName: string; focused: boolean }) {
+  const reducedMotion = useReducedMotion();
+  const scale = useSharedValue(focused ? 1.06 : 1);
+  const iconScaleStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }]
+  }));
+
+  useEffect(() => {
+    const target = focused ? 1.06 : 1;
+    if (reducedMotion) {
+      scale.value = target;
+      return;
+    }
+    scale.value = withSpring(target, TAB_ICON_SPRING);
+  }, [focused, reducedMotion, scale]);
+
   const icons = tabIconByName[routeName];
   if (!icons) return null;
   const isCenter = routeName === "Pronosticos";
 
   if (isCenter) {
     return (
-      <View style={[styles.centerTabButton, focused ? styles.centerTabButtonActive : styles.centerTabButtonIdle]}>
-        <View style={[styles.centerTabInner, focused ? styles.centerTabInnerActive : styles.centerTabInnerIdle]}>
-          <Ionicons
-            name={focused ? icons.active : icons.inactive}
-            size={24}
-            color={focused ? colors.textInverse : colors.textSecondary}
-          />
+      <Animated.View style={iconScaleStyle}>
+        <View style={[styles.centerTabButton, focused ? styles.centerTabButtonActive : styles.centerTabButtonIdle]}>
+          <View style={[styles.centerTabInner, focused ? styles.centerTabInnerActive : styles.centerTabInnerIdle]}>
+            <Ionicons
+              name={focused ? icons.active : icons.inactive}
+              size={24}
+              color={focused ? colors.textInverse : colors.textSecondary}
+            />
+          </View>
         </View>
-      </View>
+      </Animated.View>
     );
   }
 
   return (
-    <Ionicons
-      name={focused ? icons.active : icons.inactive}
-      size={22}
-      color={focused ? colors.primary : colors.textSecondary}
+    <Animated.View style={iconScaleStyle}>
+      <Ionicons
+        name={focused ? icons.active : icons.inactive}
+        size={22}
+        color={focused ? colors.primary : colors.textSecondary}
+      />
+    </Animated.View>
+  );
+}
+
+type AnimatedTabButtonPressableProps = Omit<BottomTabBarButtonProps, "onPressIn" | "onPressOut" | "style" | "ref">;
+
+function AnimatedTabBarButton({ onPressIn, onPressOut, style, ...rest }: BottomTabBarButtonProps) {
+  const reducedMotion = useReducedMotion();
+  const pressScale = useSharedValue(1);
+  const pressableProps = rest as AnimatedTabButtonPressableProps;
+  const buttonAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressScale.value }]
+  }));
+
+  const handlePressIn = useCallback((event: GestureResponderEvent) => {
+    onPressIn?.(event);
+    if (reducedMotion) {
+      pressScale.value = 1;
+      return;
+    }
+    pressScale.value = withSpring(0.96, TAB_BUTTON_PRESS_IN_SPRING);
+  }, [onPressIn, pressScale, reducedMotion]);
+
+  const handlePressOut = useCallback((event: GestureResponderEvent) => {
+    onPressOut?.(event);
+    if (reducedMotion) {
+      pressScale.value = 1;
+      return;
+    }
+    pressScale.value = withSpring(1, TAB_BUTTON_PRESS_OUT_SPRING);
+  }, [onPressOut, pressScale, reducedMotion]);
+
+  return (
+    <AnimatedPressable
+      {...pressableProps}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={[style, buttonAnimatedStyle]}
     />
+  );
+}
+
+function AnimatedTabBar({ state, descriptors, navigation, insets }: BottomTabBarProps) {
+  const reducedMotion = useReducedMotion();
+  const [barWidth, setBarWidth] = useState(0);
+  const indicatorX = useSharedValue(0);
+
+  const tabCount = state.routes.length || 1;
+  const tabWidth = barWidth > 0 ? barWidth / tabCount : 0;
+
+  useEffect(() => {
+    if (tabWidth <= 0) return;
+    const target = state.index * tabWidth + (tabWidth - TAB_INDICATOR_WIDTH) / 2;
+    if (reducedMotion) {
+      indicatorX.value = target;
+      return;
+    }
+    indicatorX.value = withSpring(target, TAB_INDICATOR_SPRING);
+  }, [indicatorX, reducedMotion, state.index, tabWidth]);
+
+  const indicatorStyle = useAnimatedStyle(() => ({
+    opacity: tabWidth > 0 ? 1 : 0,
+    transform: [{ translateX: indicatorX.value }]
+  }));
+
+  return (
+    <View style={styles.tabBarHost} onLayout={(event) => setBarWidth(event.nativeEvent.layout.width)}>
+      <BottomTabBar state={state} descriptors={descriptors} navigation={navigation} insets={insets} />
+      <Animated.View pointerEvents="none" style={[styles.activeTabIndicator, indicatorStyle]} />
+    </View>
   );
 }
 
@@ -141,6 +258,7 @@ function AppTabs() {
   useRegisterPushToken();
   return (
     <Tabs.Navigator
+      tabBar={(props) => <AnimatedTabBar {...props} />}
       screenListeners={{
         tabPress: () => {
           if (overlay.visible) overlay.hide();
@@ -152,6 +270,7 @@ function AppTabs() {
         tabBarLabelStyle: styles.tabLabel,
         tabBarItemStyle: route.name === "Pronosticos" ? styles.centerTabItem : styles.tabItem,
         tabBarIcon: ({ focused }) => <TabIcon routeName={route.name} focused={focused} />,
+        tabBarButton: (props) => <AnimatedTabBarButton {...props} />,
         tabBarActiveTintColor: colors.primaryDeep,
         tabBarInactiveTintColor: colors.textSecondary
       })}
@@ -245,6 +364,9 @@ export function AppNavigation() {
 }
 
 const styles = StyleSheet.create({
+  tabBarHost: {
+    position: "relative"
+  },
   tabBar: {
     height: 90,
     paddingTop: 8,
@@ -307,5 +429,14 @@ const styles = StyleSheet.create({
   },
   centerTabInnerIdle: {
     backgroundColor: "transparent"
+  },
+  activeTabIndicator: {
+    position: "absolute",
+    bottom: 6,
+    left: 0,
+    width: TAB_INDICATOR_WIDTH,
+    height: 3,
+    borderRadius: 999,
+    backgroundColor: colors.primary
   }
 });

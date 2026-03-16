@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "@fulbito/design-tokens";
+import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
 import { leaderboardRepository } from "@/repositories";
 import { useAuth } from "@/state/AuthContext";
 import { useGroupSelection } from "@/state/GroupContext";
@@ -17,6 +18,32 @@ import { CreateOrJoinGroupPrompt } from "@/components/CreateOrJoinGroupPrompt";
 import { useAppDialog } from "@/state/AppDialogContext";
 
 type PosicionesMode = "positions" | "stats";
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const MODE_TAB_PRESS_IN_SPRING = {
+  damping: 22,
+  stiffness: 430,
+  mass: 0.4
+} as const;
+const MODE_TAB_PRESS_OUT_SPRING = {
+  damping: 18,
+  stiffness: 340,
+  mass: 0.45
+} as const;
+const MODE_INDICATOR_SPRING = {
+  damping: 20,
+  stiffness: 290,
+  mass: 0.5
+} as const;
+const INFO_PRESS_IN_SPRING = {
+  damping: 22,
+  stiffness: 450,
+  mass: 0.38
+} as const;
+const INFO_PRESS_OUT_SPRING = {
+  damping: 18,
+  stiffness: 350,
+  mass: 0.45
+} as const;
 
 function formatPct(value: number) {
   return `${Math.round(value)}%`;
@@ -35,9 +62,99 @@ function formatSigned(value: number, suffix = "") {
 
 type StatRow = { label: string; value: string; info: string };
 
+function ModeFilterTab({
+  label,
+  active,
+  onPress
+}: {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  const reducedMotion = useReducedMotion();
+  const pressScale = useSharedValue(1);
+  const pressAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressScale.value }]
+  }));
+
+  const handlePressIn = useCallback(() => {
+    if (reducedMotion) {
+      pressScale.value = 1;
+      return;
+    }
+    pressScale.value = withSpring(0.97, MODE_TAB_PRESS_IN_SPRING);
+  }, [pressScale, reducedMotion]);
+
+  const handlePressOut = useCallback(() => {
+    if (reducedMotion) {
+      pressScale.value = 1;
+      return;
+    }
+    pressScale.value = withSpring(1, MODE_TAB_PRESS_OUT_SPRING);
+  }, [pressScale, reducedMotion]);
+
+  return (
+    <AnimatedPressable
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={[styles.filterTab, pressAnimatedStyle]}
+    >
+      <Text allowFontScaling={false} style={active ? styles.filterTabLabelActive : styles.filterTabLabel}>{label}</Text>
+    </AnimatedPressable>
+  );
+}
+
+function StatInfoButton({
+  accessibilityLabel,
+  onPress
+}: {
+  accessibilityLabel: string;
+  onPress: () => void;
+}) {
+  const reducedMotion = useReducedMotion();
+  const pressScale = useSharedValue(1);
+  const pressAnimatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressScale.value }]
+  }));
+
+  const handlePressIn = useCallback(() => {
+    if (reducedMotion) {
+      pressScale.value = 1;
+      return;
+    }
+    pressScale.value = withSpring(0.9, INFO_PRESS_IN_SPRING);
+  }, [pressScale, reducedMotion]);
+
+  const handlePressOut = useCallback(() => {
+    if (reducedMotion) {
+      pressScale.value = 1;
+      return;
+    }
+    pressScale.value = withSpring(1, INFO_PRESS_OUT_SPRING);
+  }, [pressScale, reducedMotion]);
+
+  return (
+    <AnimatedPressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      hitSlop={8}
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={[styles.infoBadge, pressAnimatedStyle]}
+    >
+      <Ionicons name="information-circle-outline" size={16} color={colors.textMutedAlt} />
+    </AnimatedPressable>
+  );
+}
+
 export function PosicionesScreen() {
   const queryClient = useQueryClient();
   const dialog = useAppDialog();
+  const reducedMotion = useReducedMotion();
   const { session } = useAuth();
   const currentUserId = session?.user.id;
   const { memberships, selectedGroupId } = useGroupSelection();
@@ -45,6 +162,8 @@ export function PosicionesScreen() {
   const hasMemberships = memberships.length > 0;
   const [mode, setMode] = useState<PosicionesMode>("positions");
   const [positionsPeriod, setPositionsPeriod] = useState("global");
+  const [modeTabsWidth, setModeTabsWidth] = useState(0);
+  const modeIndicatorX = useSharedValue(0);
 
   const groupId = memberships.find((membership) => membership.groupId === selectedGroupId)?.groupId ?? memberships[0]?.groupId ?? null;
   const selectedMembership = useMemo(
@@ -66,6 +185,22 @@ export function PosicionesScreen() {
   }, [positionsCycleOptions, positionsPeriod]);
 
   const selectedLeaderboardPeriod = mode === "positions" ? positionsPeriod : fecha;
+  const activeModeIndex = mode === "positions" ? 0 : 1;
+  const modeTabWidth = modeTabsWidth > 0 ? (modeTabsWidth - 8) / 2 : 0;
+  const indicatorStyle = useAnimatedStyle(() => ({
+    opacity: modeTabWidth > 0 ? 1 : 0,
+    transform: [{ translateX: modeIndicatorX.value }]
+  }));
+
+  useEffect(() => {
+    if (modeTabWidth <= 0) return;
+    const target = activeModeIndex * (modeTabWidth + 2);
+    if (reducedMotion) {
+      modeIndicatorX.value = target;
+      return;
+    }
+    modeIndicatorX.value = withSpring(target, MODE_INDICATOR_SPRING);
+  }, [activeModeIndex, modeIndicatorX, modeTabWidth, reducedMotion]);
 
   const leaderboardQuery = useQuery({
     queryKey: ["leaderboard-payload", groupId, selectedLeaderboardPeriod, mode],
@@ -233,13 +368,17 @@ export function PosicionesScreen() {
         <CreateOrJoinGroupPrompt />
       ) : (
         <>
-          <View style={styles.filterTabs}>
-            <Pressable onPress={() => setMode("positions")} style={[styles.filterTab, mode === "positions" ? styles.filterTabActive : null]}>
-              <Text allowFontScaling={false} style={mode === "positions" ? styles.filterTabLabelActive : styles.filterTabLabel}>Posiciones</Text>
-            </Pressable>
-            <Pressable onPress={() => setMode("stats")} style={[styles.filterTab, mode === "stats" ? styles.filterTabActive : null]}>
-              <Text allowFontScaling={false} style={mode === "stats" ? styles.filterTabLabelActive : styles.filterTabLabel}>Estadísticas</Text>
-            </Pressable>
+          <View style={styles.filterTabs} onLayout={(event) => setModeTabsWidth(event.nativeEvent.layout.width)}>
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.filterTabIndicator,
+                { width: modeTabWidth > 0 ? modeTabWidth : undefined },
+                indicatorStyle
+              ]}
+            />
+            <ModeFilterTab label="Posiciones" active={mode === "positions"} onPress={() => setMode("positions")} />
+            <ModeFilterTab label="Estadísticas" active={mode === "stats"} onPress={() => setMode("stats")} />
           </View>
 
           {mode === "positions" ? (
@@ -337,15 +476,7 @@ export function PosicionesScreen() {
                         <View key={row.label} style={[styles.performanceRow, index > 0 ? styles.performanceRowBorder : null]}>
                           <View style={styles.performanceLabelRow}>
                             <Text allowFontScaling={false} style={styles.performanceLabel}>{row.label}</Text>
-                            <Pressable
-                              accessibilityRole="button"
-                              accessibilityLabel={`Info de ${row.label}`}
-                              hitSlop={8}
-                              onPress={() => openStatInfo(row.label, row.info)}
-                              style={styles.infoBadge}
-                            >
-                              <Ionicons name="information-circle-outline" size={16} color={colors.textMutedAlt} />
-                            </Pressable>
+                            <StatInfoButton accessibilityLabel={`Info de ${row.label}`} onPress={() => openStatInfo(row.label, row.info)} />
                           </View>
                           <Text allowFontScaling={false} style={styles.performanceValue}>{row.value}</Text>
                         </View>
@@ -362,15 +493,7 @@ export function PosicionesScreen() {
                         <View key={row.label} style={[styles.performanceRow, index > 0 ? styles.performanceRowBorder : null]}>
                           <View style={styles.performanceLabelRow}>
                             <Text allowFontScaling={false} style={styles.performanceLabel}>{row.label}</Text>
-                            <Pressable
-                              accessibilityRole="button"
-                              accessibilityLabel={`Info de ${row.label}`}
-                              hitSlop={8}
-                              onPress={() => openStatInfo(row.label, row.info)}
-                              style={styles.infoBadge}
-                            >
-                              <Ionicons name="information-circle-outline" size={16} color={colors.textMutedAlt} />
-                            </Pressable>
+                            <StatInfoButton accessibilityLabel={`Info de ${row.label}`} onPress={() => openStatInfo(row.label, row.info)} />
                           </View>
                           <Text allowFontScaling={false} style={styles.performanceValue}>{row.value}</Text>
                         </View>
@@ -456,13 +579,23 @@ const styles = StyleSheet.create({
     fontSize: 14
   },
   filterTabs: {
+    position: "relative",
     flexDirection: "row",
     borderRadius: 12,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
     backgroundColor: colors.surfaceSoft,
     padding: 3,
+    overflow: "hidden",
     gap: 2
+  },
+  filterTabIndicator: {
+    position: "absolute",
+    left: 3,
+    top: 3,
+    bottom: 3,
+    borderRadius: 8,
+    backgroundColor: colors.primaryStrong
   },
   filterTab: {
     flex: 1,
@@ -470,9 +603,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: "center",
     justifyContent: "center"
-  },
-  filterTabActive: {
-    backgroundColor: colors.primaryStrong
   },
   filterTabLabel: {
     color: colors.textMutedAlt,

@@ -1,12 +1,17 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Animated from "react-native-reanimated";
 import { colors } from "@fulbito/design-tokens";
 import { ScreenFrame } from "@/components/ScreenFrame";
+import { usePressScale } from "@/lib/usePressScale";
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function SugerenciasScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
+  const backPress = usePressScale(0.93);
 
   return (
     <ScreenFrame
@@ -17,9 +22,15 @@ export function SugerenciasScreen() {
       contentStyle={styles.screenContent}
       header={
         <View style={[styles.headerCard, { paddingTop: Math.max(insets.top, 10) + 2 }]}>
-          <Pressable onPress={() => navigation.goBack()} hitSlop={6} style={styles.backButton}>
+          <AnimatedPressable
+            onPress={() => navigation.goBack()}
+            onPressIn={backPress.onPressIn}
+            onPressOut={backPress.onPressOut}
+            hitSlop={6}
+            style={[styles.backButton, backPress.animatedStyle]}
+          >
             <Text allowFontScaling={false} style={styles.backButtonText}>←</Text>
-          </Pressable>
+          </AnimatedPressable>
         </View>
       }
     >
