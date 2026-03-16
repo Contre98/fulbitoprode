@@ -1,9 +1,13 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { View, Animated, StyleSheet } from "react-native";
 import Svg, { Path, Rect } from "react-native-svg";
-import { colors } from "@fulbito/design-tokens";
+import { getColors } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
+import { useThemeColors } from "@/theme/useThemeColors";
 
 export function LoadingScreen() {
+  const themeColors = useThemeColors();
+  styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.92)).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -53,7 +57,7 @@ export function LoadingScreen() {
   }, [pulseAnim]);
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: themeColors.background }]}>
       <Animated.View
         style={[
           styles.logoWrapper,
@@ -87,7 +91,7 @@ export function LoadingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ColorTokens) => StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
@@ -98,3 +102,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
 });
+
+let styles = createStyles(getColors("light"));

@@ -1,13 +1,18 @@
+import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
-import { colors, spacing } from "@fulbito/design-tokens";
+import { getColors, spacing } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
 import { formatClock24 } from "@/lib/dateTime";
 import { usePressScale } from "@/lib/usePressScale";
 import { useAuth } from "@/state/AuthContext";
+import { useThemeColors } from "@/theme/useThemeColors";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function DataModeBadge() {
+  const themeColors = useThemeColors();
+  styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const { dataMode, fallbackIssue, fallbackHistory, retryHttpMode, clearFallbackDiagnosticsHistory } = useAuth();
   const httpMode = dataMode === "http";
   const recentFailures = __DEV__ ? fallbackHistory.slice(0, 3) : [];
@@ -55,7 +60,7 @@ export function DataModeBadge() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ColorTokens) => StyleSheet.create({
   container: {
     gap: spacing.xs
   },
@@ -67,32 +72,32 @@ const styles = StyleSheet.create({
     borderWidth: 1
   },
   httpBadge: {
-    borderColor: colors.primary,
-    backgroundColor: colors.dataLiveBg
+    borderColor: themeColors.primary,
+    backgroundColor: themeColors.dataLiveBg
   },
   mockBadge: {
-    borderColor: colors.warningAccent,
-    backgroundColor: colors.dataMockBg
+    borderColor: themeColors.warningAccent,
+    backgroundColor: themeColors.dataMockBg
   },
   label: {
     fontSize: 11,
     fontWeight: "700"
   },
   httpLabel: {
-    color: colors.primary
+    color: themeColors.primary
   },
   mockLabel: {
-    color: colors.warningAccent
+    color: themeColors.warningAccent
   },
   reason: {
-    color: colors.textSecondary,
+    color: themeColors.textSecondary,
     fontSize: 11
   },
   historyList: {
     gap: 2
   },
   historyItem: {
-    color: colors.textSecondary,
+    color: themeColors.textSecondary,
     fontSize: 11
   },
   retryButton: {
@@ -101,11 +106,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderWidth: 1,
-    borderColor: colors.surfaceMuted,
-    backgroundColor: colors.surface
+    borderColor: themeColors.surfaceMuted,
+    backgroundColor: themeColors.surface
   },
   retryLabel: {
-    color: colors.textPrimary,
+    color: themeColors.textPrimary,
     fontSize: 13,
     fontWeight: "700"
   },
@@ -115,12 +120,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
     borderWidth: 1,
-    borderColor: colors.surfaceMuted,
-    backgroundColor: colors.background
+    borderColor: themeColors.surfaceMuted,
+    backgroundColor: themeColors.background
   },
   clearHistoryLabel: {
-    color: colors.textSecondary,
+    color: themeColors.textSecondary,
     fontSize: 13,
     fontWeight: "700"
   }
 });
+
+let styles = createStyles(getColors("light"));

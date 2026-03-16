@@ -1,8 +1,10 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "@fulbito/design-tokens";
+import { getColors } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
+import { useThemeColors } from "@/theme/useThemeColors";
 
 interface HeaderActionIconsProps {
   notificationCount?: number;
@@ -13,6 +15,8 @@ export function HeaderActionIcons({
   notificationCount = 0,
   onPressNotifications
 }: HeaderActionIconsProps) {
+  const themeColors = useThemeColors();
+  styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const reducedMotion = useReducedMotion();
   const showBadge = notificationCount > 0;
   const buttonScale = useSharedValue(1);
@@ -72,7 +76,7 @@ export function HeaderActionIcons({
         hitSlop={6}
         style={styles.iconButton}
       >
-        <Ionicons name="notifications-outline" size={20} color={colors.textSecondary} />
+        <Ionicons name="notifications-outline" size={20} color={themeColors.textSecondary} />
         <Animated.View pointerEvents="none" style={[styles.badge, badgeAnimatedStyle]}>
           {showBadge ? (
             <Text allowFontScaling={false} style={styles.badgeText}>
@@ -85,12 +89,12 @@ export function HeaderActionIcons({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ColorTokens) => StyleSheet.create({
   iconButton: {
     height: 42,
     width: 42,
     borderRadius: 14,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: themeColors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center",
     marginTop: 3
@@ -102,12 +106,12 @@ const styles = StyleSheet.create({
     minWidth: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: colors.dangerAccent,
+    backgroundColor: themeColors.dangerAccent,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 3,
     borderWidth: 1.5,
-    borderColor: colors.surface
+    borderColor: themeColors.surface
   },
   badgeText: {
     color: "#FFFFFF",
@@ -116,3 +120,5 @@ const styles = StyleSheet.create({
     lineHeight: 11
   }
 });
+
+let styles = createStyles(getColors("light"));

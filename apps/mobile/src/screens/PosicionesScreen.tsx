@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "@fulbito/design-tokens";
+import { getColors } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
 import { leaderboardRepository } from "@/repositories";
 import { useAuth } from "@/state/AuthContext";
@@ -16,8 +17,11 @@ import { ErrorState } from "@/components/ErrorState";
 import { LoadingState } from "@/components/LoadingState";
 import { CreateOrJoinGroupPrompt } from "@/components/CreateOrJoinGroupPrompt";
 import { useAppDialog } from "@/state/AppDialogContext";
+import { useThemePreference } from "@/state/ThemePreferenceContext";
+import { useThemeColors } from "@/theme/useThemeColors";
 
 type PosicionesMode = "positions" | "stats";
+let activeColors: ColorTokens = getColors("light");
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const MODE_TAB_PRESS_IN_SPRING = {
   damping: 22,
@@ -71,6 +75,8 @@ function ModeFilterTab({
   active: boolean;
   onPress: () => void;
 }) {
+  const { themePreference } = useThemePreference();
+  const isDark = themePreference === "dark";
   const reducedMotion = useReducedMotion();
   const pressScale = useSharedValue(1);
   const pressAnimatedStyle = useAnimatedStyle(() => ({
@@ -102,7 +108,15 @@ function ModeFilterTab({
       onPressOut={handlePressOut}
       style={[styles.filterTab, pressAnimatedStyle]}
     >
-      <Text allowFontScaling={false} style={active ? styles.filterTabLabelActive : styles.filterTabLabel}>{label}</Text>
+      <Text
+        allowFontScaling={false}
+        style={[
+          active ? styles.filterTabLabelActive : styles.filterTabLabel,
+          active && isDark ? styles.filterTabLabelActiveDark : null
+        ]}
+      >
+        {label}
+      </Text>
     </AnimatedPressable>
   );
 }
@@ -146,12 +160,15 @@ function StatInfoButton({
       onPressOut={handlePressOut}
       style={[styles.infoBadge, pressAnimatedStyle]}
     >
-      <Ionicons name="information-circle-outline" size={16} color={colors.textMutedAlt} />
+      <Ionicons name="information-circle-outline" size={16} color={activeColors.textMutedAlt} />
     </AnimatedPressable>
   );
 }
 
 export function PosicionesScreen() {
+  const themeColors = useThemeColors();
+  activeColors = themeColors;
+  styles = useMemo(() => createStyles(), [themeColors]);
   const queryClient = useQueryClient();
   const dialog = useAppDialog();
   const reducedMotion = useReducedMotion();
@@ -510,12 +527,12 @@ export function PosicionesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   screenContainer: {
     paddingHorizontal: 12,
     paddingTop: 0,
     paddingBottom: 0,
-    backgroundColor: colors.canvas
+    backgroundColor: activeColors.canvas
   },
   screenContent: {
     gap: 14
@@ -526,56 +543,56 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.primaryStrong
+    backgroundColor: activeColors.primaryStrong
   },
   sectionIconText: {
     fontSize: 14,
     fontWeight: "800",
-    color: colors.textStrong
+    color: activeColors.textStrong
   },
   sectionTitle: {
-    color: colors.textTitle,
+    color: activeColors.textTitle,
     fontSize: 24,
     fontWeight: "800"
   },
   sectionSubtitle: {
     marginLeft: "auto",
-    color: colors.textMutedAlt,
+    color: activeColors.textMutedAlt,
     fontSize: 12,
     fontWeight: "700"
   },
   block: {
-    backgroundColor: colors.surfaceSoft,
+    backgroundColor: activeColors.surfaceSoft,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    borderColor: activeColors.borderSubtle,
     padding: 10
   },
   blockLabel: {
     fontSize: 11,
     fontWeight: "800",
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     letterSpacing: 0.8
   },
   selectionButton: {
     marginTop: 8,
     minHeight: 44,
     borderRadius: 10,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: activeColors.surfaceMuted,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: activeColors.borderMuted,
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center"
   },
   selectionText: {
     flex: 1,
-    color: colors.textTitle,
+    color: activeColors.textTitle,
     fontWeight: "800",
     fontSize: 14
   },
   selectionChevron: {
-    color: colors.textSoft,
+    color: activeColors.textSoft,
     fontSize: 14
   },
   filterTabs: {
@@ -583,8 +600,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surfaceSoft,
+    borderColor: activeColors.borderSubtle,
+    backgroundColor: activeColors.surfaceSoft,
     padding: 3,
     overflow: "hidden",
     gap: 2
@@ -595,7 +612,7 @@ const styles = StyleSheet.create({
     top: 3,
     bottom: 3,
     borderRadius: 8,
-    backgroundColor: colors.primaryStrong
+    backgroundColor: activeColors.primaryStrong
   },
   filterTab: {
     flex: 1,
@@ -605,20 +622,23 @@ const styles = StyleSheet.create({
     justifyContent: "center"
   },
   filterTabLabel: {
-    color: colors.textMutedAlt,
+    color: activeColors.textMutedAlt,
     fontSize: 14,
     fontWeight: "800"
   },
   filterTabLabelActive: {
-    color: colors.textHigh,
+    color: activeColors.textHigh,
     fontSize: 14,
     fontWeight: "800"
+  },
+  filterTabLabelActiveDark: {
+    color: activeColors.textInverse
   },
   standingsCard: {
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.borderMutedAlt,
-    backgroundColor: colors.surface,
+    borderColor: activeColors.borderMutedAlt,
+    backgroundColor: activeColors.surface,
     overflow: "hidden"
   },
   standingsHeader: {
@@ -636,13 +656,13 @@ const styles = StyleSheet.create({
   standingsTitle: {
     fontSize: 16,
     fontWeight: "800",
-    color: colors.textTitle
+    color: activeColors.textTitle
   },
   standingsSubtitle: {
     marginTop: 2,
     fontSize: 12,
     fontWeight: "600",
-    color: colors.textMutedAlt
+    color: activeColors.textMutedAlt
   },
   standingsColsHeader: {
     flexDirection: "row",
@@ -652,14 +672,14 @@ const styles = StyleSheet.create({
     width: 36,
     textAlign: "center",
     fontSize: 11,
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontWeight: "700"
   },
   standingsColLabelWide: {
     width: 56,
     textAlign: "center",
     fontSize: 11,
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontWeight: "700"
   },
   standingsRow: {
@@ -671,13 +691,13 @@ const styles = StyleSheet.create({
   },
   standingsRowFirst: {
     borderTopWidth: 1,
-    borderTopColor: colors.borderLight
+    borderTopColor: activeColors.borderLight
   },
   standingsRowLast: {
     paddingBottom: 4
   },
   standingsRowMe: {
-    backgroundColor: colors.primaryStrong + "1A"
+    backgroundColor: activeColors.primaryStrong + "1A"
   },
   standingsMarker: {
     width: 3,
@@ -686,7 +706,7 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent"
   },
   standingsMarkerQualified: {
-    backgroundColor: colors.primaryStrong
+    backgroundColor: activeColors.primaryStrong
   },
   standingsMarkerFirst: {
     borderTopLeftRadius: 3,
@@ -699,29 +719,29 @@ const styles = StyleSheet.create({
   standingsRank: {
     width: 26,
     textAlign: "center",
-    color: colors.textTertiary,
+    color: activeColors.textTertiary,
     fontWeight: "600",
     fontSize: 15
   },
   standingsRankMe: {
-    color: colors.primaryStrong,
+    color: activeColors.primaryStrong,
     fontWeight: "800"
   },
   standingsName: {
     flex: 1,
-    color: colors.textStrong,
+    color: activeColors.textStrong,
     fontWeight: "600",
     fontSize: 14,
     marginLeft: 4
   },
   standingsNameMe: {
-    color: colors.textTitle,
+    color: activeColors.textTitle,
     fontWeight: "800"
   },
   standingsMetric: {
     width: 36,
     textAlign: "center",
-    color: colors.textTertiary,
+    color: activeColors.textTertiary,
     fontSize: 13,
     fontWeight: "600"
   },
@@ -735,14 +755,14 @@ const styles = StyleSheet.create({
   },
   standingsLegendItem: {
     fontSize: 11,
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontWeight: "500",
     textAlign: "center"
   },
   standingsPoints: {
     width: 36,
     textAlign: "center",
-    color: colors.textTitle,
+    color: activeColors.textTitle,
     fontWeight: "900",
     fontSize: 15
   },
@@ -754,8 +774,8 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surfaceSoft,
+    borderColor: activeColors.borderSubtle,
+    backgroundColor: activeColors.surfaceSoft,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 12,
@@ -765,7 +785,7 @@ const styles = StyleSheet.create({
     height: 34,
     width: 34,
     borderRadius: 999,
-    backgroundColor: colors.secondary,
+    backgroundColor: activeColors.secondary,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -773,17 +793,17 @@ const styles = StyleSheet.create({
     fontSize: 14
   },
   statsLabel: {
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontSize: 11,
     fontWeight: "800"
   },
   statsValue: {
-    color: colors.textHigh,
+    color: activeColors.textHigh,
     fontSize: 24,
     fontWeight: "900"
   },
   statsValueAccent: {
-    color: colors.primaryAccent
+    color: activeColors.primaryAccent
   },
   statsSection: {
     gap: 0
@@ -795,7 +815,7 @@ const styles = StyleSheet.create({
     marginBottom: 8
   },
   sectionTitleSmall: {
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontSize: 13,
     fontWeight: "800",
     textTransform: "uppercase",
@@ -804,7 +824,7 @@ const styles = StyleSheet.create({
   },
   sectionSubtitleSmall: {
     marginLeft: "auto",
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontSize: 11,
     fontWeight: "700",
     textTransform: "uppercase",
@@ -813,8 +833,8 @@ const styles = StyleSheet.create({
   performanceCard: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surfaceSoft,
+    borderColor: activeColors.borderSubtle,
+    backgroundColor: activeColors.surfaceSoft,
     overflow: "hidden"
   },
   performanceRow: {
@@ -826,10 +846,10 @@ const styles = StyleSheet.create({
   },
   performanceRowBorder: {
     borderTopWidth: 1,
-    borderTopColor: colors.borderLight
+    borderTopColor: activeColors.borderLight
   },
   performanceLabel: {
-    color: colors.textTertiary,
+    color: activeColors.textTertiary,
     fontSize: 12,
     fontWeight: "700"
   },
@@ -845,7 +865,7 @@ const styles = StyleSheet.create({
     justifyContent: "center"
   },
   performanceValue: {
-    color: colors.textHigh,
+    color: activeColors.textHigh,
     fontSize: 14,
     fontWeight: "900"
   },
@@ -857,33 +877,33 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surfaceSoft,
+    borderColor: activeColors.borderSubtle,
+    backgroundColor: activeColors.surfaceSoft,
     paddingHorizontal: 10,
     paddingVertical: 10,
     gap: 2
   },
   roundSummaryTag: {
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontSize: 11,
     fontWeight: "900",
     letterSpacing: 0.7
   },
   roundSummaryName: {
-    color: colors.textHigh,
+    color: activeColors.textHigh,
     fontSize: 14,
     fontWeight: "900"
   },
   roundSummaryMeta: {
-    color: colors.textTertiary,
+    color: activeColors.textTertiary,
     fontSize: 12,
     fontWeight: "700"
   },
   trendRow: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surfaceSoft,
+    borderColor: activeColors.borderSubtle,
+    backgroundColor: activeColors.surfaceSoft,
     minHeight: 54,
     paddingHorizontal: 10,
     paddingVertical: 8,
@@ -895,13 +915,13 @@ const styles = StyleSheet.create({
     flex: 1
   },
   trendName: {
-    color: colors.textHigh,
+    color: activeColors.textHigh,
     fontSize: 14,
     fontWeight: "900"
   },
   trendMeta: {
     marginTop: 2,
-    color: colors.textTertiary,
+    color: activeColors.textTertiary,
     fontSize: 12,
     fontWeight: "700"
   },
@@ -909,14 +929,17 @@ const styles = StyleSheet.create({
     alignItems: "flex-end"
   },
   trendStatPrimary: {
-    color: colors.textHigh,
+    color: activeColors.textHigh,
     fontSize: 14,
     fontWeight: "900"
   },
   trendStatSecondary: {
     marginTop: 2,
-    color: colors.textTertiary,
+    color: activeColors.textTertiary,
     fontSize: 12,
     fontWeight: "700"
   }
 });
+
+
+let styles = createStyles();

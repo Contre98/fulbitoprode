@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   View,
   Text,
@@ -15,7 +15,8 @@ import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import * as Google from "expo-auth-session/providers/google";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, spacing } from "@fulbito/design-tokens";
+import { getColors, spacing } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
 import { translateBackendError } from "@fulbito/domain";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Path, Rect } from "react-native-svg";
@@ -27,6 +28,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { useAuth } from "@/state/AuthContext";
 import { usePendingInvite } from "@/state/PendingInviteContext";
+import { useThemeColors } from "@/theme/useThemeColors";
+let activeColors: ColorTokens = getColors("light");
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -74,6 +77,9 @@ function usePressScale(scaleDown: number, disabled = false) {
 }
 
 export function AuthScreen() {
+  const themeColors = useThemeColors();
+  activeColors = themeColors;
+  styles = useMemo(() => createStyles(), [themeColors]);
   const insets = useSafeAreaInsets();
   const { login, loginWithGoogle, register, requestPasswordReset } = useAuth();
   const { pendingInviteToken } = usePendingInvite();
@@ -327,7 +333,7 @@ export function AuthScreen() {
                   <Ionicons
                     name="mail-outline"
                     size={16}
-                    color={colors.primaryDeep}
+                    color={activeColors.primaryDeep}
                   />
                   <Text style={styles.inviteBannerText}>
                     Tenés una invitación pendiente. Iniciá sesión para
@@ -341,7 +347,7 @@ export function AuthScreen() {
                   <Ionicons
                     name="person-outline"
                     size={18}
-                    color={colors.textMuted}
+                    color={activeColors.textMuted}
                     style={styles.inputIcon}
                   />
                   <TextInput
@@ -349,7 +355,7 @@ export function AuthScreen() {
                     value={name}
                     onChangeText={setName}
                     placeholder="Tu nombre"
-                    placeholderTextColor={colors.textSoft}
+                    placeholderTextColor={activeColors.textSoft}
                     autoCapitalize="words"
                   />
                 </View>
@@ -359,7 +365,7 @@ export function AuthScreen() {
                 <Ionicons
                   name="mail-outline"
                   size={18}
-                  color={colors.textMuted}
+                  color={activeColors.textMuted}
                   style={styles.inputIcon}
                 />
                 <TextInput
@@ -369,7 +375,7 @@ export function AuthScreen() {
                   autoCapitalize="none"
                   keyboardType="email-address"
                   placeholder="tu@email.com"
-                  placeholderTextColor={colors.textSoft}
+                  placeholderTextColor={activeColors.textSoft}
                 />
               </View>
 
@@ -377,7 +383,7 @@ export function AuthScreen() {
                 <Ionicons
                   name="lock-closed-outline"
                   size={18}
-                  color={colors.textMuted}
+                  color={activeColors.textMuted}
                   style={styles.inputIcon}
                 />
                 <TextInput
@@ -386,7 +392,7 @@ export function AuthScreen() {
                   onChangeText={setPassword}
                   secureTextEntry={!showPassword}
                   placeholder="Contraseña"
-                  placeholderTextColor={colors.textSoft}
+                  placeholderTextColor={activeColors.textSoft}
                 />
                 <Animated.View style={[styles.eyeButton, eyePress.animatedStyle]}>
                   <Pressable
@@ -399,7 +405,7 @@ export function AuthScreen() {
                     <Ionicons
                       name={showPassword ? "eye-off-outline" : "eye-outline"}
                       size={20}
-                      color={colors.textMuted}
+                      color={activeColors.textMuted}
                     />
                   </Pressable>
                 </Animated.View>
@@ -426,7 +432,7 @@ export function AuthScreen() {
                   <Ionicons
                     name="alert-circle"
                     size={16}
-                    color={colors.dangerStrong}
+                    color={activeColors.dangerStrong}
                   />
                   <Text style={styles.errorText}>{error}</Text>
                 </View>
@@ -437,7 +443,7 @@ export function AuthScreen() {
                   <Ionicons
                     name="checkmark-circle"
                     size={16}
-                    color={colors.successDeep}
+                    color={activeColors.successDeep}
                   />
                   <Text style={styles.infoText}>{info}</Text>
                 </View>
@@ -465,7 +471,7 @@ export function AuthScreen() {
                     <Ionicons
                       name="arrow-forward"
                       size={18}
-                      color={colors.primaryText}
+                      color={activeColors.primaryText}
                     />
                   ) : null}
                 </Pressable>
@@ -488,7 +494,7 @@ export function AuthScreen() {
                   ]}
                   disabled={googleDisabled}
                 >
-                  <Ionicons name="logo-google" size={18} color={colors.textPrimary} />
+                  <Ionicons name="logo-google" size={18} color={activeColors.textPrimary} />
                   <Text style={styles.googleButtonText}>
                     {googleSubmitting ? "Conectando..." : "Continuar con Google"}
                   </Text>
@@ -506,22 +512,22 @@ function BrandLogo({ size }: { size: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 272.41 272.41">
       <Path
-        fill={colors.primaryStrong}
+        fill={activeColors.primaryStrong}
         d="M217.93,3c0-1.66-1.34-3-3-3H21.82C9.77,0,0,9.77,0,21.82v194.87c0,.8.32,1.56.88,2.12l48.48,48.48c1.89,1.89,5.12.55,5.12-2.12V54.48h163.45V3Z"
       />
       <Path
-        fill={colors.primaryStrong}
+        fill={activeColors.primaryStrong}
         d="M267.29,5.12l-49.19,49.19c-.11.11-.18.27-.18.43v163.21h0s-108.96-.01-108.96-.01v54.48h109.55s0,0,.02,0h31.46c12.38,0,22.42-10.04,22.42-22.42V7.24c0-2.67-3.23-4.01-5.12-2.12Z"
       />
-      <Rect fill={colors.primaryStrong} x={108.96} y={108.96} width={54.48} height={54.48} />
+      <Rect fill={activeColors.primaryStrong} x={108.96} y={108.96} width={54.48} height={54.48} />
     </Svg>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: activeColors.background,
   },
   flex: {
     flex: 1,
@@ -532,7 +538,7 @@ const styles = StyleSheet.create({
 
   // ── Hero ──
   hero: {
-    backgroundColor: colors.background,
+    backgroundColor: activeColors.background,
     paddingBottom: 40,
     alignItems: "center",
   },
@@ -542,7 +548,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 3,
-    backgroundColor: colors.primary,
+    backgroundColor: activeColors.primary,
   },
   logoContainer: {
     alignItems: "center",
@@ -552,9 +558,9 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: activeColors.surfaceMuted,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: activeColors.borderMuted,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 4,
@@ -562,13 +568,13 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 30,
     fontWeight: "900",
-    color: colors.textPrimary,
+    color: activeColors.textPrimary,
     letterSpacing: -0.5,
   },
   heroTagline: {
     fontSize: 15,
     fontWeight: "600",
-    color: colors.textSecondary,
+    color: activeColors.textSecondary,
     marginTop: -2,
   },
 
@@ -580,18 +586,18 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl,
   },
   formCard: {
-    backgroundColor: colors.surface,
+    backgroundColor: activeColors.surface,
     borderRadius: 20,
     padding: spacing.lg,
     gap: 14,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: activeColors.borderMuted,
   },
 
   // ── Mode tabs ──
   modeTabRow: {
     flexDirection: "row",
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: activeColors.surfaceMuted,
     borderRadius: 12,
     padding: 3,
     marginBottom: 4,
@@ -605,9 +611,9 @@ const styles = StyleSheet.create({
     top: 3,
     bottom: 3,
     borderRadius: 10,
-    backgroundColor: colors.surface,
+    backgroundColor: activeColors.surface,
     borderWidth: 1,
-    borderColor: colors.borderMuted
+    borderColor: activeColors.borderMuted
   },
   modeTabWrapper: {
     flex: 1
@@ -621,10 +627,10 @@ const styles = StyleSheet.create({
   modeTabText: {
     fontSize: 14,
     fontWeight: "700",
-    color: colors.textMuted,
+    color: activeColors.textMuted,
   },
   modeTabTextActive: {
-    color: colors.textPrimary,
+    color: activeColors.textPrimary,
   },
 
   // ── Invite banner ──
@@ -632,14 +638,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: colors.primarySoftAlt,
+    backgroundColor: activeColors.primarySoftAlt,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   inviteBannerText: {
     flex: 1,
-    color: colors.textBodyStrong,
+    color: activeColors.textBodyStrong,
     fontSize: 12,
     fontWeight: "600",
   },
@@ -648,10 +654,10 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: activeColors.surfaceMuted,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: activeColors.borderMuted,
     minHeight: 48,
   },
   inputIcon: {
@@ -659,7 +665,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    color: colors.textPrimary,
+    color: activeColors.textPrimary,
     fontSize: 15,
     fontWeight: "500",
     paddingHorizontal: 12,
@@ -682,7 +688,7 @@ const styles = StyleSheet.create({
     marginTop: -4,
   },
   forgotText: {
-    color: colors.textSecondary,
+    color: activeColors.textSecondary,
     fontSize: 13,
     fontWeight: "700",
   },
@@ -692,7 +698,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 8,
-    backgroundColor: colors.surfaceTintDangerSoft,
+    backgroundColor: activeColors.surfaceTintDangerSoft,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -701,20 +707,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 8,
-    backgroundColor: colors.primarySoftAlt,
+    backgroundColor: activeColors.primarySoftAlt,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
   errorText: {
     flex: 1,
-    color: colors.dangerStrong,
+    color: activeColors.dangerStrong,
     fontSize: 13,
     fontWeight: "600",
   },
   infoText: {
     flex: 1,
-    color: colors.successDeep,
+    color: activeColors.successDeep,
     fontSize: 13,
     fontWeight: "600",
   },
@@ -727,11 +733,11 @@ const styles = StyleSheet.create({
     gap: 8,
     minHeight: 50,
     borderRadius: 14,
-    backgroundColor: colors.primary,
+    backgroundColor: activeColors.primary,
     marginTop: 4,
   },
   submitButtonText: {
-    color: colors.primaryText,
+    color: activeColors.primaryText,
     fontSize: 16,
     fontWeight: "800",
   },
@@ -746,10 +752,10 @@ const styles = StyleSheet.create({
   separatorLine: {
     flex: 1,
     height: 1,
-    backgroundColor: colors.borderMuted
+    backgroundColor: activeColors.borderMuted
   },
   separatorText: {
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontSize: 12,
     fontWeight: "700"
   },
@@ -761,12 +767,15 @@ const styles = StyleSheet.create({
     minHeight: 48,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
-    backgroundColor: colors.surfaceMuted
+    borderColor: activeColors.borderMuted,
+    backgroundColor: activeColors.surfaceMuted
   },
   googleButtonText: {
-    color: colors.textPrimary,
+    color: activeColors.textPrimary,
     fontSize: 15,
     fontWeight: "700"
   }
 });
+
+
+let styles = createStyles();

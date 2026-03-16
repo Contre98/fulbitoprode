@@ -2,7 +2,6 @@ import { useCallback } from "react";
 import { StyleSheet, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors } from "@fulbito/design-tokens";
 import { HeaderGroupSelector } from "@/components/HeaderGroupSelector";
 import { HeaderActionIcons } from "@/components/HeaderActionIcons";
 import { useGroupSelection } from "@/state/GroupContext";
@@ -10,9 +9,11 @@ import { useAuth } from "@/state/AuthContext";
 import { useGroupSelectorOverlay } from "@/state/GroupSelectorOverlayContext";
 import { groupsRepository, notificationsRepository } from "@/repositories";
 import { useNotificationsOverlay } from "@/state/NotificationsOverlayContext";
+import { useNavigationChromeTheme } from "@/theme/navigationChromeTheme";
 
 export function AppHeader() {
   const insets = useSafeAreaInsets();
+  const chromeTheme = useNavigationChromeTheme();
   const { memberships, selectedGroupId, setSelectedGroupId } = useGroupSelection();
   const { refresh } = useAuth();
   const overlay = useGroupSelectorOverlay();
@@ -52,37 +53,52 @@ export function AppHeader() {
   }, [refresh]);
 
   return (
-    <View style={[styles.container, { paddingTop: Math.max(insets.top, 10) + 8 }]}>
-      <HeaderGroupSelector
-        memberships={memberships}
-        selectedGroupId={selectedGroupId}
-        onSelectGroup={(nextGroupId) => void setSelectedGroupId(nextGroupId)}
-        onRenameGroup={handleRename}
-        onCheckLeave={handleCheckLeave}
-        onLeaveGroup={handleLeave}
-        onDeleteGroup={handleDelete}
-        onOpenChange={handleOpenChange}
-        forceClose={!overlay.visible}
-        actionIcons={
-          <HeaderActionIcons
-            notificationCount={unreadCount}
-            onPressNotifications={notificationsOverlay.toggle}
-          />
+    <View
+      style={[
+        styles.container,
+        {
+          paddingTop: Math.max(insets.top, 10) + 8,
+          backgroundColor: chromeTheme.headerBackground,
+          borderBottomColor: chromeTheme.headerBorder
         }
-      />
-      <View style={styles.bottomAccentBar} />
+      ]}
+    >
+      <View style={styles.selectorLayer}>
+        <HeaderGroupSelector
+          memberships={memberships}
+          selectedGroupId={selectedGroupId}
+          onSelectGroup={(nextGroupId) => void setSelectedGroupId(nextGroupId)}
+          onRenameGroup={handleRename}
+          onCheckLeave={handleCheckLeave}
+          onLeaveGroup={handleLeave}
+          onDeleteGroup={handleDelete}
+          onOpenChange={handleOpenChange}
+          forceClose={!overlay.visible}
+          actionIcons={
+            <HeaderActionIcons
+              notificationCount={unreadCount}
+              onPressNotifications={notificationsOverlay.toggle}
+            />
+          }
+        />
+      </View>
+      <View style={[styles.bottomAccentBar, { backgroundColor: chromeTheme.headerAccent }]} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: colors.surface,
     paddingHorizontal: 16,
     paddingBottom: 18,
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
-    marginHorizontal: -12
+    marginHorizontal: -12,
+    position: "relative",
+    zIndex: 5
+  },
+  selectorLayer: {
+    position: "relative",
+    zIndex: 2
   },
   bottomAccentBar: {
     position: "absolute",
@@ -90,6 +106,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     height: 3,
-    backgroundColor: colors.primary
+    zIndex: 1
   }
 });

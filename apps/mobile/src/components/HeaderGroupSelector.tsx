@@ -1,19 +1,18 @@
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, LayoutAnimation, Platform, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, UIManager, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { NavigationContext } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
+import Animated, { runOnJS, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 import type { Membership, MembershipRole } from "@fulbito/domain";
 import type { GroupMemberRecord, JoinRequestRecord } from "@fulbito/api-contracts";
-import { colors, spacing } from "@fulbito/design-tokens";
+import { getColors, spacing } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
 import { groupsRepository } from "@/repositories";
 import { usePressScale } from "@/lib/usePressScale";
 import { useAppDialog } from "@/state/AppDialogContext";
 import { useAuth } from "@/state/AuthContext";
-
-if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+import { useThemePreference } from "@/state/ThemePreferenceContext";
+import { useThemeColors } from "@/theme/useThemeColors";
 
 interface HeaderGroupSelectorProps {
   memberships: Membership[];
@@ -45,13 +44,20 @@ function isAdmin(role: MembershipRole) {
   return role === "owner" || role === "admin";
 }
 
-function animate() {
-  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-}
-
 const CHEVRON_SPRING = {
   damping: 18,
   stiffness: 280,
+  mass: 0.45
+} as const;
+const PANEL_OPEN_SPRING = {
+  damping: 22,
+  stiffness: 310,
+  mass: 0.5
+} as const;
+const PANEL_CLOSE_TIMING_MS = 110;
+const POPOVER_SPRING = {
+  damping: 20,
+  stiffness: 320,
   mass: 0.45
 } as const;
 const TRIGGER_PRESS_IN_SPRING = {
@@ -65,6 +71,7 @@ const TRIGGER_PRESS_OUT_SPRING = {
   mass: 0.45
 } as const;
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+let activeColors: ColorTokens = getColors("light");
 
 type PressScaleTouchableProps = Omit<React.ComponentProps<typeof Pressable>, "children"> & {
   children: React.ReactNode;
@@ -106,6 +113,11 @@ function PressScaleTouchable({
 }
 
 export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGroup, onRenameGroup, onCheckLeave, onLeaveGroup, onDeleteGroup, onOpenChange, forceClose, actionIcons }: HeaderGroupSelectorProps) {
+  const themeColors = useThemeColors();
+  activeColors = themeColors;
+  styles = useMemo(() => createStyles(), [themeColors]);
+  const { themePreference } = useThemePreference();
+  const isDark = themePreference === "dark";
   const { session } = useAuth();
   const reducedMotion = useReducedMotion();
   const [saving, setSaving] = useState(false);
@@ -113,6 +125,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
   const navigation = useContext(NavigationContext) as { navigate?: (route: string) => void } | null;
   const panelRef = useRef<View | null>(null);
   const [open, setOpen] = useState(false);
+  const [panelMounted, setPanelMounted] = useState(false);
   const [actionsGroupId, setActionsGroupId] = useState<string | null>(null);
   const [popoverPos, setPopoverPos] = useState({ top: 0, right: 0 });
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
@@ -129,6 +142,8 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
   const [updatingMemberUserId, setUpdatingMemberUserId] = useState<string | null>(null);
   const triggerScale = useSharedValue(1);
   const chevronRotation = useSharedValue(open ? 180 : 0);
+  const panelProgress = useSharedValue(0);
+  const popoverProgress = useSharedValue(0);
   const currentUserId = session?.user?.id ?? null;
 
   const activeMembership = useMemo(
@@ -167,6 +182,20 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
   const triggerAnimatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: triggerScale.value }]
   }));
+  const panelAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: panelProgress.value,
+    transform: [
+      { translateY: (1 - panelProgress.value) * -10 },
+      { scale: 0.985 + panelProgress.value * 0.015 }
+    ]
+  }));
+  const popoverAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: popoverProgress.value,
+    transform: [
+      { translateY: (1 - popoverProgress.value) * -8 },
+      { scale: 0.96 + popoverProgress.value * 0.04 }
+    ]
+  }));
 
   const handleTriggerPressIn = useCallback(() => {
     if (memberships.length === 0 || reducedMotion) {
@@ -186,7 +215,6 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
 
   function toggleOpen() {
     if (memberships.length === 0) return;
-    animate();
     if (open) {
       closePanel();
     } else {
@@ -198,7 +226,6 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
   }
 
   function closePanel() {
-    animate();
     setOpen(false);
     setActionsGroupId(null);
     setEditingGroupId(null);
@@ -212,6 +239,50 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
     setUpdatingMemberUserId(null);
     onOpenChange?.(false);
   }
+
+  useEffect(() => {
+    if (open) {
+      setPanelMounted(true);
+      if (reducedMotion) {
+        panelProgress.value = 1;
+        return;
+      }
+      panelProgress.value = 0;
+      panelProgress.value = withSpring(1, PANEL_OPEN_SPRING);
+      return;
+    }
+    if (!panelMounted) {
+      return;
+    }
+    if (reducedMotion) {
+      panelProgress.value = 0;
+      setPanelMounted(false);
+      return;
+    }
+    panelProgress.value = withTiming(0, { duration: PANEL_CLOSE_TIMING_MS }, (finished) => {
+      if (finished) {
+        runOnJS(setPanelMounted)(false);
+      }
+    });
+  }, [open, panelMounted, panelProgress, reducedMotion]);
+
+  useEffect(() => {
+    const popoverVisible = Boolean(actionsGroupId && actionsMembership);
+    if (popoverVisible) {
+      if (reducedMotion) {
+        popoverProgress.value = 1;
+        return;
+      }
+      popoverProgress.value = 0;
+      popoverProgress.value = withSpring(1, POPOVER_SPRING);
+      return;
+    }
+    if (reducedMotion) {
+      popoverProgress.value = 0;
+      return;
+    }
+    popoverProgress.value = withSpring(0, POPOVER_SPRING);
+  }, [actionsGroupId, actionsMembership, popoverProgress, reducedMotion]);
 
   // Close panel when dismissed externally (overlay tap or tab switch)
   useEffect(() => {
@@ -282,7 +353,6 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
     if (!actionsMembership) return;
     const membership = actionsMembership;
     dismissPopover();
-    animate();
     setEditingGroupId(membership.groupId);
     setEditingName(membership.groupName);
   }
@@ -295,7 +365,6 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
     void (async () => {
       try {
         await onRenameGroup?.(groupId, name);
-        animate();
         setEditingGroupId(null);
         setEditingName("");
       } catch (error) {
@@ -307,7 +376,6 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
   }
 
   function cancelEditName() {
-    animate();
     setEditingGroupId(null);
     setEditingName("");
   }
@@ -316,7 +384,6 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
     if (!actionsMembership) return;
     const groupId = actionsMembership.groupId;
     dismissPopover();
-    animate();
     setJoinRequestsGroupId(groupId);
     setLoadingRequests(true);
     void (async () => {
@@ -332,7 +399,6 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
   }
 
   function cancelJoinRequests() {
-    animate();
     setJoinRequestsGroupId(null);
     setJoinRequests([]);
   }
@@ -341,7 +407,6 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
     if (!actionsMembership) return;
     const groupId = actionsMembership.groupId;
     dismissPopover();
-    animate();
     setMembersGroupId(groupId);
     setLoadingMembers(true);
     setUpdatingMemberUserId(null);
@@ -360,7 +425,6 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
   }
 
   function cancelMembersView() {
-    animate();
     setMembersGroupId(null);
     setMembers([]);
     setMembersCanManage(false);
@@ -621,7 +685,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
           style={[styles.trigger, memberships.length === 0 && styles.triggerDisabled, triggerAnimatedStyle]}
         >
           <View style={styles.triggerAvatar}>
-            <Ionicons name="people" size={18} color={colors.textTitle} />
+            <Ionicons name="people" size={18} color={isDark ? activeColors.textInverse : activeColors.textTitle} />
           </View>
           <View style={styles.triggerLabelWrap}>
             <Text allowFontScaling={false} numberOfLines={1} style={styles.triggerText}>
@@ -634,15 +698,15 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
             ) : null}
           </View>
           <Animated.View style={chevronAnimatedStyle}>
-            <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
+            <Ionicons name="chevron-down" size={14} color={activeColors.textSecondary} />
           </Animated.View>
         </AnimatedPressable>
         {actionIcons}
       </View>
 
       {/* Expanded panel */}
-      {open ? (
-        <View ref={panelRef} style={styles.panel}>
+      {panelMounted ? (
+        <Animated.View ref={panelRef} style={[styles.panel, panelAnimatedStyle]}>
           {/* Panel header */}
           {!showSubPanel ? (
             <View style={styles.panelHeader}>
@@ -657,7 +721,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                 style={styles.closeButton}
                 pressScale={0.93}
               >
-                <Ionicons name="close" size={14} color={colors.textMuted} />
+                <Ionicons name="close" size={14} color={activeColors.textMuted} />
               </PressScaleTouchable>
             </View>
           ) : showEditName ? (
@@ -669,7 +733,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                 style={styles.backButton}
                 pressScale={0.93}
               >
-                <Ionicons name="chevron-back" size={16} color={colors.textSecondary} />
+                <Ionicons name="chevron-back" size={16} color={activeColors.textSecondary} />
               </PressScaleTouchable>
               <Text allowFontScaling={false} numberOfLines={1} style={styles.panelTitleFlex}>
                 {editingMembership?.groupName ?? ""}
@@ -682,7 +746,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                 style={styles.closeButton}
                 pressScale={0.93}
               >
-                <Ionicons name="close" size={14} color={colors.textMuted} />
+                <Ionicons name="close" size={14} color={activeColors.textMuted} />
               </PressScaleTouchable>
             </View>
           ) : showJoinRequests ? (
@@ -694,7 +758,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                 style={styles.backButton}
                 pressScale={0.93}
               >
-                <Ionicons name="chevron-back" size={16} color={colors.textSecondary} />
+                <Ionicons name="chevron-back" size={16} color={activeColors.textSecondary} />
               </PressScaleTouchable>
               <Text allowFontScaling={false} numberOfLines={1} style={styles.panelTitleFlex}>
                 Solicitudes
@@ -707,7 +771,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                 style={styles.closeButton}
                 pressScale={0.93}
               >
-                <Ionicons name="close" size={14} color={colors.textMuted} />
+                <Ionicons name="close" size={14} color={activeColors.textMuted} />
               </PressScaleTouchable>
             </View>
           ) : (
@@ -719,7 +783,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                 style={styles.backButton}
                 pressScale={0.93}
               >
-                <Ionicons name="chevron-back" size={16} color={colors.textSecondary} />
+                <Ionicons name="chevron-back" size={16} color={activeColors.textSecondary} />
               </PressScaleTouchable>
               <Text allowFontScaling={false} numberOfLines={1} style={styles.panelTitleFlex}>
                 Miembros
@@ -732,7 +796,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                 style={styles.closeButton}
                 pressScale={0.93}
               >
-                <Ionicons name="close" size={14} color={colors.textMuted} />
+                <Ionicons name="close" size={14} color={activeColors.textMuted} />
               </PressScaleTouchable>
             </View>
           )}
@@ -770,7 +834,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                 pressScale={0.98}
               >
                 <View style={styles.joinIconWrap}>
-                  <Text allowFontScaling={false} style={styles.joinIcon}>+</Text>
+                  <Text allowFontScaling={false} style={[styles.joinIcon, isDark ? styles.joinIconDark : null]}>+</Text>
                 </View>
                 <Text allowFontScaling={false} style={styles.joinText}>Unirse/Crear grupo</Text>
               </PressScaleTouchable>
@@ -779,24 +843,24 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
               {actionsGroupId && actionsMembership ? (
                 <>
                   <Pressable style={styles.popoverBackdrop} onPress={dismissPopover} />
-                  <View style={[styles.popover, { top: popoverPos.top, right: popoverPos.right }]}>
+                  <Animated.View style={[styles.popover, { top: popoverPos.top, right: popoverPos.right }, popoverAnimatedStyle]}>
                     <PressScaleTouchable onPress={() => void handleShare()} style={styles.popoverRow} pressScale={0.98}>
-                      <Ionicons name="share-outline" size={17} color={colors.textSecondary} />
+                      <Ionicons name="share-outline" size={17} color={activeColors.textSecondary} />
                       <Text allowFontScaling={false} style={styles.popoverLabel}>Compartir link</Text>
                     </PressScaleTouchable>
                     <PressScaleTouchable onPress={handleViewMembers} style={styles.popoverRow} pressScale={0.98}>
-                      <Ionicons name="people-outline" size={17} color={colors.textSecondary} />
+                      <Ionicons name="people-outline" size={17} color={activeColors.textSecondary} />
                       <Text allowFontScaling={false} style={styles.popoverLabel}>Miembros</Text>
                     </PressScaleTouchable>
 
                     {actionsIsAdmin ? (
                       <>
                         <PressScaleTouchable onPress={handleEditName} style={styles.popoverRow} pressScale={0.98}>
-                          <Ionicons name="pencil-outline" size={17} color={colors.textSecondary} />
+                          <Ionicons name="pencil-outline" size={17} color={activeColors.textSecondary} />
                           <Text allowFontScaling={false} style={styles.popoverLabel}>Editar nombre</Text>
                         </PressScaleTouchable>
                         <PressScaleTouchable onPress={handleViewJoinRequests} style={styles.popoverRow} pressScale={0.98}>
-                          <Ionicons name="person-add-outline" size={17} color={colors.textSecondary} />
+                          <Ionicons name="person-add-outline" size={17} color={activeColors.textSecondary} />
                           <Text allowFontScaling={false} style={styles.popoverLabel}>Solicitudes</Text>
                         </PressScaleTouchable>
                       </>
@@ -805,17 +869,17 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                     <View style={styles.popoverDivider} />
 
                     <PressScaleTouchable onPress={handleLeave} style={styles.popoverRow} pressScale={0.98}>
-                      <Ionicons name="log-out-outline" size={17} color={colors.dangerAccent} />
+                      <Ionicons name="log-out-outline" size={17} color={activeColors.dangerAccent} />
                       <Text allowFontScaling={false} style={styles.popoverLabelDanger}>Salir</Text>
                     </PressScaleTouchable>
 
                     {actionsIsAdmin ? (
                       <PressScaleTouchable onPress={handleDelete} style={styles.popoverRow} pressScale={0.98}>
-                        <Ionicons name="trash-outline" size={17} color={colors.dangerAccent} />
+                        <Ionicons name="trash-outline" size={17} color={activeColors.dangerAccent} />
                         <Text allowFontScaling={false} style={styles.popoverLabelDanger}>Eliminar</Text>
                       </PressScaleTouchable>
                     ) : null}
-                  </View>
+                  </Animated.View>
                 </>
               ) : null}
             </>
@@ -829,7 +893,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                 value={editingName}
                 onChangeText={setEditingName}
                 placeholder="Nombre del grupo"
-                placeholderTextColor={colors.textSoft}
+                placeholderTextColor={activeColors.textSoft}
                 autoFocus
                 maxLength={40}
               />
@@ -854,11 +918,11 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
             <View style={styles.joinRequestsWrap}>
               {loadingRequests ? (
                 <View style={styles.joinRequestsCentered}>
-                  <ActivityIndicator color={colors.primary} />
+                  <ActivityIndicator color={activeColors.primary} />
                 </View>
               ) : joinRequests.length === 0 ? (
                 <View style={styles.joinRequestsCentered}>
-                  <Ionicons name="checkmark-circle-outline" size={32} color={colors.textSoft} />
+                  <Ionicons name="checkmark-circle-outline" size={32} color={activeColors.textSoft} />
                   <Text allowFontScaling={false} style={styles.joinRequestsEmpty}>No hay solicitudes pendientes</Text>
                 </View>
               ) : (
@@ -876,7 +940,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                         </Text>
                       </View>
                       {respondingUserId === request.userId ? (
-                        <ActivityIndicator size="small" color={colors.primaryDeep} />
+                        <ActivityIndicator size="small" color={activeColors.primaryDeep} />
                       ) : (
                         <View style={styles.joinRequestActions}>
                           <PressScaleTouchable
@@ -884,14 +948,14 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                             style={styles.joinRequestApproveBtn}
                             pressScale={0.92}
                           >
-                            <Ionicons name="checkmark" size={18} color={colors.successDeep} />
+                            <Ionicons name="checkmark" size={18} color={activeColors.successDeep} />
                           </PressScaleTouchable>
                           <PressScaleTouchable
                             onPress={() => handleRespondToRequest(request.userId, "reject")}
                             style={styles.joinRequestRejectBtn}
                             pressScale={0.92}
                           >
-                            <Ionicons name="close" size={18} color={colors.dangerAccent} />
+                            <Ionicons name="close" size={18} color={activeColors.dangerAccent} />
                           </PressScaleTouchable>
                         </View>
                       )}
@@ -907,11 +971,11 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
             <View style={styles.joinRequestsWrap}>
               {loadingMembers ? (
                 <View style={styles.joinRequestsCentered}>
-                  <ActivityIndicator color={colors.primary} />
+                  <ActivityIndicator color={activeColors.primary} />
                 </View>
               ) : members.length === 0 ? (
                 <View style={styles.joinRequestsCentered}>
-                  <Ionicons name="people-outline" size={32} color={colors.textSoft} />
+                  <Ionicons name="people-outline" size={32} color={activeColors.textSoft} />
                   <Text allowFontScaling={false} style={styles.joinRequestsEmpty}>No hay miembros disponibles</Text>
                 </View>
               ) : (
@@ -937,7 +1001,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                           </View>
                         </View>
                         {loadingMember ? (
-                          <ActivityIndicator size="small" color={colors.primaryDeep} />
+                          <ActivityIndicator size="small" color={activeColors.primaryDeep} />
                         ) : showManageActions ? (
                           <View style={styles.memberActions}>
                             <PressScaleTouchable
@@ -948,7 +1012,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                               <Ionicons
                                 name={member.role === "admin" ? "remove-circle-outline" : "shield-checkmark-outline"}
                                 size={16}
-                                color={colors.textSecondary}
+                                color={activeColors.textSecondary}
                               />
                               <Text allowFontScaling={false} style={styles.memberActionText}>
                                 {member.role === "admin" ? "Quitar admin" : "Dar admin"}
@@ -959,7 +1023,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
                               style={[styles.memberActionBtn, styles.memberActionBtnDanger]}
                               pressScale={0.97}
                             >
-                              <Ionicons name="person-remove-outline" size={16} color={colors.dangerAccent} />
+                              <Ionicons name="person-remove-outline" size={16} color={activeColors.dangerAccent} />
                               <Text allowFontScaling={false} style={styles.memberActionTextDanger}>Quitar</Text>
                             </PressScaleTouchable>
                           </View>
@@ -971,7 +1035,7 @@ export function HeaderGroupSelector({ memberships, selectedGroupId, onSelectGrou
               )}
             </View>
           ) : null}
-        </View>
+        </Animated.View>
       ) : null}
     </View>
   );
@@ -988,6 +1052,8 @@ interface MembershipRowProps {
 }
 
 function MembershipRow({ membership, active, isLast, onSelect, onMore }: MembershipRowProps) {
+  const { themePreference } = useThemePreference();
+  const isDark = themePreference === "dark";
   const moreRef = useRef<View | null>(null);
   const rowPress = usePressScale(0.985);
   const morePress = usePressScale(0.93);
@@ -1006,7 +1072,14 @@ function MembershipRow({ membership, active, isLast, onSelect, onMore }: Members
         ]}
       >
         <View style={[styles.rowAvatar, active && styles.rowAvatarActive]}>
-          <Text allowFontScaling={false} style={[styles.rowAvatarText, active && styles.rowAvatarTextActive]}>
+          <Text
+            allowFontScaling={false}
+            style={[
+              styles.rowAvatarText,
+              active && styles.rowAvatarTextActive,
+              active && isDark ? styles.rowAvatarTextActiveDark : null
+            ]}
+          >
             {groupInitial(membership.groupName)}
           </Text>
         </View>
@@ -1027,7 +1100,7 @@ function MembershipRow({ membership, active, isLast, onSelect, onMore }: Members
             onPressOut={morePress.onPressOut}
             style={[styles.moreButton, active && styles.moreButtonActive]}
           >
-            <Ionicons name="ellipsis-horizontal" size={18} color={colors.textMuted} />
+            <Ionicons name="ellipsis-horizontal" size={18} color={activeColors.textMuted} />
           </Pressable>
         </Animated.View>
       </Pressable>
@@ -1037,7 +1110,7 @@ function MembershipRow({ membership, active, isLast, onSelect, onMore }: Members
 
 // ─── Styles ─────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   topRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1048,7 +1121,7 @@ const styles = StyleSheet.create({
     maxWidth: 240,
     minHeight: 48,
     borderRadius: 14,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: activeColors.surfaceMuted,
     paddingLeft: 6,
     paddingRight: 12,
     flexDirection: "row",
@@ -1063,7 +1136,7 @@ const styles = StyleSheet.create({
     height: 36,
     width: 36,
     borderRadius: 10,
-    backgroundColor: colors.primaryStrong,
+    backgroundColor: activeColors.primaryStrong,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -1072,13 +1145,13 @@ const styles = StyleSheet.create({
     gap: 1
   },
   triggerText: {
-    color: colors.textPrimary,
+    color: activeColors.textPrimary,
     fontSize: 15,
     fontWeight: "800",
     lineHeight: 18
   },
   triggerSubtext: {
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontSize: 11,
     fontWeight: "600",
     lineHeight: 13
@@ -1089,7 +1162,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: colors.borderLight
+    borderTopColor: activeColors.borderLight
   },
   panelHeader: {
     flexDirection: "row",
@@ -1098,13 +1171,13 @@ const styles = StyleSheet.create({
     marginBottom: 10
   },
   panelTitle: {
-    color: colors.textPrimary,
+    color: activeColors.textPrimary,
     fontSize: 16,
     fontWeight: "900"
   },
   panelTitleFlex: {
     flex: 1,
-    color: colors.textPrimary,
+    color: activeColors.textPrimary,
     fontSize: 16,
     fontWeight: "900"
   },
@@ -1112,8 +1185,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 2,
     borderRadius: 999,
-    backgroundColor: colors.primarySoft,
-    color: colors.primaryDeep,
+    backgroundColor: activeColors.primarySoft,
+    color: activeColors.primaryDeep,
     fontSize: 11,
     fontWeight: "800",
     overflow: "hidden"
@@ -1124,7 +1197,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surfaceMuted
+    backgroundColor: activeColors.surfaceMuted
   },
   closeButton: {
     height: 28,
@@ -1132,7 +1205,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surfaceMuted
+    backgroundColor: activeColors.surfaceMuted
   },
 
   // ─── List ─────────────────────────────────────────────────────────────────
@@ -1152,7 +1225,7 @@ const styles = StyleSheet.create({
     gap: 10
   },
   membershipRowActive: {
-    backgroundColor: colors.primaryHighlight
+    backgroundColor: activeColors.primaryHighlight
   },
   membershipRowGap: {
     marginBottom: 2
@@ -1161,27 +1234,30 @@ const styles = StyleSheet.create({
     height: 36,
     width: 36,
     borderRadius: 10,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: activeColors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center"
   },
   rowAvatarActive: {
-    backgroundColor: colors.primaryStrong
+    backgroundColor: activeColors.primaryStrong
   },
   rowAvatarText: {
-    color: colors.textSecondary,
+    color: activeColors.textSecondary,
     fontSize: 15,
     fontWeight: "900"
   },
   rowAvatarTextActive: {
-    color: colors.textTitle
+    color: activeColors.textTitle
+  },
+  rowAvatarTextActiveDark: {
+    color: activeColors.textInverse
   },
   rowTextWrap: {
     flex: 1,
     gap: 2
   },
   groupName: {
-    color: colors.textPrimary,
+    color: activeColors.textPrimary,
     fontSize: 14,
     fontWeight: "700"
   },
@@ -1189,7 +1265,7 @@ const styles = StyleSheet.create({
     fontWeight: "900"
   },
   groupMeta: {
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontSize: 11,
     fontWeight: "600"
   },
@@ -1201,20 +1277,20 @@ const styles = StyleSheet.create({
     justifyContent: "center"
   },
   moreButtonActive: {
-    backgroundColor: colors.surface,
+    backgroundColor: activeColors.surface,
     borderWidth: 1,
-    borderColor: colors.borderMuted
+    borderColor: activeColors.borderMuted
   },
   footerDivider: {
     marginTop: 6,
     borderTopWidth: 1,
-    borderTopColor: colors.borderLight
+    borderTopColor: activeColors.borderLight
   },
   joinButton: {
     marginTop: 10,
     minHeight: 44,
     borderRadius: 12,
-    backgroundColor: colors.brandTint,
+    backgroundColor: activeColors.brandTint,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -1224,18 +1300,21 @@ const styles = StyleSheet.create({
     height: 22,
     width: 22,
     borderRadius: 999,
-    backgroundColor: colors.primaryStrong,
+    backgroundColor: activeColors.primaryStrong,
     alignItems: "center",
     justifyContent: "center"
   },
   joinIcon: {
-    color: colors.textTitle,
+    color: activeColors.textTitle,
     fontSize: 15,
     fontWeight: "700",
     lineHeight: 16
   },
+  joinIconDark: {
+    color: activeColors.textInverse
+  },
   joinText: {
-    color: colors.textBrandDark,
+    color: activeColors.textBrandDark,
     fontSize: 13,
     fontWeight: "800"
   },
@@ -1249,7 +1328,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     zIndex: 11,
     minWidth: 180,
-    backgroundColor: colors.surface,
+    backgroundColor: activeColors.surface,
     borderRadius: 14,
     paddingVertical: 6,
     paddingHorizontal: 4,
@@ -1259,7 +1338,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     elevation: 12,
     borderWidth: 1,
-    borderColor: colors.borderLight
+    borderColor: activeColors.borderLight
   },
   popoverRow: {
     flexDirection: "row",
@@ -1270,12 +1349,12 @@ const styles = StyleSheet.create({
     borderRadius: 10
   },
   popoverLabel: {
-    color: colors.textPrimary,
+    color: activeColors.textPrimary,
     fontSize: 14,
     fontWeight: "700"
   },
   popoverLabelDanger: {
-    color: colors.dangerAccent,
+    color: activeColors.dangerAccent,
     fontSize: 14,
     fontWeight: "700"
   },
@@ -1283,7 +1362,7 @@ const styles = StyleSheet.create({
     marginVertical: 3,
     marginHorizontal: 8,
     borderTopWidth: 1,
-    borderTopColor: colors.borderLight
+    borderTopColor: activeColors.borderLight
   },
 
   // ─── Edit name ────────────────────────────────────────────────────────────
@@ -1294,10 +1373,10 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
-    backgroundColor: colors.surfaceMuted,
+    borderColor: activeColors.borderMuted,
+    backgroundColor: activeColors.surfaceMuted,
     paddingHorizontal: 12,
-    color: colors.textPrimary,
+    color: activeColors.textPrimary,
     fontSize: 14,
     fontWeight: "700"
   },
@@ -1309,12 +1388,12 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 40,
     borderRadius: 10,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: activeColors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center"
   },
   editNameCancelText: {
-    color: colors.textSecondary,
+    color: activeColors.textSecondary,
     fontSize: 13,
     fontWeight: "800"
   },
@@ -1322,7 +1401,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 40,
     borderRadius: 10,
-    backgroundColor: colors.primaryStrong,
+    backgroundColor: activeColors.primaryStrong,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -1330,7 +1409,7 @@ const styles = StyleSheet.create({
     opacity: 0.4
   },
   editNameSaveText: {
-    color: colors.textTitle,
+    color: activeColors.textTitle,
     fontSize: 13,
     fontWeight: "800"
   },
@@ -1346,7 +1425,7 @@ const styles = StyleSheet.create({
     gap: 8
   },
   joinRequestsEmpty: {
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontSize: 13,
     fontWeight: "700"
   },
@@ -1364,12 +1443,12 @@ const styles = StyleSheet.create({
     height: 34,
     width: 34,
     borderRadius: 10,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: activeColors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center"
   },
   joinRequestAvatarText: {
-    color: colors.textSecondary,
+    color: activeColors.textSecondary,
     fontSize: 14,
     fontWeight: "900"
   },
@@ -1378,7 +1457,7 @@ const styles = StyleSheet.create({
     gap: 2
   },
   joinRequestName: {
-    color: colors.textPrimary,
+    color: activeColors.textPrimary,
     fontSize: 14,
     fontWeight: "700"
   },
@@ -1398,7 +1477,7 @@ const styles = StyleSheet.create({
     height: 32,
     width: 32,
     borderRadius: 8,
-    backgroundColor: colors.surfaceTintWarning,
+    backgroundColor: activeColors.surfaceTintWarning,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -1418,7 +1497,7 @@ const styles = StyleSheet.create({
   },
   memberName: {
     flex: 1,
-    color: colors.textPrimary,
+    color: activeColors.textPrimary,
     fontSize: 14,
     fontWeight: "700"
   },
@@ -1429,29 +1508,29 @@ const styles = StyleSheet.create({
   },
   memberRoleBadge: {
     borderRadius: 999,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: activeColors.surfaceMuted,
     paddingHorizontal: 8,
     paddingVertical: 3
   },
   memberRoleBadgeOwner: {
-    backgroundColor: colors.primarySoftAlt
+    backgroundColor: activeColors.primarySoftAlt
   },
   memberRoleBadgeAdmin: {
-    backgroundColor: colors.surfaceTintBlueSoft
+    backgroundColor: activeColors.surfaceTintBlueSoft
   },
   memberRoleBadgeText: {
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontSize: 10,
     fontWeight: "700"
   },
   memberRoleBadgeTextOwner: {
-    color: colors.primaryDeep
+    color: activeColors.primaryDeep
   },
   memberRoleBadgeTextAdmin: {
-    color: colors.textSlateStrong
+    color: activeColors.textSlateStrong
   },
   memberYouLabel: {
-    color: colors.textSoft,
+    color: activeColors.textSoft,
     fontSize: 10,
     fontWeight: "700"
   },
@@ -1464,8 +1543,8 @@ const styles = StyleSheet.create({
     minHeight: 28,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
-    backgroundColor: colors.surfaceMuted,
+    borderColor: activeColors.borderMuted,
+    backgroundColor: activeColors.surfaceMuted,
     paddingHorizontal: 8,
     flexDirection: "row",
     alignItems: "center",
@@ -1473,17 +1552,20 @@ const styles = StyleSheet.create({
     gap: 4
   },
   memberActionBtnDanger: {
-    borderColor: colors.borderDangerSoft,
-    backgroundColor: colors.surfaceTintDangerSoft
+    borderColor: activeColors.borderDangerSoft,
+    backgroundColor: activeColors.surfaceTintDangerSoft
   },
   memberActionText: {
-    color: colors.textSecondary,
+    color: activeColors.textSecondary,
     fontSize: 11,
     fontWeight: "700"
   },
   memberActionTextDanger: {
-    color: colors.dangerAccent,
+    color: activeColors.dangerAccent,
     fontSize: 11,
     fontWeight: "700"
   }
 });
+
+
+let styles = createStyles();

@@ -5,7 +5,7 @@
     "scheme": "fulbito",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "icon": "./assets/branding/app-icon-1024.png",
     "ios": {
       "supportsTablet": true,

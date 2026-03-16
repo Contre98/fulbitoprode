@@ -1,11 +1,13 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Pressable, View, Text, StyleSheet, ScrollView, RefreshControl, Animated } from "react-native";
 import type { NativeSyntheticEvent, NativeTouchEvent, StyleProp, ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, spacing } from "@fulbito/design-tokens";
+import { getColors, spacing } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
 import { DataModeBadge } from "@/components/DataModeBadge";
 import { useGroupSelectorOverlay } from "@/state/GroupSelectorOverlayContext";
+import { useThemeColors } from "@/theme/useThemeColors";
 
 const AnimatedScrollView = Animated.createAnimatedComponent(ScrollView);
 
@@ -40,6 +42,8 @@ export function ScreenFrame({
   onRefresh?: () => Promise<void>;
   children?: ReactNode;
 }) {
+  const themeColors = useThemeColors();
+  styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const insets = useSafeAreaInsets();
   const touchStartRef = useRef<{ x: number; y: number; timestamp: number } | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -189,14 +193,16 @@ export function ScreenFrame({
 
   return (
     <View style={[styles.container, containerStyle]}>
-      {header ? (
-        header
-      ) : (
-        <>
-          <Text style={styles.title}>{title}</Text>
-          {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-        </>
-      )}
+      <View style={styles.headerWrap}>
+        {header ? (
+          header
+        ) : (
+          <>
+            <Text style={styles.title}>{title}</Text>
+            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+          </>
+        )}
+      </View>
       {hideDataModeBadge ? null : <DataModeBadge />}
       <View style={styles.scrollWrap}>
         <GroupSelectorOverlay />
@@ -212,7 +218,7 @@ export function ScreenFrame({
           onTouchCancel={onTouchCancel}
           refreshControl={
             onRefresh ? (
-              <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.textSecondary} />
+              <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={themeColors.textSecondary} />
             ) : undefined
           }
           contentContainerStyle={[styles.content, { paddingBottom: spacing.xl + insets.bottom }, contentStyle]}
@@ -242,19 +248,23 @@ export function ScreenFrame({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ColorTokens) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: themeColors.background,
     padding: spacing.xl
   },
+  headerWrap: {
+    position: "relative",
+    zIndex: 20
+  },
   title: {
-    color: colors.textPrimary,
+    color: themeColors.textPrimary,
     fontSize: 28,
     fontWeight: "800"
   },
   subtitle: {
-    color: colors.textSecondary,
+    color: themeColors.textSecondary,
     fontSize: 13,
     marginTop: spacing.sm
   },
@@ -280,9 +290,9 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: themeColors.surfaceMuted,
     borderWidth: 1,
-    borderColor: colors.borderMuted
+    borderColor: themeColors.borderMuted
   },
   swipeCueLeft: {
     left: 4
@@ -291,7 +301,7 @@ const styles = StyleSheet.create({
     right: 4
   },
   swipeCueText: {
-    color: colors.textMuted,
+    color: themeColors.textMuted,
     fontSize: 18,
     fontWeight: "800"
   },
@@ -301,3 +311,5 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.4)"
   }
 });
+
+let styles = createStyles(getColors("light"));

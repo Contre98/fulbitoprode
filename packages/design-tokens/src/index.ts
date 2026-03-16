@@ -113,13 +113,123 @@ export const lightColors = {
   dataMockBg: "#322610"
 } as const;
 
+export const darkColors: ColorTokens = {
+  ...lightColors,
+
+  // Brand identity
+  secondary: "#0A1119",
+
+  // App surfaces
+  background: "#0A1119",
+  canvas: "#0A1119",
+  surface: "#121C29",
+  surfaceSoft: "#111A26",
+  surfaceMuted: "#1A2738",
+
+  // Brand accents
+  primarySoft: "#243316",
+  primarySoftAlt: "#1E2D13",
+  primaryHighlight: "#2D401A",
+  primaryLime: "#B9D95F",
+  primaryTextSoft: "#C8E56E",
+  primaryDeep: "#C2E522",
+  primaryAlpha16: "rgba(182,217,0,0.24)",
+  brandTint: "#1A2738",
+  brandTintSoft: "#1A2738",
+  brandTintAlt: "#22344A",
+  brandTintAlt2: "#1E2E41",
+
+  // Text
+  primaryText: "#E6EDF7",
+  textPrimary: "#E6EDF7",
+  textTitle: "#F4F8FF",
+  textHigh: "#E7EEF8",
+  textStrong: "#D8E1EC",
+  textSecondary: "#A5B5C8",
+  textTertiary: "#9BAEC3",
+  textQuaternary: "#8EA3B8",
+  textMuted: "#93A4B8",
+  textMutedAlt: "#8EA3B8",
+  textSoft: "#7E93AA",
+  textSoftAlt: "#8A9DB1",
+  textSoftAlt2: "#95A7BA",
+  textBody: "#C3D0DE",
+  textBodyMuted: "#AABACB",
+  textBodyStrong: "#D4DEEA",
+  textSlate: "#B0C0D2",
+  textSlateStrong: "#C4D2E0",
+  textSlateSoft: "#8EA3B8",
+  textGray: "#9AAFC4",
+  textSteel: "#C3D0DE",
+  textBrandDark: "#C2E522",
+  iconStrong: "#C3D0DE",
+  textInverse: "#0B111A",
+
+  // Borders
+  borderSubtle: "#2A3A50",
+  borderMuted: "#2F435C",
+  borderMutedAlt: "#324963",
+  borderMutedSoft: "#2A3E55",
+  borderInfo: "#31506D",
+  borderLight: "#243449",
+  borderWarningSoft: "#6B4A1F",
+  borderDangerSoft: "#6A2E36",
+  borderDangerMuted: "#5F2F36",
+  borderDangerAlt: "#74313A",
+
+  // Surfaces
+  surfaceTintBlue: "#1E2E41",
+  surfaceTintBlueSoft: "#1A2738",
+  surfaceTintNeutral: "#1A2738",
+  surfaceTintCard: "#1A2738",
+  surfaceTintWarm: "#2B2B1C",
+  surfaceTintWarning: "#2D2413",
+  surfaceTintDanger: "#3A1F26",
+  surfaceTintDangerSoft: "#3A1F26",
+
+  // Status
+  success: "#A9D800",
+  successDeep: "#34D399",
+  danger: "#F87171",
+  dangerDeep: "#F87171",
+  dangerStrong: "#F87171",
+  dangerAccent: "#F87171",
+  dangerMuted: "#F38B97",
+  dangerSoft: "#FCA5A5",
+  warning: "#FBBF24",
+  warningAccent: "#FBBF24",
+  warningDeep: "#F4C15D",
+  warningMuted: "#E4AF63",
+
+  // Decorative accents
+  trophy: "#E5B94C",
+  trophyDeep: "#D9A938",
+  info: "#7CB6FF",
+  successAccent: "#4ADE80",
+  slate: "#8EA3B8",
+  slateMuted: "#93A4B8",
+
+  // Overlays
+  overlaySubtle: "rgba(3,8,14,0.62)",
+  overlay: "rgba(3,8,14,0.72)",
+  overlaySoft: "rgba(3,8,14,0.65)",
+
+  // Data mode badges
+  dataLiveBg: "#173A28",
+  dataMockBg: "#3A2E17"
+};
+
 export type ColorTokenName = keyof typeof lightColors;
 export type ColorTokens = Record<ColorTokenName, string>;
-export type ThemeName = "light";
+export type ThemeName = "light" | "dark";
 
 export const themes = {
   light: {
     colors: lightColors,
+    spacing
+  },
+  dark: {
+    colors: darkColors,
     spacing
   }
 } as const;

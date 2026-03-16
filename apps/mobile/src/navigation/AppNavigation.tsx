@@ -5,9 +5,9 @@ import type { BottomTabBarButtonProps, BottomTabBarProps } from "@react-navigati
 import { Pressable, StyleSheet, View } from "react-native";
 import type { GestureResponderEvent } from "react-native";
 import { Linking } from "react-native";
+import { StatusBar } from "expo-status-bar";
 import { useCallback, useMemo, useEffect, useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "@fulbito/design-tokens";
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
 import { AuthProvider, useAuth } from "@/state/AuthContext";
 import { PeriodProvider } from "@/state/PeriodContext";
@@ -33,6 +33,9 @@ import { groupsRepository } from "@/repositories";
 import { AppDialogProvider, useAppDialog } from "@/state/AppDialogContext";
 import { NotificationsOverlayProvider } from "@/state/NotificationsOverlayContext";
 import { NotificationsBubbleOverlay } from "@/components/NotificationsBubbleOverlay";
+import { useNavigationChromeTheme } from "@/theme/navigationChromeTheme";
+import { ThemePreferenceProvider, useThemePreference } from "@/state/ThemePreferenceContext";
+import { useThemeColors } from "@/theme/useThemeColors";
 
 const RootStack = createNativeStackNavigator();
 const Tabs = createBottomTabNavigator();
@@ -72,7 +75,19 @@ const tabIconByName: Record<string, { active: keyof typeof Ionicons.glyphMap; in
   Perfil: { active: "person", inactive: "person-outline" }
 };
 
+function ThemedStatusBar() {
+  const { themePreference } = useThemePreference();
+  const themeColors = useThemeColors();
+  return (
+    <StatusBar
+      style={themePreference === "dark" ? "light" : "dark"}
+      backgroundColor={themeColors.background}
+    />
+  );
+}
+
 function TabIcon({ routeName, focused }: { routeName: string; focused: boolean }) {
+  const chromeTheme = useNavigationChromeTheme();
   const reducedMotion = useReducedMotion();
   const scale = useSharedValue(focused ? 1.06 : 1);
   const iconScaleStyle = useAnimatedStyle(() => ({
@@ -95,12 +110,25 @@ function TabIcon({ routeName, focused }: { routeName: string; focused: boolean }
   if (isCenter) {
     return (
       <Animated.View style={iconScaleStyle}>
-        <View style={[styles.centerTabButton, focused ? styles.centerTabButtonActive : styles.centerTabButtonIdle]}>
-          <View style={[styles.centerTabInner, focused ? styles.centerTabInnerActive : styles.centerTabInnerIdle]}>
+        <View
+          style={[
+            styles.centerTabButton,
+            {
+              backgroundColor: focused ? chromeTheme.centerTabBackgroundActive : chromeTheme.centerTabBackgroundIdle,
+              borderColor: focused ? chromeTheme.centerTabBorderActive : chromeTheme.centerTabBorderIdle
+            }
+          ]}
+        >
+          <View
+            style={[
+              styles.centerTabInner,
+              { backgroundColor: focused ? chromeTheme.centerTabInnerActive : chromeTheme.centerTabInnerIdle }
+            ]}
+          >
             <Ionicons
               name={focused ? icons.active : icons.inactive}
               size={24}
-              color={focused ? colors.textInverse : colors.textSecondary}
+              color={focused ? chromeTheme.centerTabIconActive : chromeTheme.centerTabIconInactive}
             />
           </View>
         </View>
@@ -113,7 +141,7 @@ function TabIcon({ routeName, focused }: { routeName: string; focused: boolean }
       <Ionicons
         name={focused ? icons.active : icons.inactive}
         size={22}
-        color={focused ? colors.primary : colors.textSecondary}
+        color={focused ? chromeTheme.tabIconActive : chromeTheme.tabIconInactive}
       />
     </Animated.View>
   );
@@ -158,6 +186,7 @@ function AnimatedTabBarButton({ onPressIn, onPressOut, style, ...rest }: BottomT
 }
 
 function AnimatedTabBar({ state, descriptors, navigation, insets }: BottomTabBarProps) {
+  const chromeTheme = useNavigationChromeTheme();
   const reducedMotion = useReducedMotion();
   const [barWidth, setBarWidth] = useState(0);
   const indicatorX = useSharedValue(0);
@@ -183,7 +212,10 @@ function AnimatedTabBar({ state, descriptors, navigation, insets }: BottomTabBar
   return (
     <View style={styles.tabBarHost} onLayout={(event) => setBarWidth(event.nativeEvent.layout.width)}>
       <BottomTabBar state={state} descriptors={descriptors} navigation={navigation} insets={insets} />
-      <Animated.View pointerEvents="none" style={[styles.activeTabIndicator, indicatorStyle]} />
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.activeTabIndicator, { backgroundColor: chromeTheme.tabIndicator }, indicatorStyle]}
+      />
     </View>
   );
 }
@@ -254,6 +286,7 @@ function InviteAutoJoinHandler() {
 }
 
 function AppTabs() {
+  const chromeTheme = useNavigationChromeTheme();
   const overlay = useGroupSelectorOverlay();
   useRegisterPushToken();
   return (
@@ -266,13 +299,20 @@ function AppTabs() {
       }}
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            borderTopColor: chromeTheme.tabBarBorder,
+            backgroundColor: chromeTheme.tabBarBackground,
+            shadowColor: chromeTheme.tabBarShadow
+          }
+        ],
         tabBarLabelStyle: styles.tabLabel,
-        tabBarItemStyle: route.name === "Pronosticos" ? styles.centerTabItem : styles.tabItem,
+        tabBarItemStyle: styles.tabItem,
         tabBarIcon: ({ focused }) => <TabIcon routeName={route.name} focused={focused} />,
         tabBarButton: (props) => <AnimatedTabBarButton {...props} />,
-        tabBarActiveTintColor: colors.primaryDeep,
-        tabBarInactiveTintColor: colors.textSecondary
+        tabBarActiveTintColor: chromeTheme.tabLabelActive,
+        tabBarInactiveTintColor: chromeTheme.tabLabelInactive
       })}
     >
       <Tabs.Screen name="Inicio" component={HomeScreen} />
@@ -282,7 +322,7 @@ function AppTabs() {
         component={PronosticosScreen}
         options={{
           tabBarLabel: "Pronósticos",
-          tabBarActiveTintColor: colors.primary,
+          tabBarActiveTintColor: chromeTheme.centerTabLabelActive,
           tabBarLabelStyle: styles.centerTabLabel
         }}
       />
@@ -341,24 +381,27 @@ export function AppNavigation() {
 
   return (
     <AuthProvider>
-      <AppDialogProvider>
-        <PendingInviteProvider>
-          <InviteLinkHandler />
-          <InviteAutoJoinHandler />
-          <GroupProvider>
-            <GroupSelectorOverlayProvider>
-              <NotificationsOverlayProvider>
-                <PeriodProvider>
-                  <NavigationContainer ref={navigationRef} linking={linking}>
-                    <RootNavigator />
-                  </NavigationContainer>
-                  <NotificationsBubbleOverlay />
-                </PeriodProvider>
-              </NotificationsOverlayProvider>
-            </GroupSelectorOverlayProvider>
-          </GroupProvider>
-        </PendingInviteProvider>
-      </AppDialogProvider>
+      <ThemePreferenceProvider>
+        <ThemedStatusBar />
+        <AppDialogProvider>
+          <PendingInviteProvider>
+            <InviteLinkHandler />
+            <InviteAutoJoinHandler />
+            <GroupProvider>
+              <GroupSelectorOverlayProvider>
+                <NotificationsOverlayProvider>
+                  <PeriodProvider>
+                    <NavigationContainer ref={navigationRef} linking={linking}>
+                      <RootNavigator />
+                    </NavigationContainer>
+                    <NotificationsBubbleOverlay />
+                  </PeriodProvider>
+                </NotificationsOverlayProvider>
+              </GroupSelectorOverlayProvider>
+            </GroupProvider>
+          </PendingInviteProvider>
+        </AppDialogProvider>
+      </ThemePreferenceProvider>
     </AuthProvider>
   );
 }
@@ -372,20 +415,19 @@ const styles = StyleSheet.create({
     paddingTop: 8,
     paddingBottom: 10,
     borderTopWidth: 1,
-    borderTopColor: colors.borderLight,
-    backgroundColor: colors.surface,
-    shadowColor: colors.textPrimary,
     shadowOffset: { width: 0, height: -2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 4
   },
   tabItem: {
+    flex: 1,
+    minWidth: 0,
+    maxWidth: "20%",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 2,
-    paddingHorizontal: 2
-  },
-  centerTabItem: {
-    paddingVertical: 2
+    paddingHorizontal: 0
   },
   tabLabel: {
     fontSize: 11,
@@ -400,35 +442,20 @@ const styles = StyleSheet.create({
     marginTop: 1
   },
   centerTabButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    marginTop: -34,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    marginTop: -30,
     borderWidth: 3,
-    borderColor: colors.surface,
     alignItems: "center",
     justifyContent: "center"
-  },
-  centerTabButtonActive: {
-    backgroundColor: colors.primaryStrong,
-    borderColor: colors.surface
-  },
-  centerTabButtonIdle: {
-    backgroundColor: colors.surface,
-    borderColor: colors.borderSubtle
   },
   centerTabInner: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center"
-  },
-  centerTabInnerActive: {
-    backgroundColor: "rgba(0,0,0,0.08)"
-  },
-  centerTabInnerIdle: {
-    backgroundColor: "transparent"
   },
   activeTabIndicator: {
     position: "absolute",
@@ -436,7 +463,6 @@ const styles = StyleSheet.create({
     left: 0,
     width: TAB_INDICATOR_WIDTH,
     height: 3,
-    borderRadius: 999,
-    backgroundColor: colors.primary
+    borderRadius: 999
   }
 });

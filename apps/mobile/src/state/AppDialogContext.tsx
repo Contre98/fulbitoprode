@@ -3,7 +3,10 @@ import type { ReactNode } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import type { ComponentProps } from "react";
-import { colors } from "@fulbito/design-tokens";
+import { getColors } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
+import { useThemeColors } from "@/theme/useThemeColors";
+let activeColors: ColorTokens = getColors("light");
 
 type DialogButtonStyle = "default" | "cancel" | "destructive";
 type DialogTone = "default" | "success" | "warning" | "danger";
@@ -53,32 +56,35 @@ function toneMeta(tone: DialogTone): { icon: IoniconName; iconColor: string; ico
   if (tone === "danger") {
     return {
       icon: "alert-circle-outline",
-      iconColor: colors.dangerStrong,
-      iconBackground: colors.surfaceTintDangerSoft
+      iconColor: activeColors.dangerStrong,
+      iconBackground: activeColors.surfaceTintDangerSoft
     };
   }
   if (tone === "success") {
     return {
       icon: "checkmark-circle-outline",
-      iconColor: colors.successDeep,
-      iconBackground: colors.primarySoftAlt
+      iconColor: activeColors.successDeep,
+      iconBackground: activeColors.primarySoftAlt
     };
   }
   if (tone === "warning") {
     return {
       icon: "warning-outline",
-      iconColor: colors.warningDeep,
-      iconBackground: colors.surfaceTintWarning
+      iconColor: activeColors.warningDeep,
+      iconBackground: activeColors.surfaceTintWarning
     };
   }
   return {
     icon: "information-circle-outline",
-    iconColor: colors.primaryDeep,
-    iconBackground: colors.surfaceTintBlueSoft
+    iconColor: activeColors.primaryDeep,
+    iconBackground: activeColors.surfaceTintBlueSoft
   };
 }
 
 export function AppDialogProvider({ children }: { children: ReactNode }) {
+  const themeColors = useThemeColors();
+  activeColors = themeColors;
+  styles = useMemo(() => createStyles(), [themeColors]);
   const nextIdRef = useRef(1);
   const [queue, setQueue] = useState<AppDialogRequest[]>([]);
   const current = queue[0] ?? null;
@@ -195,21 +201,21 @@ export function useAppDialog() {
   return context;
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   overlay: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.overlaySubtle,
+    backgroundColor: activeColors.overlaySubtle,
     paddingHorizontal: 20
   },
   card: {
     width: "100%",
     maxWidth: 380,
     borderRadius: 18,
-    backgroundColor: colors.surface,
+    backgroundColor: activeColors.surface,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: activeColors.borderMuted,
     paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 14,
@@ -223,7 +229,7 @@ const styles = StyleSheet.create({
     height: 3,
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
-    backgroundColor: colors.primary
+    backgroundColor: activeColors.primary
   },
   header: {
     flexDirection: "row",
@@ -240,12 +246,12 @@ const styles = StyleSheet.create({
   },
   title: {
     flex: 1,
-    color: colors.textTitle,
+    color: activeColors.textTitle,
     fontSize: 16,
     fontWeight: "800"
   },
   message: {
-    color: colors.textBody,
+    color: activeColors.textBody,
     fontSize: 14,
     lineHeight: 20
   },
@@ -259,8 +265,8 @@ const styles = StyleSheet.create({
     minHeight: 42,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
-    backgroundColor: colors.surfaceMuted,
+    borderColor: activeColors.borderMuted,
+    backgroundColor: activeColors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 14
@@ -269,19 +275,22 @@ const styles = StyleSheet.create({
     flex: 1
   },
   actionButtonCancel: {
-    backgroundColor: colors.surface,
-    borderColor: colors.borderSubtle
+    backgroundColor: activeColors.surface,
+    borderColor: activeColors.borderSubtle
   },
   actionButtonDestructive: {
-    borderColor: colors.borderDangerSoft,
-    backgroundColor: colors.surfaceTintDangerSoft
+    borderColor: activeColors.borderDangerSoft,
+    backgroundColor: activeColors.surfaceTintDangerSoft
   },
   actionButtonText: {
-    color: colors.textPrimary,
+    color: activeColors.textPrimary,
     fontSize: 14,
     fontWeight: "700"
   },
   actionButtonTextDestructive: {
-    color: colors.dangerStrong
+    color: activeColors.dangerStrong
   }
 });
+
+
+let styles = createStyles();

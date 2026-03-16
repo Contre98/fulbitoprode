@@ -2,7 +2,8 @@ import { useCallback, useMemo } from "react";
 import { StyleSheet } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigation } from "@react-navigation/native";
-import { colors } from "@fulbito/design-tokens";
+import { getColors } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
 import { fixtureRepository, leaderboardRepository, predictionsRepository } from "@/repositories";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { AppHeader } from "@/components/AppHeader";
@@ -14,9 +15,12 @@ import { CreateOrJoinGroupPrompt } from "@/components/CreateOrJoinGroupPrompt";
 import { useGroupSelection } from "@/state/GroupContext";
 import { useAuth } from "@/state/AuthContext";
 import { usePeriod } from "@/state/PeriodContext";
+import { useThemeColors } from "@/theme/useThemeColors";
 
 export function HomeScreen() {
   const navigation = useNavigation<any>();
+  const themeColors = useThemeColors();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const { memberships, selectedGroupId } = useGroupSelection();
   const { session } = useAuth();
   const { fecha, defaultFecha, options, setFecha } = usePeriod();
@@ -178,12 +182,12 @@ function formatTimeUntil(timestamp: number): string {
   return `${minutes} minuto${minutes === 1 ? "" : "s"}`;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ColorTokens) => StyleSheet.create({
   screenContainer: {
     paddingHorizontal: 12,
     paddingTop: 0,
     paddingBottom: 0,
-    backgroundColor: colors.canvas
+    backgroundColor: themeColors.canvas
   },
   screenContent: {
     gap: 10

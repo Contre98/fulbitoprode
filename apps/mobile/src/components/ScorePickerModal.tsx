@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Animated as NativeAnimated, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "@fulbito/design-tokens";
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
+import { getColors } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
+import Animated, { runOnJS, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 import { TeamCrest } from "@/components/TeamCrest";
+import { useThemeColors } from "@/theme/useThemeColors";
 
 const SCORE_MIN = 0;
 const SCORE_MAX = 99;
@@ -25,6 +27,13 @@ const PRESS_OUT_SPRING = {
   stiffness: 340,
   mass: 0.45
 } as const;
+const MODAL_OPEN_SPRING = {
+  damping: 22,
+  stiffness: 320,
+  mass: 0.52
+} as const;
+const MODAL_CLOSE_TIMING_MS = 110;
+let activeColors = getColors("light");
 
 interface ScorePickerModalProps {
   visible: boolean;
@@ -129,7 +138,7 @@ function ScoreWheel({
           onPressOut={upPress.onPressOut}
           style={styles.arrowButton}
         >
-          <Ionicons name="chevron-up" size={14} color={colors.textSecondary} />
+          <Ionicons name="chevron-up" size={14} color={activeColors.textSecondary} />
         </Pressable>
       </Animated.View>
       <View style={styles.wheelWrap} testID={testIdPrefix}>
@@ -184,7 +193,7 @@ function ScoreWheel({
           onPressOut={downPress.onPressOut}
           style={styles.arrowButton}
         >
-          <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
+          <Ionicons name="chevron-down" size={14} color={activeColors.textSecondary} />
         </Pressable>
       </Animated.View>
     </>
@@ -202,6 +211,9 @@ export function ScorePickerModal({
   onSave,
   onClose
 }: ScorePickerModalProps) {
+  const themeColors = useThemeColors();
+  activeColors = themeColors;
+  styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const [home, setHome] = useState(initialHome);
   const [away, setAway] = useState(initialAway);
   const [savePhase, setSavePhase] = useState<SavePhase>("idle");
@@ -211,6 +223,19 @@ export function ScorePickerModal({
   const progressAnim = useRef(new NativeAnimated.Value(0)).current;
   const checkmarkScale = useRef(new NativeAnimated.Value(0)).current;
   const savePress = usePressScale(0.97, savePhase !== "idle");
+  const reducedMotion = useReducedMotion();
+  const [modalMounted, setModalMounted] = useState(visible);
+  const modalProgress = useSharedValue(visible ? 1 : 0);
+  const modalBackdropStyle = useAnimatedStyle(() => ({
+    opacity: modalProgress.value
+  }));
+  const modalCardStyle = useAnimatedStyle(() => ({
+    opacity: modalProgress.value,
+    transform: [
+      { translateY: (1 - modalProgress.value) * 14 },
+      { scale: 0.97 + modalProgress.value * 0.03 }
+    ]
+  }));
 
   useEffect(() => {
     if (!visible) return;
@@ -228,6 +253,32 @@ export function ScorePickerModal({
       if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (visible) {
+      setModalMounted(true);
+      if (reducedMotion) {
+        modalProgress.value = 1;
+        return;
+      }
+      modalProgress.value = 0;
+      modalProgress.value = withSpring(1, MODAL_OPEN_SPRING);
+      return;
+    }
+    if (!modalMounted) {
+      return;
+    }
+    if (reducedMotion) {
+      modalProgress.value = 0;
+      setModalMounted(false);
+      return;
+    }
+    modalProgress.value = withTiming(0, { duration: MODAL_CLOSE_TIMING_MS }, (finished) => {
+      if (finished) {
+        runOnJS(setModalMounted)(false);
+      }
+    });
+  }, [modalMounted, modalProgress, reducedMotion, visible]);
 
   async function handleSave() {
     savePhaseRef.current = "saving";
@@ -279,7 +330,7 @@ export function ScorePickerModal({
 
   const buttonBgColor = progressAnim.interpolate({
     inputRange: [0, 0.7, 1],
-    outputRange: [colors.primaryStrong, colors.primaryAccent, colors.primaryStrong]
+    outputRange: [themeColors.primaryStrong, themeColors.primaryAccent, themeColors.primaryStrong]
   });
 
   const progressWidth = progressAnim.interpolate({
@@ -288,10 +339,11 @@ export function ScorePickerModal({
   });
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={modalMounted} transparent animationType="none" onRequestClose={onClose}>
       <View style={styles.modalRoot}>
-        <Pressable style={styles.modalBackdrop} onPress={savePhase === "idle" ? onClose : undefined} />
-        <View style={styles.modalCard}>
+        <Animated.View pointerEvents="none" style={[styles.modalBackdrop, modalBackdropStyle]} />
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={savePhase === "idle" ? onClose : undefined} />
+        <Animated.View style={[styles.modalCard, modalCardStyle]}>
           {/* Score picker area */}
           <View style={styles.pickerRow}>
             <View style={styles.teamColumn}>
@@ -338,7 +390,7 @@ export function ScorePickerModal({
                   {savePhase === "saved" ? (
                     <View style={styles.savedRow}>
                       <NativeAnimated.View style={{ transform: [{ scale: checkmarkScale }] }}>
-                        <Ionicons name="checkmark-circle" size={18} color={colors.textHigh} />
+                        <Ionicons name="checkmark-circle" size={18} color={themeColors.textHigh} />
                       </NativeAnimated.View>
                       <Text allowFontScaling={false} style={styles.saveLabel}>
                         Guardado
@@ -357,13 +409,13 @@ export function ScorePickerModal({
               </NativeAnimated.View>
             </Pressable>
           </Animated.View>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ColorTokens) => StyleSheet.create({
   modalRoot: {
     flex: 1,
     justifyContent: "center",
@@ -371,13 +423,13 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.overlaySubtle
+    backgroundColor: themeColors.overlaySubtle
   },
   modalCard: {
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surface,
+    borderColor: themeColors.borderSubtle,
+    backgroundColor: themeColors.surface,
     paddingHorizontal: 14,
     paddingTop: 16,
     paddingBottom: 12,
@@ -395,7 +447,7 @@ const styles = StyleSheet.create({
     width: 48
   },
   teamCode: {
-    color: colors.textHigh,
+    color: themeColors.textHigh,
     fontSize: 11,
     fontWeight: "900",
     letterSpacing: -0.2,
@@ -410,7 +462,7 @@ const styles = StyleSheet.create({
     width: "100%",
     height: WHEEL_HEIGHT,
     borderRadius: 10,
-    backgroundColor: colors.surfaceTintNeutral,
+    backgroundColor: themeColors.surfaceTintNeutral,
     overflow: "hidden",
     position: "relative"
   },
@@ -430,12 +482,12 @@ const styles = StyleSheet.create({
     justifyContent: "center"
   },
   wheelValue: {
-    color: colors.textMuted,
+    color: themeColors.textMuted,
     fontSize: 20,
     fontWeight: "700"
   },
   wheelValueActive: {
-    color: colors.textPrimary,
+    color: themeColors.textPrimary,
     fontWeight: "900"
   },
   wheelActiveBand: {
@@ -446,11 +498,11 @@ const styles = StyleSheet.create({
     height: ITEM_HEIGHT,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: colors.primaryStrong,
-    backgroundColor: colors.primaryAlpha16
+    borderColor: themeColors.primaryStrong,
+    backgroundColor: themeColors.primaryAlpha16
   },
   vsDivider: {
-    color: colors.textSoftAlt2,
+    color: themeColors.textSoftAlt2,
     fontSize: 20,
     fontWeight: "900"
   },
@@ -469,7 +521,7 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    backgroundColor: colors.primaryDeep,
+    backgroundColor: themeColors.primaryDeep,
     borderRadius: 10
   },
   saveButtonContent: {
@@ -484,8 +536,10 @@ const styles = StyleSheet.create({
     gap: 6
   },
   saveLabel: {
-    color: colors.textHigh,
+    color: themeColors.textHigh,
     fontSize: 15,
     fontWeight: "900"
   }
 });
+
+let styles = createStyles(getColors("light"));

@@ -1,20 +1,25 @@
+import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import Animated from "react-native-reanimated";
-import { colors, spacing } from "@fulbito/design-tokens";
+import { getColors, spacing } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
 import { usePressScale } from "@/lib/usePressScale";
+import { useThemeColors } from "@/theme/useThemeColors";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function CreateOrJoinGroupPrompt() {
   const navigation = useNavigation<any>();
   const ctaPress = usePressScale(0.98);
+  const themeColors = useThemeColors();
+  const styles = useMemo(() => createStyles(themeColors), [themeColors]);
 
   return (
     <View style={styles.card}>
       <View style={styles.iconWrap}>
-        <Ionicons name="people-outline" size={26} color={colors.primaryDeep} />
+        <Ionicons name="people-outline" size={26} color={themeColors.primaryDeep} />
       </View>
       <Text allowFontScaling={false} style={styles.title}>Todavía no estás en un grupo</Text>
       <Text allowFontScaling={false} style={styles.description}>
@@ -32,12 +37,12 @@ export function CreateOrJoinGroupPrompt() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ColorTokens) => StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: themeColors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    borderColor: themeColors.borderSubtle,
     padding: spacing.md,
     gap: spacing.sm
   },
@@ -47,15 +52,15 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.primarySoftAlt
+    backgroundColor: themeColors.primarySoftAlt
   },
   title: {
-    color: colors.textTitle,
+    color: themeColors.textTitle,
     fontSize: 16,
     fontWeight: "800"
   },
   description: {
-    color: colors.textSecondary,
+    color: themeColors.textSecondary,
     fontSize: 13,
     lineHeight: 19
   },
@@ -66,10 +71,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.primary
+    backgroundColor: themeColors.primary
   },
   ctaText: {
-    color: colors.textStrong,
+    color: themeColors.textInverse,
     fontSize: 13,
     fontWeight: "800"
   }

@@ -1,14 +1,21 @@
+import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated from "react-native-reanimated";
-import { colors } from "@fulbito/design-tokens";
+import { getColors } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { usePressScale } from "@/lib/usePressScale";
+import { useThemeColors } from "@/theme/useThemeColors";
 
+let activeColors: ColorTokens = getColors("light");
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function SugerenciasScreen() {
+  const themeColors = useThemeColors();
+  activeColors = themeColors;
+  styles = useMemo(() => createStyles(), [themeColors]);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const backPress = usePressScale(0.93);
@@ -42,12 +49,12 @@ export function SugerenciasScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   screenContainer: {
     paddingHorizontal: 12,
     paddingTop: 0,
     paddingBottom: 0,
-    backgroundColor: colors.canvas
+    backgroundColor: activeColors.canvas
   },
   screenContent: {
     gap: 10
@@ -55,11 +62,11 @@ const styles = StyleSheet.create({
   headerCard: {
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
-    backgroundColor: colors.surfaceSoft,
+    backgroundColor: activeColors.surfaceSoft,
     paddingHorizontal: 16,
     paddingBottom: 14,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    borderColor: activeColors.borderSubtle,
     marginHorizontal: -12,
     flexDirection: "row",
     alignItems: "center"
@@ -68,12 +75,12 @@ const styles = StyleSheet.create({
     height: 32,
     width: 32,
     borderRadius: 999,
-    backgroundColor: colors.brandTintAlt,
+    backgroundColor: activeColors.brandTintAlt,
     alignItems: "center",
     justifyContent: "center"
   },
   backButtonText: {
-    color: colors.iconStrong,
+    color: activeColors.iconStrong,
     fontSize: 16,
     fontWeight: "900"
   },
@@ -84,14 +91,17 @@ const styles = StyleSheet.create({
     paddingVertical: 60
   },
   placeholderTitle: {
-    color: colors.textPrimary,
+    color: activeColors.textPrimary,
     fontSize: 20,
     fontWeight: "900"
   },
   placeholderText: {
     marginTop: 8,
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontSize: 14,
     fontWeight: "700"
   }
 });
+
+
+let styles = createStyles();

@@ -1,10 +1,13 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "@fulbito/design-tokens";
+import { getColors } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
 import type { LeaderboardStatsRow, LeaderboardAward } from "@fulbito/domain";
 import { CardSideAccentGradient } from "@/components/MatchCardVisuals";
+import { useThemePreference } from "@/state/ThemePreferenceContext";
+import { useThemeColors } from "@/theme/useThemeColors";
 
 interface LeaderboardOverviewCardProps {
   groupLabel: string;
@@ -14,15 +17,19 @@ interface LeaderboardOverviewCardProps {
   onPress?: () => void;
 }
 
-const awardGlyph: Record<string, { icon: string; tone: string }> = {
-  nostradamus: { icon: "✣", tone: colors.primaryStrong },
-  bilardista: { icon: "◻", tone: colors.slate },
-  "la-racha": { icon: "◔", tone: colors.warning },
-  batacazo: { icon: "⚡", tone: colors.warning },
-  "robin-hood": { icon: "◎", tone: colors.successAccent },
-  "el-casi": { icon: "⌖", tone: colors.info },
-  "el-mufa": { icon: "☂", tone: colors.slateMuted }
-};
+let activeColors: ColorTokens = getColors("light");
+
+function getAwardGlyph(): Record<string, { icon: string; tone: string }> {
+  return {
+    nostradamus: { icon: "✣", tone: activeColors.primaryStrong },
+    bilardista: { icon: "◻", tone: activeColors.slate },
+    "la-racha": { icon: "◔", tone: activeColors.warning },
+    batacazo: { icon: "⚡", tone: activeColors.warning },
+    "robin-hood": { icon: "◎", tone: activeColors.successAccent },
+    "el-casi": { icon: "⌖", tone: activeColors.info },
+    "el-mufa": { icon: "☂", tone: activeColors.slateMuted }
+  };
+}
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const CHEVRON_PRESS_IN_SPRING = {
   damping: 20,
@@ -36,6 +43,11 @@ const CHEVRON_PRESS_OUT_SPRING = {
 } as const;
 
 export function LeaderboardOverviewCard({ groupLabel, row, awards, currentUserId, onPress }: LeaderboardOverviewCardProps) {
+  const themeColors = useThemeColors();
+  activeColors = themeColors;
+  styles = useMemo(() => createStyles(), [themeColors]);
+  const { themePreference } = useThemePreference();
+  const isDark = themePreference === "dark";
   const reducedMotion = useReducedMotion();
   const chevronScale = useSharedValue(1);
   const delta = row.deltaRank ?? 0;
@@ -61,26 +73,27 @@ export function LeaderboardOverviewCard({ groupLabel, row, awards, currentUserId
     chevronScale.value = withSpring(1, CHEVRON_PRESS_OUT_SPRING);
   }, [chevronScale, reducedMotion]);
 
+  const awardGlyph = getAwardGlyph();
   const awardBadges = myAwards.map((award) => {
-    const visual = awardGlyph[award.id] ?? { icon: "◈", tone: colors.trophy };
+    const visual = awardGlyph[award.id] ?? { icon: "◈", tone: activeColors.trophy };
     return { icon: visual.icon, tone: visual.tone, label: award.title };
   });
 
-  const flameColor = streak > 0 ? colors.warning : colors.textMuted;
+  const flameColor = streak > 0 ? activeColors.warning : activeColors.textMuted;
   const streakLabel = streak > 0 ? `Racha: ${streak} aciertos` : "Sin racha";
 
   const podiumConfig: Record<number, { color: string; label: string }> = {
-    1: { color: colors.trophy, label: "1° lugar" },
-    2: { color: colors.slate, label: "2° lugar" },
-    3: { color: colors.warningMuted, label: "3° lugar" }
+    1: { color: activeColors.trophy, label: "1° lugar" },
+    2: { color: activeColors.slate, label: "2° lugar" },
+    3: { color: activeColors.warningMuted, label: "3° lugar" }
   };
   const podium = podiumConfig[row.rank];
 
   return (
-    <View style={styles.card}>
-      <CardSideAccentGradient color={colors.primaryStrong} intensity={0.07} side="left" widthPct={28} />
+    <View style={[styles.card, isDark && styles.cardDark]}>
+      <CardSideAccentGradient color={activeColors.primaryStrong} intensity={0.07} side="left" widthPct={28} />
       <View style={styles.headerRow}>
-        <Text style={styles.header}>{groupLabel.toUpperCase()}</Text>
+        <Text style={[styles.header, isDark && styles.headerDark]}>{groupLabel.toUpperCase()}</Text>
         {onPress && (
           <AnimatedPressable
             accessibilityRole="button"
@@ -90,16 +103,16 @@ export function LeaderboardOverviewCard({ groupLabel, row, awards, currentUserId
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             style={chevronAnimatedStyle}
           >
-            <Ionicons name="chevron-forward" size={18} color={colors.textGray} />
+            <Ionicons name="chevron-forward" size={18} color={isDark ? "#93A4B8" : activeColors.textGray} />
           </AnimatedPressable>
         )}
       </View>
 
       <View style={styles.statsRow}>
         <View style={styles.col}>
-          <Text style={styles.label}>Tu Posición</Text>
+          <Text style={[styles.label, isDark && styles.labelDark]}>Tu Posición</Text>
           <View style={styles.posRow}>
-            <Text style={styles.bigNum}>#{row.rank}</Text>
+            <Text style={[styles.bigNum, isDark && styles.bigNumDark]}>#{row.rank}</Text>
             {delta !== 0 && (
               <View style={[styles.badge, delta > 0 ? styles.badgeUp : styles.badgeDown]}>
                 <Text style={[styles.badgeText, delta > 0 ? styles.badgeTextUp : styles.badgeTextDown]}>
@@ -111,27 +124,27 @@ export function LeaderboardOverviewCard({ groupLabel, row, awards, currentUserId
         </View>
 
         <View style={[styles.col, styles.colRight]}>
-          <Text style={styles.label}>Puntos</Text>
-          <Text style={styles.bigNum}>{row.points}</Text>
+          <Text style={[styles.label, isDark && styles.labelDark]}>Puntos</Text>
+          <Text style={[styles.bigNum, isDark && styles.bigNumDark]}>{row.points}</Text>
         </View>
       </View>
 
-      <View style={styles.divider} />
+      <View style={[styles.divider, isDark && styles.dividerDark]} />
       <View style={styles.badgesRow}>
         {podium && (
-          <View style={styles.pill}>
+          <View style={[styles.pill, isDark && styles.pillDark]}>
             <Ionicons name="trophy" size={14} color={podium.color} />
-            <Text style={styles.pillText}>{podium.label}</Text>
+            <Text style={[styles.pillText, isDark && styles.pillTextDark]}>{podium.label}</Text>
           </View>
         )}
-        <View style={styles.pill}>
+        <View style={[styles.pill, isDark && styles.pillDark]}>
           <Ionicons name="flame" size={14} color={flameColor} />
-          <Text style={styles.pillText}>{streakLabel}</Text>
+          <Text style={[styles.pillText, isDark && styles.pillTextDark]}>{streakLabel}</Text>
         </View>
         {awardBadges.map((b, i) => (
-          <View key={i} style={styles.pill}>
+          <View key={i} style={[styles.pill, isDark && styles.pillDark]}>
             <Text allowFontScaling={false} style={[styles.pillIcon, { color: b.tone }]}>{b.icon}</Text>
-            <Text style={styles.pillText}>{b.label}</Text>
+            <Text style={[styles.pillText, isDark && styles.pillTextDark]}>{b.label}</Text>
           </View>
         ))}
       </View>
@@ -139,9 +152,11 @@ export function LeaderboardOverviewCard({ groupLabel, row, awards, currentUserId
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: activeColors.surface,
+    borderWidth: 1,
+    borderColor: activeColors.borderSubtle,
     borderRadius: 16,
     padding: 20,
     paddingBottom: 16,
@@ -149,17 +164,23 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     position: "relative"
   },
+  cardDark: {
+    backgroundColor: "#121C29"
+  },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center"
   },
   header: {
-    color: colors.textGray,
+    color: activeColors.textGray,
     fontFamily: "Inter",
     fontSize: 11,
     fontWeight: "800",
     letterSpacing: 1.2
+  },
+  headerDark: {
+    color: "#8EA3B8"
   },
   statsRow: {
     flexDirection: "row",
@@ -173,8 +194,11 @@ const styles = StyleSheet.create({
     alignItems: "flex-end"
   },
   label: {
-    color: colors.textGray,
+    color: activeColors.textGray,
     fontSize: 12
+  },
+  labelDark: {
+    color: "#8EA3B8"
   },
   posRow: {
     flexDirection: "row",
@@ -182,10 +206,13 @@ const styles = StyleSheet.create({
     gap: 8
   },
   bigNum: {
-    color: colors.textHigh,
+    color: activeColors.textHigh,
     fontSize: 40,
     fontWeight: "800",
     lineHeight: 40
+  },
+  bigNumDark: {
+    color: "#E7EEF8"
   },
   badge: {
     borderRadius: 6,
@@ -213,7 +240,10 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: colors.borderLight
+    backgroundColor: activeColors.borderLight
+  },
+  dividerDark: {
+    backgroundColor: "#243449"
   },
   badgesRow: {
     flexDirection: "row",
@@ -221,7 +251,7 @@ const styles = StyleSheet.create({
     gap: 8
   },
   pill: {
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: activeColors.surfaceMuted,
     borderRadius: 20,
     flexDirection: "row",
     alignItems: "center",
@@ -229,14 +259,22 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12
   },
+  pillDark: {
+    backgroundColor: "#1C2A3D"
+  },
   pillIcon: {
     fontSize: 14,
     fontWeight: "800",
     lineHeight: 16
   },
   pillText: {
-    color: colors.iconStrong,
+    color: activeColors.iconStrong,
     fontSize: 12,
     fontWeight: "500"
+  },
+  pillTextDark: {
+    color: "#C3D0DE"
   }
 });
+
+let styles = createStyles();

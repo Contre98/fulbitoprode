@@ -1,8 +1,10 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { colors, spacing } from "@fulbito/design-tokens";
+import { getColors, spacing } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
 import { usePeriod } from "@/state/PeriodContext";
+import { useThemeColors } from "@/theme/useThemeColors";
 
 interface FechaSelectorProps {
   labelOverride?: string;
@@ -20,6 +22,11 @@ const PRESS_OUT_SPRING = {
   damping: 18,
   stiffness: 340,
   mass: 0.45
+} as const;
+const MENU_OPEN_SPRING = {
+  damping: 22,
+  stiffness: 320,
+  mass: 0.5
 } as const;
 
 function usePressScale(scaleDown: number, disabled = false) {
@@ -81,10 +88,15 @@ function MenuOptionRow({
 }
 
 export function FechaSelector({ labelOverride, value, options, onChange }: FechaSelectorProps) {
+  const themeColors = useThemeColors();
+  styles = useMemo(() => createStyles(themeColors), [themeColors]);
+  const reducedMotion = useReducedMotion();
   const { fecha, options: periodOptions, setFecha } = usePeriod();
   const triggerRef = useRef<View | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [menuMounted, setMenuMounted] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const menuProgress = useSharedValue(0);
   const selectedValue = value ?? fecha;
   const setSelectedValue = onChange ?? setFecha;
   const sourceOptions = options ?? periodOptions;
@@ -132,6 +144,34 @@ export function FechaSelector({ labelOverride, value, options, onChange }: Fecha
   const prevPress = usePressScale(0.95);
   const nextPress = usePressScale(0.95);
   const centerPress = usePressScale(0.99);
+  const menuBackdropStyle = useAnimatedStyle(() => ({
+    opacity: menuProgress.value
+  }));
+  const menuCardStyle = useAnimatedStyle(() => ({
+    opacity: menuProgress.value,
+    transform: [
+      { translateY: (1 - menuProgress.value) * -10 },
+      { scale: 0.965 + menuProgress.value * 0.035 }
+    ]
+  }));
+
+  useEffect(() => {
+    if (menuOpen) {
+      setMenuMounted(true);
+      if (reducedMotion) {
+        menuProgress.value = 1;
+        return;
+      }
+      menuProgress.value = 0;
+      menuProgress.value = withSpring(1, MENU_OPEN_SPRING);
+      return;
+    }
+    if (!menuMounted) {
+      return;
+    }
+    menuProgress.value = 0;
+    setMenuMounted(false);
+  }, [menuMounted, menuOpen, menuProgress, reducedMotion]);
 
   return (
     <>
@@ -178,10 +218,11 @@ export function FechaSelector({ labelOverride, value, options, onChange }: Fecha
         </Animated.View>
       </View>
 
-      <Modal visible={menuOpen} transparent animationType="fade" onRequestClose={() => setMenuOpen(false)}>
+      <Modal visible={menuMounted} transparent animationType="none" onRequestClose={() => setMenuOpen(false)}>
         <View style={styles.modalRoot}>
-          <Pressable style={styles.modalBackdrop} onPress={() => setMenuOpen(false)} />
-          <View style={[styles.menuCard, { top: menuTop, left: menuLeft, width: menuWidth }]}>
+          <Animated.View pointerEvents="none" style={[styles.modalBackdrop, menuBackdropStyle]} />
+          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setMenuOpen(false)} />
+          <Animated.View style={[styles.menuCard, { top: menuTop, left: menuLeft, width: menuWidth }, menuCardStyle]}>
             <ScrollView style={styles.menuScroll} contentContainerStyle={styles.menuContent}>
               {safeOptions.map((option, index) => {
                 const active = option.id === current.id;
@@ -196,20 +237,20 @@ export function FechaSelector({ labelOverride, value, options, onChange }: Fecha
                 );
               })}
             </ScrollView>
-          </View>
+          </Animated.View>
         </View>
       </Modal>
     </>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ColorTokens) => StyleSheet.create({
   fechaBlock: {
     minHeight: 44,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surfaceSoft,
+    borderColor: themeColors.borderSubtle,
+    backgroundColor: themeColors.surfaceSoft,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 8
@@ -218,7 +259,7 @@ const styles = StyleSheet.create({
     height: 28,
     width: 28,
     borderRadius: 8,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: themeColors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -235,7 +276,7 @@ const styles = StyleSheet.create({
     flex: 1
   },
   fechaNavLabel: {
-    color: colors.textSoft,
+    color: themeColors.textSoft,
     fontSize: 18,
     lineHeight: 18,
     fontWeight: "700",
@@ -246,14 +287,14 @@ const styles = StyleSheet.create({
   fechaTitle: {
     maxWidth: "85%",
     textAlign: "center",
-    color: colors.primaryStrong,
+    color: themeColors.primaryStrong,
     fontSize: 14,
     fontWeight: "900",
     letterSpacing: 0.8,
     textTransform: "uppercase"
   },
   fechaChevron: {
-    color: colors.textSecondary,
+    color: themeColors.textSecondary,
     fontSize: 12,
     fontWeight: "900"
   },
@@ -264,17 +305,17 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.overlaySubtle
+    backgroundColor: themeColors.overlaySubtle
   },
   menuCard: {
     position: "absolute",
     maxHeight: "60%",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
-    backgroundColor: colors.surface,
+    borderColor: themeColors.borderMuted,
+    backgroundColor: themeColors.surface,
     overflow: "hidden",
-    shadowColor: colors.textPrimary,
+    shadowColor: themeColors.textPrimary,
     shadowOpacity: 0.2,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
@@ -297,23 +338,25 @@ const styles = StyleSheet.create({
     borderColor: "transparent"
   },
   menuRowActive: {
-    backgroundColor: colors.primaryAlpha16,
-    borderColor: colors.borderInfo
+    backgroundColor: themeColors.primaryAlpha16,
+    borderColor: themeColors.borderInfo
   },
   menuLabel: {
     flex: 1,
-    color: colors.textPrimary,
+    color: themeColors.textPrimary,
     fontSize: 14,
     fontWeight: "700"
   },
   menuLabelActive: {
-    color: colors.primary,
+    color: themeColors.primary,
     fontWeight: "900"
   },
   menuCheck: {
     marginLeft: spacing.sm,
-    color: colors.primary,
+    color: themeColors.primary,
     fontSize: 13,
     fontWeight: "900"
   }
 });
+
+let styles = createStyles(getColors("light"));

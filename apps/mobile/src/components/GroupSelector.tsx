@@ -1,9 +1,12 @@
+import { useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import type { Membership } from "@fulbito/domain";
-import { colors, spacing } from "@fulbito/design-tokens";
+import { getColors, spacing } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
 import { usePressScale } from "@/lib/usePressScale";
 import { useGroupSelection } from "@/state/GroupContext";
+import { useThemeColors } from "@/theme/useThemeColors";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -30,6 +33,8 @@ function GroupOptionChip({
 }
 
 export function GroupSelector() {
+  const themeColors = useThemeColors();
+  styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const { memberships, selectedGroupId, setSelectedGroupId } = useGroupSelection();
   if (memberships.length <= 1) {
     return null;
@@ -55,12 +60,12 @@ export function GroupSelector() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ColorTokens) => StyleSheet.create({
   container: {
     gap: spacing.xs
   },
   label: {
-    color: colors.textSecondary,
+    color: themeColors.textSecondary,
     fontSize: 12
   },
   options: {
@@ -69,21 +74,23 @@ const styles = StyleSheet.create({
   option: {
     borderRadius: 999,
     borderWidth: 1,
-    borderColor: colors.surfaceMuted,
-    backgroundColor: colors.surface,
+    borderColor: themeColors.surfaceMuted,
+    backgroundColor: themeColors.surface,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs
   },
   optionActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.dataLiveBg
+    borderColor: themeColors.primary,
+    backgroundColor: themeColors.dataLiveBg
   },
   optionLabel: {
-    color: colors.textSecondary,
+    color: themeColors.textSecondary,
     fontWeight: "600",
     fontSize: 13
   },
   optionLabelActive: {
-    color: colors.primary
+    color: themeColors.primary
   }
 });
+
+let styles = createStyles(getColors("light"));

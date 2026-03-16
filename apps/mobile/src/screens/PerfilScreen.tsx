@@ -1,22 +1,21 @@
-import { LayoutAnimation, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, UIManager, View } from "react-native";
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors } from "@fulbito/design-tokens";
+import { getColors } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
 import { translateBackendError } from "@fulbito/domain";
-import { authRepository, profileRepository } from "@/repositories";
+import { authRepository, notificationsRepository, profileRepository } from "@/repositories";
 import { useAuth } from "@/state/AuthContext";
 import { useAppDialog } from "@/state/AppDialogContext";
-import { useNotificationsOverlay } from "@/state/NotificationsOverlayContext";
+import { ThemePreference, useThemePreference } from "@/state/ThemePreferenceContext";
+import { useThemeColors } from "@/theme/useThemeColors";
 import Constants from "expo-constants";
-import { useCallback, useEffect, useState } from "react";
-import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
-
-if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import Animated, { runOnJS, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 
 const APP_VERSION = Constants.expoConfig?.version ?? "1.0.0";
+const SUGGESTIONS_EXTERNAL_URL = "https://forms.gle/JwHegvNmcsjbGkq18";
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const PRESS_IN_SPRING = {
   damping: 22,
@@ -28,6 +27,18 @@ const PRESS_OUT_SPRING = {
   stiffness: 340,
   mass: 0.45
 } as const;
+const EXPAND_OPEN_SPRING = {
+  damping: 22,
+  stiffness: 310,
+  mass: 0.52
+} as const;
+const EXPAND_CLOSE_TIMING_MS = 110;
+const THEME_INDICATOR_SPRING = {
+  damping: 20,
+  stiffness: 290,
+  mass: 0.5
+} as const;
+let activeColors: ColorTokens = getColors("light");
 
 type IoniconsName = keyof typeof Ionicons.glyphMap;
 
@@ -86,7 +97,7 @@ function SettingsRow({ icon, label, onPress, rightText, chevron = true, danger, 
         style={styles.row}
       >
         <View style={[styles.rowIconWrap, danger && styles.rowIconWrapDanger]}>
-          <Ionicons name={icon} size={18} color={danger ? colors.dangerAccent : colors.textSecondary} />
+          <Ionicons name={icon} size={18} color={danger ? activeColors.dangerAccent : activeColors.textSecondary} />
         </View>
         <Text allowFontScaling={false} style={[styles.rowLabel, danger && styles.rowLabelDanger]}>
           {label}
@@ -98,7 +109,7 @@ function SettingsRow({ icon, label, onPress, rightText, chevron = true, danger, 
           <Ionicons
             name={navigate ? "open-outline" : expanded ? "chevron-down" : "chevron-forward"}
             size={navigate ? 15 : 16}
-            color={colors.textSoft}
+            color={activeColors.textSoft}
           />
         ) : null}
       </Pressable>
@@ -180,7 +191,7 @@ function InlineEditField({
         value={draft}
         onChangeText={setDraft}
         placeholder={placeholder}
-        placeholderTextColor={colors.textSoft}
+        placeholderTextColor={activeColors.textSoft}
         secureTextEntry={secureTextEntry}
         editable={!submitting}
         keyboardType={keyboardType}
@@ -197,7 +208,7 @@ function InlineEditField({
             value={confirm}
             onChangeText={setConfirm}
             placeholder="Repetir contraseña"
-            placeholderTextColor={colors.textSoft}
+            placeholderTextColor={activeColors.textSoft}
             secureTextEntry
             editable={!submitting}
             autoCorrect={false}
@@ -276,7 +287,7 @@ function InlineDeleteField({ onConfirm, onClose }: { onConfirm: () => Promise<bo
         value={text}
         onChangeText={setText}
         placeholder="eliminar"
-        placeholderTextColor={colors.textSoft}
+        placeholderTextColor={activeColors.textSoft}
         editable={!submitting}
         autoFocus
         autoCorrect={false}
@@ -307,24 +318,210 @@ function InlineDeleteField({ onConfirm, onClose }: { onConfirm: () => Promise<bo
   );
 }
 
+function ThemeSelectorField({
+  value,
+  onChange
+}: {
+  value: ThemePreference;
+  onChange: (next: ThemePreference) => void;
+}) {
+  const { themePreference } = useThemePreference();
+  const isDark = themePreference === "dark";
+  const reducedMotion = useReducedMotion();
+  const [tabsWidth, setTabsWidth] = useState(0);
+  const indicatorX = useSharedValue(0);
+  const activeTabIndex = value === "light" ? 0 : 1;
+  const tabWidth = tabsWidth > 0 ? (tabsWidth - 8) / 2 : 0;
+  const indicatorStyle = useAnimatedStyle(() => ({
+    opacity: tabWidth > 0 ? 1 : 0,
+    transform: [{ translateX: indicatorX.value }]
+  }));
+
+  useEffect(() => {
+    if (tabWidth <= 0) return;
+    const target = activeTabIndex * (tabWidth + 2);
+    if (reducedMotion) {
+      indicatorX.value = target;
+      return;
+    }
+    indicatorX.value = withSpring(target, THEME_INDICATOR_SPRING);
+  }, [activeTabIndex, indicatorX, reducedMotion, tabWidth]);
+
+  const lightPress = usePressScale(0.97, false);
+  const darkPress = usePressScale(0.97, false);
+
+  return (
+    <View style={styles.inlinePanel}>
+      <Text allowFontScaling={false} style={styles.inlineFieldLabel}>
+        Elegí el tema para previsualizar
+      </Text>
+      <View style={styles.themeOptionsRow} onLayout={(event) => setTabsWidth(event.nativeEvent.layout.width)}>
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.themeOptionIndicator,
+            { width: tabWidth > 0 ? tabWidth : undefined },
+            indicatorStyle
+          ]}
+        />
+        <AnimatedPressable
+          accessibilityRole="button"
+          accessibilityState={{ selected: value === "light" }}
+          accessibilityLabel="Tema claro"
+          onPress={() => onChange("light")}
+          onPressIn={lightPress.onPressIn}
+          onPressOut={lightPress.onPressOut}
+          style={[
+            styles.themeOption,
+            lightPress.animatedStyle
+          ]}
+        >
+          <Text
+            allowFontScaling={false}
+            style={[
+              value === "light" ? styles.themeOptionTextActive : styles.themeOptionText,
+              value === "light" && isDark ? styles.themeOptionTextActiveDark : null
+            ]}
+          >
+            Claro
+          </Text>
+        </AnimatedPressable>
+
+        <AnimatedPressable
+          accessibilityRole="button"
+          accessibilityState={{ selected: value === "dark" }}
+          accessibilityLabel="Tema oscuro"
+          onPress={() => onChange("dark")}
+          onPressIn={darkPress.onPressIn}
+          onPressOut={darkPress.onPressOut}
+          style={[
+            styles.themeOption,
+            darkPress.animatedStyle
+          ]}
+        >
+          <Text
+            allowFontScaling={false}
+            style={[
+              value === "dark" ? styles.themeOptionTextActive : styles.themeOptionText,
+              value === "dark" && isDark ? styles.themeOptionTextActiveDark : null
+            ]}
+          >
+            Oscuro
+          </Text>
+        </AnimatedPressable>
+      </View>
+    </View>
+  );
+}
+
+function NotificationsToggleField({
+  value,
+  loading,
+  saving,
+  onChange
+}: {
+  value: boolean;
+  loading: boolean;
+  saving: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <View style={styles.inlinePanel}>
+      <Text allowFontScaling={false} style={styles.inlineFieldLabel}>
+        Activar notificaciones
+      </Text>
+      {loading ? (
+        <View style={styles.inlineLoadingRow}>
+          <ActivityIndicator size="small" color={activeColors.primary} />
+          <Text allowFontScaling={false} style={styles.inlineLoadingText}>Cargando preferencias...</Text>
+        </View>
+      ) : (
+        <View style={styles.notificationsToggleRow}>
+          <View style={styles.notificationsToggleCopy}>
+            <Text allowFontScaling={false} style={styles.notificationsToggleTitle}>
+              Notificaciones generales
+            </Text>
+            <Text allowFontScaling={false} style={styles.notificationsToggleSubtitle}>
+              {value ? "Recibirás avisos y novedades." : "No recibirás notificaciones."}
+            </Text>
+          </View>
+          <Switch
+            accessibilityLabel="Permitir notificaciones"
+            value={value}
+            onValueChange={onChange}
+            disabled={saving}
+            thumbColor={value ? activeColors.primaryStrong : undefined}
+            trackColor={{ false: activeColors.borderMuted, true: activeColors.primarySoftAlt }}
+          />
+        </View>
+      )}
+    </View>
+  );
+}
+
 // ─── PerfilScreen ─────────────────────────────────────────────────────────────
 
-type ExpandedSection = "nombre" | "email" | "password" | "delete" | null;
+type ExpandedSection = "nombre" | "email" | "password" | "delete" | "notifications" | "theme" | null;
 
-function toggleSection(current: ExpandedSection, target: ExpandedSection): ExpandedSection {
-  LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-  return current === target ? null : target;
+function AnimatedExpandable({ visible, children }: { visible: boolean; children: ReactNode }) {
+  const reducedMotion = useReducedMotion();
+  const [mounted, setMounted] = useState(visible);
+  const progress = useSharedValue(visible ? 1 : 0);
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [
+      { translateY: (1 - progress.value) * -8 },
+      { scale: 0.985 + progress.value * 0.015 }
+    ]
+  }));
+
+  useEffect(() => {
+    if (visible) {
+      setMounted(true);
+      if (reducedMotion) {
+        progress.value = 1;
+        return;
+      }
+      progress.value = 0;
+      progress.value = withSpring(1, EXPAND_OPEN_SPRING);
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+    if (reducedMotion) {
+      progress.value = 0;
+      setMounted(false);
+      return;
+    }
+    progress.value = withTiming(0, { duration: EXPAND_CLOSE_TIMING_MS }, (finished) => {
+      if (finished) {
+        runOnJS(setMounted)(false);
+      }
+    });
+  }, [mounted, progress, reducedMotion, visible]);
+
+  if (!mounted) {
+    return null;
+  }
+  return <Animated.View style={animatedStyle}>{children}</Animated.View>;
 }
 
 export function PerfilScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const notificationsOverlay = useNotificationsOverlay();
-  const { session, logout, refresh } = useAuth();
+  const themeColors = useThemeColors();
+  activeColors = themeColors;
+  styles = useMemo(() => createStyles(), [themeColors]);
+  const { themePreference, setThemePreference } = useThemePreference();
+  const { session, logout, updateSessionUser } = useAuth();
   const dialog = useAppDialog();
   const [expanded, setExpanded] = useState<ExpandedSection>(null);
   const [displayName, setDisplayName] = useState(session?.user?.name || "Jugador");
   const [displayEmail, setDisplayEmail] = useState(session?.user?.email || "");
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [notificationsLoading, setNotificationsLoading] = useState(true);
+  const [notificationsSaving, setNotificationsSaving] = useState(false);
   const logoutPress = usePressScale(0.975);
 
   useEffect(() => {
@@ -332,14 +529,62 @@ export function PerfilScreen() {
     setDisplayEmail(session?.user?.email || "");
   }, [session?.user?.name, session?.user?.email]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadNotificationPreferences = async () => {
+      setNotificationsLoading(true);
+      try {
+        const preferences = await notificationsRepository.getPreferences();
+        if (cancelled) return;
+        setNotificationsEnabled(preferences.reminders || preferences.results || preferences.social);
+      } catch (error) {
+        if (!cancelled) {
+          dialog.alert("Error", translateBackendError(error, "No se pudieron cargar las preferencias de notificaciones."));
+        }
+      } finally {
+        if (!cancelled) {
+          setNotificationsLoading(false);
+        }
+      }
+    };
+
+    void loadNotificationPreferences();
+    return () => {
+      cancelled = true;
+    };
+  }, [dialog]);
+
   function handleToggle(section: ExpandedSection) {
-    setExpanded(toggleSection(expanded, section));
+    setExpanded((current) => (current === section ? null : section));
   }
 
   function handleClose() {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setExpanded(null);
   }
+
+  const handleNotificationsChange = useCallback((nextEnabled: boolean) => {
+    if (notificationsSaving || notificationsLoading) {
+      return;
+    }
+    const previous = notificationsEnabled;
+    setNotificationsEnabled(nextEnabled);
+    setNotificationsSaving(true);
+
+    void notificationsRepository
+      .updatePreferences({
+        reminders: nextEnabled,
+        results: nextEnabled,
+        social: nextEnabled
+      })
+      .catch((error) => {
+        setNotificationsEnabled(previous);
+        dialog.alert("Error", translateBackendError(error, "No se pudieron guardar las preferencias de notificaciones."));
+      })
+      .finally(() => {
+        setNotificationsSaving(false);
+      });
+  }, [dialog, notificationsEnabled, notificationsLoading, notificationsSaving]);
 
   function handleLogout() {
     dialog.alert("Cerrar sesión", "¿Seguro que querés cerrar sesión?", [
@@ -348,12 +593,30 @@ export function PerfilScreen() {
     ]);
   }
 
+  function handleOpenSuggestions() {
+    dialog.alert(
+      "⚠️ Enlace externo",
+      "Vas a salir de la app para abrir un formulario externo. ¿Querés continuar?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Continuar",
+          onPress: () => {
+            void Linking.openURL(SUGGESTIONS_EXTERNAL_URL).catch((error) => {
+              dialog.alert("Error", translateBackendError(error, "No se pudo abrir el enlace externo."));
+            });
+          }
+        }
+      ]
+    );
+  }
+
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.avatarCircle}>
-          <Ionicons name="person" size={28} color={colors.primary} />
+          <Ionicons name="person" size={28} color={activeColors.primary} />
         </View>
         <View style={styles.headerTextWrap}>
           <Text allowFontScaling={false} style={styles.headerName}>
@@ -380,7 +643,7 @@ export function PerfilScreen() {
             onPress={() => handleToggle("nombre")}
             expanded={expanded === "nombre"}
           />
-          {expanded === "nombre" && (
+          <AnimatedExpandable visible={expanded === "nombre"}>
             <InlineEditField
               label="Nombre"
               value={displayName}
@@ -396,13 +659,14 @@ export function PerfilScreen() {
                   return true;
                 }
                 const updatedUser = await profileRepository.updateProfile({ name: nextName });
-                setDisplayName(updatedUser.name || nextName);
-                void refresh().catch(() => undefined);
+                const persistedName = updatedUser.name || nextName;
+                setDisplayName(persistedName);
+                updateSessionUser({ name: persistedName });
                 dialog.alert("Listo", "Nombre actualizado.");
                 return true;
               }}
             />
-          )}
+          </AnimatedExpandable>
 
           <View style={styles.separator} />
 
@@ -413,7 +677,7 @@ export function PerfilScreen() {
             onPress={() => handleToggle("email")}
             expanded={expanded === "email"}
           />
-          {expanded === "email" && (
+          <AnimatedExpandable visible={expanded === "email"}>
             <InlineEditField
               label="Email"
               value={displayEmail}
@@ -431,13 +695,14 @@ export function PerfilScreen() {
                   return true;
                 }
                 const updatedUser = await profileRepository.updateProfile({ email: nextEmail });
-                setDisplayEmail(updatedUser.email || nextEmail);
-                void refresh().catch(() => undefined);
+                const persistedEmail = updatedUser.email || nextEmail;
+                setDisplayEmail(persistedEmail);
+                updateSessionUser({ email: persistedEmail });
                 dialog.alert("Listo", "Email actualizado.");
                 return true;
               }}
             />
-          )}
+          </AnimatedExpandable>
 
           <View style={styles.separator} />
 
@@ -447,7 +712,7 @@ export function PerfilScreen() {
             onPress={() => handleToggle("password")}
             expanded={expanded === "password"}
           />
-          {expanded === "password" && (
+          <AnimatedExpandable visible={expanded === "password"}>
             <InlineEditField
               label="Nueva contraseña"
               value=""
@@ -465,7 +730,7 @@ export function PerfilScreen() {
                 return true;
               }}
             />
-          )}
+          </AnimatedExpandable>
 
           <View style={styles.separator} />
 
@@ -476,7 +741,7 @@ export function PerfilScreen() {
             danger
             expanded={expanded === "delete"}
           />
-          {expanded === "delete" && (
+          <AnimatedExpandable visible={expanded === "delete"}>
             <InlineDeleteField
               onClose={handleClose}
               onConfirm={async () => {
@@ -504,13 +769,38 @@ export function PerfilScreen() {
                 return true;
               }}
             />
-          )}
+          </AnimatedExpandable>
         </View>
 
         {/* Preferencias */}
         <SectionHeader title="Preferencias" />
         <View style={styles.card}>
-          <SettingsRow icon="notifications-outline" label="Notificaciones" onPress={notificationsOverlay.toggle} />
+          <SettingsRow
+            icon="notifications-outline"
+            label="Notificaciones"
+            rightText={expanded !== "notifications" ? (notificationsLoading ? "Cargando..." : notificationsEnabled ? "Activadas" : "Desactivadas") : undefined}
+            onPress={() => handleToggle("notifications")}
+            expanded={expanded === "notifications"}
+          />
+          <AnimatedExpandable visible={expanded === "notifications"}>
+            <NotificationsToggleField
+              value={notificationsEnabled}
+              loading={notificationsLoading}
+              saving={notificationsSaving}
+              onChange={handleNotificationsChange}
+            />
+          </AnimatedExpandable>
+          <View style={styles.separator} />
+          <SettingsRow
+            icon="contrast-outline"
+            label="Tema"
+            rightText={expanded !== "theme" ? (themePreference === "dark" ? "Oscuro" : "Claro") : undefined}
+            onPress={() => handleToggle("theme")}
+            expanded={expanded === "theme"}
+          />
+          <AnimatedExpandable visible={expanded === "theme"}>
+            <ThemeSelectorField value={themePreference} onChange={setThemePreference} />
+          </AnimatedExpandable>
         </View>
 
         {/* Sobre la app */}
@@ -518,7 +808,7 @@ export function PerfilScreen() {
         <View style={styles.card}>
           <SettingsRow icon="book-outline" label="Reglas" onPress={() => navigation.navigate("Reglas")} navigate />
           <View style={styles.separator} />
-          <SettingsRow icon="chatbubble-outline" label="Sugerencias" onPress={() => navigation.navigate("Sugerencias")} navigate />
+          <SettingsRow icon="chatbubble-outline" label="Sugerencias" onPress={handleOpenSuggestions} navigate />
           <View style={styles.separator} />
           <SettingsRow icon="document-text-outline" label="Términos y condiciones" onPress={() => navigation.navigate("TerminosCondiciones")} navigate />
           <View style={styles.separator} />
@@ -534,7 +824,7 @@ export function PerfilScreen() {
             onPressOut={logoutPress.onPressOut}
             style={styles.logoutButton}
           >
-            <Ionicons name="log-out-outline" size={18} color={colors.dangerAccent} />
+            <Ionicons name="log-out-outline" size={18} color={activeColors.dangerAccent} />
             <Text allowFontScaling={false} style={styles.logoutText}>Cerrar sesión</Text>
           </Pressable>
         </Animated.View>
@@ -547,10 +837,10 @@ export function PerfilScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.canvas
+    backgroundColor: activeColors.canvas
   },
   header: {
     flexDirection: "row",
@@ -559,13 +849,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 16,
-    backgroundColor: colors.canvas
+    backgroundColor: activeColors.canvas
   },
   avatarCircle: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: activeColors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -574,12 +864,12 @@ const styles = StyleSheet.create({
     gap: 2
   },
   headerName: {
-    color: colors.textTitle,
+    color: activeColors.textTitle,
     fontSize: 20,
     fontWeight: "900"
   },
   headerEmail: {
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontSize: 13,
     fontWeight: "600"
   },
@@ -587,7 +877,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16
   },
   sectionHeader: {
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontSize: 13,
     fontWeight: "800",
     textTransform: "uppercase",
@@ -598,7 +888,9 @@ const styles = StyleSheet.create({
   },
   card: {
     borderRadius: 16,
-    backgroundColor: colors.surface,
+    backgroundColor: activeColors.surface,
+    borderWidth: 1,
+    borderColor: activeColors.borderSubtle,
     overflow: "hidden"
   },
   row: {
@@ -612,24 +904,24 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 8,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: activeColors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center"
   },
   rowIconWrapDanger: {
-    backgroundColor: colors.surfaceTintDangerSoft
+    backgroundColor: activeColors.surfaceTintDangerSoft
   },
   rowLabel: {
     flex: 1,
-    color: colors.textPrimary,
+    color: activeColors.textPrimary,
     fontSize: 15,
     fontWeight: "700"
   },
   rowLabelDanger: {
-    color: colors.dangerAccent
+    color: activeColors.dangerAccent
   },
   rowValue: {
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontSize: 14,
     fontWeight: "600",
     flexShrink: 1,
@@ -637,28 +929,28 @@ const styles = StyleSheet.create({
   },
   separator: {
     height: 1,
-    backgroundColor: colors.borderLight,
+    backgroundColor: activeColors.borderLight,
     marginLeft: 56
   },
   logoutButton: {
     marginTop: 28,
     minHeight: 50,
     borderRadius: 16,
-    backgroundColor: colors.surfaceTintDangerSoft,
+    backgroundColor: activeColors.surfaceTintDangerSoft,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8
   },
   logoutText: {
-    color: colors.dangerAccent,
+    color: activeColors.dangerAccent,
     fontSize: 15,
     fontWeight: "800"
   },
   versionFooter: {
     marginTop: 16,
     textAlign: "center",
-    color: colors.textSoft,
+    color: activeColors.textSoft,
     fontSize: 12,
     fontWeight: "600"
   },
@@ -670,31 +962,31 @@ const styles = StyleSheet.create({
     paddingBottom: 14
   },
   inlineFieldLabel: {
-    color: colors.textSecondary,
+    color: activeColors.textSecondary,
     fontSize: 13,
     fontWeight: "700",
     marginBottom: 6
   },
   inlineFieldLabelBold: {
-    color: colors.dangerAccent,
+    color: activeColors.dangerAccent,
     fontWeight: "900"
   },
   inlineInput: {
     minHeight: 44,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
-    backgroundColor: colors.surfaceMuted,
+    borderColor: activeColors.borderMuted,
+    backgroundColor: activeColors.surfaceMuted,
     paddingHorizontal: 12,
-    color: colors.textPrimary,
+    color: activeColors.textPrimary,
     fontSize: 15,
     fontWeight: "600"
   },
   inlineInputDanger: {
-    borderColor: colors.borderDangerSoft
+    borderColor: activeColors.borderDangerSoft
   },
   inlineWarning: {
-    color: colors.textSecondary,
+    color: activeColors.textSecondary,
     fontSize: 13,
     fontWeight: "600",
     lineHeight: 18,
@@ -709,12 +1001,12 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 40,
     borderRadius: 10,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: activeColors.surfaceMuted,
     alignItems: "center",
     justifyContent: "center"
   },
   inlineCancelText: {
-    color: colors.textSecondary,
+    color: activeColors.textSecondary,
     fontSize: 14,
     fontWeight: "800"
   },
@@ -722,7 +1014,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 40,
     borderRadius: 10,
-    backgroundColor: colors.primaryStrong,
+    backgroundColor: activeColors.primaryStrong,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -730,7 +1022,7 @@ const styles = StyleSheet.create({
     opacity: 0.4
   },
   inlineSaveText: {
-    color: colors.textInverse,
+    color: activeColors.textInverse,
     fontSize: 14,
     fontWeight: "800"
   },
@@ -738,7 +1030,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 40,
     borderRadius: 10,
-    backgroundColor: colors.dangerAccent,
+    backgroundColor: activeColors.dangerAccent,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -746,5 +1038,91 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontWeight: "800"
+  },
+  inlineLoadingRow: {
+    minHeight: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: activeColors.borderMuted,
+    backgroundColor: activeColors.surfaceMuted,
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8
+  },
+  inlineLoadingText: {
+    color: activeColors.textMuted,
+    fontSize: 13,
+    fontWeight: "600"
+  },
+  notificationsToggleRow: {
+    marginTop: 8,
+    minHeight: 56,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: activeColors.borderSubtle,
+    backgroundColor: activeColors.surfaceSoft,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12
+  },
+  notificationsToggleCopy: {
+    flex: 1,
+    gap: 3
+  },
+  notificationsToggleTitle: {
+    color: activeColors.textPrimary,
+    fontSize: 14,
+    fontWeight: "800"
+  },
+  notificationsToggleSubtitle: {
+    color: activeColors.textMuted,
+    fontSize: 12,
+    fontWeight: "600"
+  },
+  themeOptionsRow: {
+    marginTop: 10,
+    position: "relative",
+    flexDirection: "row",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: activeColors.borderSubtle,
+    backgroundColor: activeColors.surfaceSoft,
+    padding: 3,
+    overflow: "hidden",
+    gap: 2
+  },
+  themeOptionIndicator: {
+    position: "absolute",
+    left: 3,
+    top: 3,
+    bottom: 3,
+    borderRadius: 8,
+    backgroundColor: activeColors.primaryStrong
+  },
+  themeOption: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 10
+  },
+  themeOptionText: {
+    color: activeColors.textMutedAlt,
+    fontSize: 14,
+    fontWeight: "800"
+  },
+  themeOptionTextActive: {
+    color: activeColors.textHigh,
+    fontSize: 14,
+    fontWeight: "800"
+  },
+  themeOptionTextActiveDark: {
+    color: activeColors.textInverse
   }
 });
+
+let styles = createStyles();

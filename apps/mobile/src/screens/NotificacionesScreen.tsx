@@ -1,33 +1,35 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { colors } from "@fulbito/design-tokens";
+import { getColors } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
 import Animated from "react-native-reanimated";
 import type { NotificationEventType, NotificationItem } from "@fulbito/domain";
 import { notificationsRepository } from "@/repositories";
 import { usePressScale } from "@/lib/usePressScale";
+import { useThemeColors } from "@/theme/useThemeColors";
 
+let activeColors: ColorTokens = getColors("light");
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 // ─── Icon per event type ──────────────────────────────────────────────────────
 
 type IoniconsName = keyof typeof Ionicons.glyphMap;
 
-const EVENT_META: Partial<Record<NotificationEventType, { icon: IoniconsName; color: string; bg: string }>> = {
-  prediction_lock: { icon: "lock-closed", color: "#F59E0B", bg: "#FEF3C7" },
-  results_published: { icon: "trophy", color: "#10B981", bg: "#D1FAE5" },
-  weekly_winner: { icon: "star", color: "#8B5CF6", bg: "#EDE9FE" },
-  social: { icon: "people", color: colors.primary, bg: colors.primarySoftAlt },
-  join_request: { icon: "person-add", color: "#F59E0B", bg: "#FEF3C7" },
-  join_request_approved: { icon: "checkmark-circle", color: "#10B981", bg: "#D1FAE5" },
-  join_request_rejected: { icon: "close-circle", color: "#EF4444", bg: "#FEE2E2" }
-};
-
 function getEventMeta(type: NotificationEventType) {
-  return EVENT_META[type] ?? { icon: "notifications" as IoniconsName, color: colors.textSecondary, bg: colors.surfaceMuted };
+  const eventMeta: Partial<Record<NotificationEventType, { icon: IoniconsName; color: string; bg: string }>> = {
+    prediction_lock: { icon: "lock-closed", color: activeColors.warningDeep, bg: activeColors.surfaceTintWarning },
+    results_published: { icon: "trophy", color: activeColors.successDeep, bg: activeColors.brandTintSoft },
+    weekly_winner: { icon: "star", color: activeColors.trophyDeep, bg: activeColors.surfaceTintWarm },
+    social: { icon: "people", color: activeColors.primaryDeep, bg: activeColors.primarySoftAlt },
+    join_request: { icon: "person-add", color: activeColors.warningDeep, bg: activeColors.surfaceTintWarning },
+    join_request_approved: { icon: "checkmark-circle", color: activeColors.successDeep, bg: activeColors.brandTintSoft },
+    join_request_rejected: { icon: "close-circle", color: activeColors.dangerAccent, bg: activeColors.surfaceTintDangerSoft }
+  };
+  return eventMeta[type] ?? { icon: "notifications" as IoniconsName, color: activeColors.textSecondary, bg: activeColors.surfaceMuted };
 }
 
 // ─── Date formatter ───────────────────────────────────────────────────────────
@@ -79,6 +81,9 @@ function NotificationRow({ item }: { item: NotificationItem }) {
 // ─── NotificacionesScreen ─────────────────────────────────────────────────────
 
 export function NotificacionesScreen() {
+  const themeColors = useThemeColors();
+  activeColors = themeColors;
+  styles = useMemo(() => createStyles(), [themeColors]);
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const queryClient = useQueryClient();
@@ -114,7 +119,7 @@ export function NotificacionesScreen() {
           hitSlop={8}
           style={[styles.backBtn, backPress.animatedStyle]}
         >
-          <Ionicons name="chevron-back" size={20} color={colors.iconStrong} />
+          <Ionicons name="chevron-back" size={20} color={activeColors.iconStrong} />
         </AnimatedPressable>
         <View style={styles.headerText}>
           <Text allowFontScaling={false} style={styles.headerTitle}>Notificaciones</Text>
@@ -140,19 +145,19 @@ export function NotificacionesScreen() {
       {/* Body */}
       {isLoading ? (
         <View style={styles.centered}>
-          <ActivityIndicator color={colors.primary} />
+          <ActivityIndicator color={activeColors.primary} />
         </View>
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]}
           refreshControl={
-            <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} tintColor={colors.primary} />
+            <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} tintColor={activeColors.primary} />
           }
         >
           {items.length === 0 ? (
             <View style={styles.centered}>
-              <Ionicons name="notifications-off-outline" size={44} color={colors.textSoft} />
+              <Ionicons name="notifications-off-outline" size={44} color={activeColors.textSoft} />
               <Text allowFontScaling={false} style={styles.emptyTitle}>Sin notificaciones</Text>
               <Text allowFontScaling={false} style={styles.emptyBody}>
                 Te avisaremos cuando haya novedades.
@@ -172,10 +177,10 @@ export function NotificacionesScreen() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: colors.canvas
+    backgroundColor: activeColors.canvas
   },
   header: {
     flexDirection: "row",
@@ -189,7 +194,7 @@ const styles = StyleSheet.create({
     width: 34,
     height: 34,
     borderRadius: 10,
-    backgroundColor: colors.surface,
+    backgroundColor: activeColors.surface,
     alignItems: "center",
     justifyContent: "center"
   },
@@ -202,13 +207,13 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: "900",
-    color: colors.textTitle
+    color: activeColors.textTitle
   },
   badge: {
     minWidth: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: colors.primary,
+    backgroundColor: activeColors.primary,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 5
@@ -216,18 +221,18 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 11,
     fontWeight: "900",
-    color: colors.textTitle
+    color: activeColors.textTitle
   },
   markReadBtn: {
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: colors.surface
+    backgroundColor: activeColors.surface
   },
   markReadText: {
     fontSize: 12,
     fontWeight: "800",
-    color: colors.textSecondary
+    color: activeColors.textSecondary
   },
   centered: {
     flex: 1,
@@ -239,12 +244,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 17,
     fontWeight: "900",
-    color: colors.textPrimary
+    color: activeColors.textPrimary
   },
   emptyBody: {
     fontSize: 14,
     fontWeight: "600",
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     textAlign: "center",
     paddingHorizontal: 32
   },
@@ -258,7 +263,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 14,
     gap: 12,
-    backgroundColor: colors.surface,
+    backgroundColor: activeColors.surface,
+    borderWidth: 1,
+    borderColor: activeColors.borderSubtle,
     borderRadius: 16
   },
   iconWrap: {
@@ -282,25 +289,25 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: "800",
-    color: colors.textPrimary
+    color: activeColors.textPrimary
   },
   rowDate: {
     fontSize: 11,
     fontWeight: "700",
-    color: colors.textSoft,
+    color: activeColors.textSoft,
     flexShrink: 0
   },
   rowBody: {
     fontSize: 13,
     fontWeight: "600",
-    color: colors.textSecondary,
+    color: activeColors.textSecondary,
     lineHeight: 18
   },
   unreadDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.primary,
+    backgroundColor: activeColors.primary,
     marginTop: 5,
     flexShrink: 0
   },
@@ -308,3 +315,6 @@ const styles = StyleSheet.create({
     height: 6
   }
 });
+
+
+let styles = createStyles();

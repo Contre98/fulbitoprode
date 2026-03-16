@@ -1,7 +1,10 @@
+import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated from "react-native-reanimated";
-import { colors, spacing } from "@fulbito/design-tokens";
+import { getColors, spacing } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
 import { usePressScale } from "@/lib/usePressScale";
+import { useThemeColors } from "@/theme/useThemeColors";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
@@ -14,6 +17,8 @@ export function ErrorState({
   retryLabel?: string;
   onRetry?: () => void;
 }) {
+  const themeColors = useThemeColors();
+  styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const retryPress = usePressScale(0.97, !onRetry);
 
   return (
@@ -33,14 +38,14 @@ export function ErrorState({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ColorTokens) => StyleSheet.create({
   container: {
     paddingVertical: spacing.lg,
     gap: spacing.sm,
     alignItems: "center"
   },
   message: {
-    color: colors.dangerSoft,
+    color: themeColors.dangerSoft,
     fontSize: 12,
     textAlign: "center"
   },
@@ -50,11 +55,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surface
+    backgroundColor: themeColors.surface
   },
   retryLabel: {
-    color: colors.textPrimary,
+    color: themeColors.textPrimary,
     fontSize: 14,
     fontWeight: "700"
   }
 });
+
+let styles = createStyles(getColors("light"));

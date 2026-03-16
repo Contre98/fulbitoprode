@@ -3,29 +3,37 @@ import { ActivityIndicator, Animated as NativeAnimated, PanResponder, Pressable,
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { colors } from "@fulbito/design-tokens";
-import Animated from "react-native-reanimated";
+import { getColors } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
+import Animated, { runOnJS, useAnimatedStyle, useReducedMotion, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
 import type { NotificationEventType, NotificationItem } from "@fulbito/domain";
 import { notificationsRepository } from "@/repositories";
 import { usePressScale } from "@/lib/usePressScale";
 import { useNotificationsOverlay } from "@/state/NotificationsOverlayContext";
+import { useThemeColors } from "@/theme/useThemeColors";
 
+let activeColors: ColorTokens = getColors("light");
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+const OVERLAY_OPEN_SPRING = {
+  damping: 22,
+  stiffness: 300,
+  mass: 0.52
+} as const;
+const OVERLAY_CLOSE_TIMING_MS = 120;
 
 type IoniconsName = keyof typeof Ionicons.glyphMap;
 
-const EVENT_META: Partial<Record<NotificationEventType, { icon: IoniconsName; color: string; bg: string }>> = {
-  prediction_lock: { icon: "lock-closed", color: "#F59E0B", bg: "#FEF3C7" },
-  results_published: { icon: "trophy", color: "#10B981", bg: "#D1FAE5" },
-  weekly_winner: { icon: "star", color: "#8B5CF6", bg: "#EDE9FE" },
-  social: { icon: "people", color: colors.primaryDeep, bg: colors.primarySoftAlt },
-  join_request: { icon: "person-add", color: "#F59E0B", bg: "#FEF3C7" },
-  join_request_approved: { icon: "checkmark-circle", color: "#10B981", bg: "#D1FAE5" },
-  join_request_rejected: { icon: "close-circle", color: "#EF4444", bg: "#FEE2E2" }
-};
-
 function getEventMeta(type: NotificationEventType) {
-  return EVENT_META[type] ?? { icon: "notifications", color: colors.textSecondary, bg: colors.surfaceMuted };
+  const eventMeta: Partial<Record<NotificationEventType, { icon: IoniconsName; color: string; bg: string }>> = {
+    prediction_lock: { icon: "lock-closed", color: activeColors.warningDeep, bg: activeColors.surfaceTintWarning },
+    results_published: { icon: "trophy", color: activeColors.successDeep, bg: activeColors.brandTintSoft },
+    weekly_winner: { icon: "star", color: activeColors.trophyDeep, bg: activeColors.surfaceTintWarm },
+    social: { icon: "people", color: activeColors.primaryDeep, bg: activeColors.primarySoftAlt },
+    join_request: { icon: "person-add", color: activeColors.warningDeep, bg: activeColors.surfaceTintWarning },
+    join_request_approved: { icon: "checkmark-circle", color: activeColors.successDeep, bg: activeColors.brandTintSoft },
+    join_request_rejected: { icon: "close-circle", color: activeColors.dangerAccent, bg: activeColors.surfaceTintDangerSoft }
+  };
+  return eventMeta[type] ?? { icon: "notifications", color: activeColors.textSecondary, bg: activeColors.surfaceMuted };
 }
 
 function formatDate(iso: string) {
@@ -128,11 +136,17 @@ function NotificationBubble({ item, onDismiss }: { item: NotificationItem; onDis
 }
 
 export function NotificationsBubbleOverlay() {
+  const themeColors = useThemeColors();
+  activeColors = themeColors;
+  styles = useMemo(() => createStyles(), [themeColors]);
   const insets = useSafeAreaInsets();
   const { visible, hide } = useNotificationsOverlay();
+  const reducedMotion = useReducedMotion();
   const queryClient = useQueryClient();
   const { height } = useWindowDimensions();
+  const [overlayMounted, setOverlayMounted] = useState(false);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  const overlayProgress = useSharedValue(0);
 
   const { data, isLoading, refetch, isRefetching } = useQuery({
     queryKey: ["notifications-inbox"],
@@ -145,6 +159,42 @@ export function NotificationsBubbleOverlay() {
   const maxListHeight = useMemo(() => Math.max(220, height - insets.top - insets.bottom - 130), [height, insets.bottom, insets.top]);
   const markReadPress = usePressScale(0.97, unreadCount === 0);
   const closePress = usePressScale(0.93);
+  const backdropAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: overlayProgress.value
+  }));
+  const layerAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: overlayProgress.value,
+    transform: [
+      { translateY: (1 - overlayProgress.value) * -10 },
+      { scale: 0.985 + overlayProgress.value * 0.015 }
+    ]
+  }));
+
+  useEffect(() => {
+    if (visible) {
+      setOverlayMounted(true);
+      if (reducedMotion) {
+        overlayProgress.value = 1;
+        return;
+      }
+      overlayProgress.value = 0;
+      overlayProgress.value = withSpring(1, OVERLAY_OPEN_SPRING);
+      return;
+    }
+    if (!overlayMounted) {
+      return;
+    }
+    if (reducedMotion) {
+      overlayProgress.value = 0;
+      setOverlayMounted(false);
+      return;
+    }
+    overlayProgress.value = withTiming(0, { duration: OVERLAY_CLOSE_TIMING_MS }, (finished) => {
+      if (finished) {
+        runOnJS(setOverlayMounted)(false);
+      }
+    });
+  }, [overlayMounted, overlayProgress, reducedMotion, visible]);
 
   useEffect(() => {
     if (dismissedIds.size === 0) return;
@@ -190,14 +240,15 @@ export function NotificationsBubbleOverlay() {
     await refetch();
   }, [refetch]);
 
-  if (!visible) {
+  if (!overlayMounted) {
     return null;
   }
 
   return (
-    <View pointerEvents="box-none" style={styles.overlayRoot}>
-      <Pressable style={styles.overlayBackdrop} onPress={hide} />
-      <View pointerEvents="box-none" style={[styles.overlayLayer, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 12 }]}>
+    <View pointerEvents={visible ? "box-none" : "none"} style={styles.overlayRoot}>
+      <Animated.View pointerEvents="none" style={[styles.overlayBackdrop, backdropAnimatedStyle]} />
+      <Pressable style={StyleSheet.absoluteFillObject} onPress={hide} />
+      <Animated.View pointerEvents="box-none" style={[styles.overlayLayer, { paddingTop: insets.top + 10, paddingBottom: insets.bottom + 12 }, layerAnimatedStyle]}>
         <View style={styles.floatingTopBar}>
           <View style={styles.headerRow}>
             <View style={styles.headerTitleWrap}>
@@ -229,7 +280,7 @@ export function NotificationsBubbleOverlay() {
                 onPressOut={closePress.onPressOut}
                 style={[styles.closeBtn, closePress.animatedStyle]}
               >
-                <Ionicons name="close" size={17} color={colors.textSecondary} />
+                <Ionicons name="close" size={17} color={activeColors.textSecondary} />
               </AnimatedPressable>
             </View>
           </View>
@@ -237,7 +288,7 @@ export function NotificationsBubbleOverlay() {
 
         {isLoading ? (
           <View style={styles.centered}>
-            <ActivityIndicator size="small" color="#D9F99D" />
+            <ActivityIndicator size="small" color={activeColors.primaryDeep} />
           </View>
         ) : (
           <ScrollView
@@ -248,13 +299,13 @@ export function NotificationsBubbleOverlay() {
               <RefreshControl
                 refreshing={isRefetching}
                 onRefresh={handleRefresh}
-                tintColor="#D9F99D"
+                tintColor={activeColors.primaryDeep}
               />
             }
           >
             {visibleItems.length === 0 ? (
               <View style={styles.emptyWrap}>
-                <Ionicons name="notifications-off-outline" size={28} color={colors.textSoft} />
+                <Ionicons name="notifications-off-outline" size={28} color={activeColors.textSoft} />
                 <Text allowFontScaling={false} style={styles.emptyTitle}>Sin novedades</Text>
                 <Text allowFontScaling={false} style={styles.emptyBody}>Deslizá izquierda o derecha para descartar.</Text>
               </View>
@@ -265,19 +316,19 @@ export function NotificationsBubbleOverlay() {
             )}
           </ScrollView>
         )}
-      </View>
+      </Animated.View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   overlayRoot: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 80
   },
   overlayBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(6, 10, 18, 0.72)"
+    backgroundColor: activeColors.overlay
   },
   overlayLayer: {
     flex: 1,
@@ -287,9 +338,9 @@ const styles = StyleSheet.create({
   floatingTopBar: {
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
-    backgroundColor: "#FFFFFF",
-    shadowColor: "#000000",
+    borderColor: activeColors.borderMuted,
+    backgroundColor: activeColors.surface,
+    shadowColor: activeColors.primaryText,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
     shadowRadius: 14,
@@ -311,7 +362,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: "900",
-    color: colors.textTitle
+    color: activeColors.textTitle
   },
   badge: {
     minWidth: 20,
@@ -320,10 +371,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.primaryDeep
+    backgroundColor: activeColors.primaryDeep
   },
   badgeText: {
-    color: colors.textInverse,
+    color: activeColors.textInverse,
     fontSize: 11,
     fontWeight: "900",
     lineHeight: 13
@@ -337,12 +388,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 10,
-    backgroundColor: "rgba(182, 217, 0, 0.22)"
+    backgroundColor: activeColors.primaryAlpha16
   },
   markReadText: {
     fontSize: 11,
     fontWeight: "800",
-    color: colors.textPrimary
+    color: activeColors.textPrimary
   },
   closeBtn: {
     width: 26,
@@ -350,7 +401,7 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(255,255,255,0.16)"
+    backgroundColor: activeColors.surfaceMuted
   },
   list: {
     flexGrow: 0
@@ -360,24 +411,24 @@ const styles = StyleSheet.create({
     paddingBottom: 22
   },
   centered: {
-    backgroundColor: "rgba(17, 24, 39, 0.9)",
+    backgroundColor: activeColors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.2)",
+    borderColor: activeColors.borderSubtle,
     paddingVertical: 20,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#000000",
+    shadowColor: activeColors.primaryText,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
     shadowRadius: 14,
     elevation: 6
   },
   emptyWrap: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: activeColors.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.borderMutedSoft,
+    borderColor: activeColors.borderMutedSoft,
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
@@ -385,12 +436,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14
   },
   emptyTitle: {
-    color: colors.textTitle,
+    color: activeColors.textTitle,
     fontSize: 15,
     fontWeight: "800"
   },
   emptyBody: {
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontSize: 12,
     fontWeight: "600",
     textAlign: "center"
@@ -398,22 +449,22 @@ const styles = StyleSheet.create({
   bubble: {
     borderRadius: 18,
     borderWidth: 1.2,
-    borderColor: "#D8DEE7",
-    backgroundColor: "#FFFFFF",
+    borderColor: activeColors.borderMutedSoft,
+    backgroundColor: activeColors.surface,
     paddingHorizontal: 12,
     paddingVertical: 10,
     flexDirection: "row",
     alignItems: "flex-start",
     gap: 10,
-    shadowColor: "#000000",
+    shadowColor: activeColors.primaryText,
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.18,
     shadowRadius: 14,
     elevation: 8
   },
   bubbleUnread: {
-    borderColor: colors.primaryDeep,
-    backgroundColor: "#FCFFE8"
+    borderColor: activeColors.primaryDeep,
+    backgroundColor: activeColors.primaryHighlight
   },
   bubbleIcon: {
     width: 28,
@@ -433,26 +484,29 @@ const styles = StyleSheet.create({
   },
   bubbleTitle: {
     flex: 1,
-    color: colors.textPrimary,
+    color: activeColors.textPrimary,
     fontSize: 13,
     fontWeight: "800"
   },
   bubbleDate: {
     fontSize: 11,
     fontWeight: "700",
-    color: colors.textSoft
+    color: activeColors.textSoft
   },
   bubbleText: {
     fontSize: 12,
     lineHeight: 17,
     fontWeight: "600",
-    color: colors.textBody
+    color: activeColors.textBody
   },
   unreadDot: {
     marginTop: 4,
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.primaryDeep
+    backgroundColor: activeColors.primaryDeep
   }
 });
+
+
+let styles = createStyles();

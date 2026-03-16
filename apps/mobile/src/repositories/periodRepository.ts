@@ -1,5 +1,6 @@
 import { getOptionalApiBaseUrl } from "@/lib/apiBaseUrl";
-import { clearAuthTokens, getAccessToken, getRefreshToken, setAuthTokens } from "@/repositories/httpAuthTokens";
+import { getAccessToken } from "@/repositories/httpAuthTokens";
+import { tryRefreshHttpAuthTokens } from "@/repositories/httpTokenRefresh";
 
 export interface PeriodOption {
   id: string;
@@ -18,42 +19,7 @@ export const DEFAULT_PERIOD_OPTIONS: PeriodOption[] = [
 ];
 
 async function tryRefresh(baseUrl: string) {
-  const refreshToken = await getRefreshToken();
-  if (!refreshToken) {
-    return false;
-  }
-
-  const response = await fetch(`${baseUrl}/api/auth/refresh`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json"
-    },
-    body: JSON.stringify({ refreshToken })
-  });
-
-  if (!response.ok) {
-    await clearAuthTokens();
-    return false;
-  }
-
-  const payload = (await response.json()) as unknown;
-  if (
-    typeof payload === "object" &&
-    payload !== null &&
-    typeof (payload as { accessToken?: unknown }).accessToken === "string"
-  ) {
-    await setAuthTokens({
-      accessToken: (payload as { accessToken: string }).accessToken,
-      refreshToken:
-        typeof (payload as { refreshToken?: unknown }).refreshToken === "string"
-          ? ((payload as { refreshToken: string }).refreshToken ?? refreshToken)
-          : refreshToken
-    });
-    return true;
-  }
-
-  await clearAuthTokens();
-  return false;
+  return tryRefreshHttpAuthTokens(baseUrl);
 }
 
 async function fetchFechas(input: { leagueId: number; season: string; competitionStage?: "apertura" | "clausura" | "general" }) {

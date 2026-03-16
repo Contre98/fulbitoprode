@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Animated as NativeAnimated, Pressable, StyleSheet, Text, View } from "react-native";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Fixture, Prediction, PredictionHistoryEntry } from "@fulbito/domain";
-import { colors, spacing } from "@fulbito/design-tokens";
+import { getColors, spacing } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
 import { calculatePredictionPoints, isPredictionInputComplete, normalizePredictionInput } from "@fulbito/domain";
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
 import { ScreenFrame } from "@/components/ScreenFrame";
@@ -21,11 +22,14 @@ import { buildTeamFormLookup, teamPredominantColor } from "@/lib/matchVisuals";
 import { fixtureRepository, predictionsRepository } from "@/repositories";
 import { useGroupSelection } from "@/state/GroupContext";
 import { usePeriod } from "@/state/PeriodContext";
+import { useThemePreference } from "@/state/ThemePreferenceContext";
+import { useThemeColors } from "@/theme/useThemeColors";
 
 type DraftByFixture = Record<string, { home: string; away: string }>;
 type PronosticosMode = "upcoming" | "history";
 type FixtureSaveStatus = "idle" | "saving" | "error";
 const LPF_APERTURA_2026_LABEL = "LPF: Apertura (2026)";
+let activeColors: ColorTokens = getColors("light");
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const MODE_TAB_PRESS_IN_SPRING = {
   damping: 22,
@@ -111,6 +115,8 @@ function ModeFilterTab({
   active: boolean;
   onPress: () => void;
 }) {
+  const { themePreference } = useThemePreference();
+  const isDark = themePreference === "dark";
   const reducedMotion = useReducedMotion();
   const pressScale = useSharedValue(1);
   const pressAnimatedStyle = useAnimatedStyle(() => ({
@@ -142,7 +148,15 @@ function ModeFilterTab({
       onPressOut={handlePressOut}
       style={[styles.filterTab, pressAnimatedStyle]}
     >
-      <Text allowFontScaling={false} style={active ? styles.filterTabLabelActive : styles.filterTabLabel}>{label}</Text>
+      <Text
+        allowFontScaling={false}
+        style={[
+          active ? styles.filterTabLabelActive : styles.filterTabLabel,
+          active && isDark ? styles.filterTabLabelActiveDark : null
+        ]}
+      >
+        {label}
+      </Text>
     </AnimatedPressable>
   );
 }
@@ -203,6 +217,9 @@ function EditableScorePill({
 }
 
 export function PronosticosScreen() {
+  const themeColors = useThemeColors();
+  activeColors = themeColors;
+  styles = useMemo(() => createStyles(), [themeColors]);
   const queryClient = useQueryClient();
   const reducedMotion = useReducedMotion();
   const { memberships, selectedGroupId } = useGroupSelection();
@@ -878,12 +895,12 @@ export function PronosticosScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   screenContainer: {
     paddingHorizontal: 12,
     paddingTop: 0,
     paddingBottom: 0,
-    backgroundColor: colors.canvas
+    backgroundColor: activeColors.canvas
   },
   screenContent: {
     gap: 12
@@ -894,66 +911,66 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.primaryStrong
+    backgroundColor: activeColors.primaryStrong
   },
   sectionIconText: {
     fontSize: 14,
     fontWeight: "800",
-    color: colors.textStrong
+    color: activeColors.textStrong
   },
   sectionTitle: {
-    color: colors.textTitle,
+    color: activeColors.textTitle,
     fontSize: 24,
     fontWeight: "800"
   },
   sectionSubtitle: {
     marginLeft: "auto",
-    color: colors.textMutedAlt,
+    color: activeColors.textMutedAlt,
     fontSize: 12,
     fontWeight: "700"
   },
   block: {
-    backgroundColor: colors.surfaceSoft,
+    backgroundColor: activeColors.surfaceSoft,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    borderColor: activeColors.borderSubtle,
     padding: 10
   },
   blockLabel: {
     fontSize: 11,
     fontWeight: "800",
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     letterSpacing: 0.8
   },
   selectionButton: {
     marginTop: 8,
     minHeight: 44,
     borderRadius: 10,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: activeColors.surfaceMuted,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: activeColors.borderMuted,
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center"
   },
   selectionText: {
     flex: 1,
-    color: colors.textTitle,
+    color: activeColors.textTitle,
     fontWeight: "800",
     fontSize: 14
   },
   selectionChevron: {
-    color: colors.textSoft,
+    color: activeColors.textSoft,
     fontSize: 14
   },
   cardWrap: {
     gap: 6
   },
   card: {
-    backgroundColor: colors.surfaceSoft,
+    backgroundColor: activeColors.surfaceSoft,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    borderColor: activeColors.borderSubtle,
     paddingHorizontal: 14,
     paddingVertical: 12,
     gap: 8,
@@ -988,7 +1005,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end"
   },
   teamCode: {
-    color: colors.textHigh,
+    color: activeColors.textHigh,
     fontSize: 18,
     fontWeight: "900",
     letterSpacing: -0.3
@@ -1002,47 +1019,47 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: colors.borderMutedAlt,
-    backgroundColor: colors.surfaceTintNeutral
+    borderColor: activeColors.borderMutedAlt,
+    backgroundColor: activeColors.surfaceTintNeutral
   },
   inputsPillActive: {
-    borderColor: colors.primaryStrong,
-    backgroundColor: colors.primarySoftAlt
+    borderColor: activeColors.primaryStrong,
+    backgroundColor: activeColors.primarySoftAlt
   },
   resultPill: {
     minWidth: 132,
     borderRadius: 10,
-    backgroundColor: colors.brandTintAlt,
+    backgroundColor: activeColors.brandTintAlt,
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 6,
     paddingHorizontal: 8
   },
   resultText: {
-    color: colors.textHigh,
+    color: activeColors.textHigh,
     fontWeight: "900",
     fontSize: 18
   },
   resultSub: {
     marginTop: 1,
-    color: colors.textGray,
+    color: activeColors.textGray,
     fontSize: 12,
     fontWeight: "800"
   },
   resultSubLive: {
-    color: colors.dangerAccent
+    color: activeColors.dangerAccent
   },
   scoreInput: {
     width: 34,
     height: 28,
-    color: colors.textBodyStrong,
+    color: activeColors.textBodyStrong,
     textAlign: "center",
     fontSize: 18,
     fontWeight: "900",
     paddingVertical: 0
   },
   separator: {
-    color: colors.textSoftAlt2,
+    color: activeColors.textSoftAlt2,
     fontSize: 18,
     fontWeight: "800",
     marginHorizontal: 2
@@ -1051,16 +1068,16 @@ const styles = StyleSheet.create({
     alignItems: "center"
   },
   kickoffBadge: {
-    color: colors.textSoftAlt,
+    color: activeColors.textSoftAlt,
     fontSize: 12,
     fontWeight: "800"
   },
   lockedChip: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderWarningSoft,
-    backgroundColor: colors.surfaceTintWarning,
-    color: colors.warningMuted,
+    borderColor: activeColors.borderWarningSoft,
+    backgroundColor: activeColors.surfaceTintWarning,
+    color: activeColors.warningMuted,
     paddingHorizontal: 10,
     paddingVertical: 7,
     fontSize: 11,
@@ -1069,23 +1086,23 @@ const styles = StyleSheet.create({
   historySummary: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderMutedSoft,
-    backgroundColor: colors.surfaceTintCard,
+    borderColor: activeColors.borderMutedSoft,
+    backgroundColor: activeColors.surfaceTintCard,
     paddingHorizontal: 10,
     paddingVertical: 7,
     gap: 3
   },
   historySummaryText: {
-    color: colors.textSteel,
+    color: activeColors.textSteel,
     fontSize: 12,
     fontWeight: "700"
   },
   infoChip: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderMutedSoft,
-    backgroundColor: colors.surfaceTintCard,
-    color: colors.textMutedAlt,
+    borderColor: activeColors.borderMutedSoft,
+    backgroundColor: activeColors.surfaceTintCard,
+    color: activeColors.textMutedAlt,
     paddingHorizontal: 10,
     paddingVertical: 7,
     fontSize: 12
@@ -1093,9 +1110,9 @@ const styles = StyleSheet.create({
   errorChip: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderDangerSoft,
-    backgroundColor: colors.surfaceTintDanger,
-    color: colors.dangerMuted,
+    borderColor: activeColors.borderDangerSoft,
+    backgroundColor: activeColors.surfaceTintDanger,
+    color: activeColors.dangerMuted,
     paddingHorizontal: 10,
     paddingVertical: 7,
     fontSize: 12
@@ -1105,8 +1122,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surfaceSoft,
+    borderColor: activeColors.borderSubtle,
+    backgroundColor: activeColors.surfaceSoft,
     padding: 3,
     overflow: "hidden",
     gap: 2
@@ -1117,7 +1134,7 @@ const styles = StyleSheet.create({
     top: 3,
     bottom: 3,
     borderRadius: 8,
-    backgroundColor: colors.primaryStrong
+    backgroundColor: activeColors.primaryStrong
   },
   filterTab: {
     flex: 1,
@@ -1127,14 +1144,17 @@ const styles = StyleSheet.create({
     justifyContent: "center"
   },
   filterTabLabel: {
-    color: colors.textMutedAlt,
+    color: activeColors.textMutedAlt,
     fontSize: 14,
     fontWeight: "800"
   },
   filterTabLabelActive: {
-    color: colors.textHigh,
+    color: activeColors.textHigh,
     fontSize: 14,
     fontWeight: "800"
+  },
+  filterTabLabelActiveDark: {
+    color: activeColors.textInverse
   },
   progressCard: {
     width: "100%",
@@ -1142,14 +1162,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surfaceSoft,
+    borderColor: activeColors.borderSubtle,
+    backgroundColor: activeColors.surfaceSoft,
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 6
   },
   progressLabel: {
-    color: colors.textMutedAlt,
+    color: activeColors.textMutedAlt,
     fontSize: 12,
     fontWeight: "700"
   },
@@ -1157,13 +1177,13 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 9,
     borderRadius: 999,
-    backgroundColor: colors.brandTintAlt2,
+    backgroundColor: activeColors.brandTintAlt2,
     overflow: "hidden"
   },
   progressFill: {
     height: "100%",
     borderRadius: 999,
-    backgroundColor: colors.primaryStrong
+    backgroundColor: activeColors.primaryStrong
   },
   livePredictionRow: {
     flexDirection: "row",
@@ -1172,17 +1192,20 @@ const styles = StyleSheet.create({
     gap: 6
   },
   livePredictionLabel: {
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontSize: 12,
     fontWeight: "700"
   },
   livePredictionValue: {
-    color: colors.textHigh,
+    color: activeColors.textHigh,
     fontSize: 12,
     fontWeight: "900"
   },
   statusText: {
-    color: colors.textMutedAlt,
+    color: activeColors.textMutedAlt,
     fontSize: 12
   }
 });
+
+
+let styles = createStyles();

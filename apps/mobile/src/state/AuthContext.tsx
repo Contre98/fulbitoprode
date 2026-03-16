@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import type { ReactNode } from "react";
 import { Platform } from "react-native";
 import type { AuthSession } from "@fulbito/api-contracts";
+import type { User } from "@fulbito/domain";
 import { canUseHttpSession } from "@/repositories/authBridgeState";
 import type { FallbackFailure } from "@/repositories/fallbackDiagnostics";
 import {
@@ -25,6 +26,7 @@ interface AuthContextValue {
   loginWithGoogle: (idToken: string) => Promise<void>;
   register: (input: { email: string; password: string; name: string }) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<{ ok: true; message: string }>;
+  updateSessionUser: (patch: Partial<User>) => void;
   logout: () => Promise<void>;
   retryHttpMode: () => Promise<void>;
   clearFallbackDiagnosticsHistory: () => void;
@@ -108,6 +110,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return authRepository.requestPasswordReset(email);
   }, []);
 
+  const updateSessionUser = useCallback((patch: Partial<User>) => {
+    setSession((current) => {
+      if (!current?.user) {
+        return current;
+      }
+
+      return {
+        ...current,
+        user: {
+          ...current.user,
+          ...patch
+        }
+      };
+    });
+  }, []);
+
   const logout = useCallback(async () => {
     await authRepository.logout();
     setSession(null);
@@ -135,6 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loginWithGoogle,
       register,
       requestPasswordReset,
+      updateSessionUser,
       logout,
       retryHttpMode,
       clearFallbackDiagnosticsHistory
@@ -150,6 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loginWithGoogle,
       register,
       requestPasswordReset,
+      updateSessionUser,
       logout,
       retryHttpMode,
       clearFallbackDiagnosticsHistory

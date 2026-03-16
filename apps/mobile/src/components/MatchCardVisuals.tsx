@@ -1,8 +1,11 @@
-import { useId } from "react";
+import { useId, useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
-import { colors } from "@fulbito/design-tokens";
+import { getColors } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
 import type { MatchFormState } from "@/lib/matchVisuals";
+import { useThemeColors } from "@/theme/useThemeColors";
+let activeColors: ColorTokens = getColors("light");
 
 type MatchSideGradientProps = {
   homeColor: string;
@@ -23,6 +26,9 @@ type FormDotsProps = {
 };
 
 export function MatchSideGradient({ homeColor, awayColor, intensity = 0.2 }: MatchSideGradientProps) {
+  const themeColors = useThemeColors();
+  activeColors = themeColors;
+  styles = useMemo(() => createStyles(), [themeColors]);
   const gradientId = useId().replace(/:/g, "");
   const leftId = `${gradientId}-left`;
   const rightId = `${gradientId}-right`;
@@ -49,11 +55,14 @@ export function MatchSideGradient({ homeColor, awayColor, intensity = 0.2 }: Mat
 }
 
 export function CardSideAccentGradient({
-  color = colors.primaryStrong,
+  color = activeColors.primaryStrong,
   intensity = 0.08,
   side = "left",
   widthPct = 34
 }: CardSideAccentGradientProps) {
+  const themeColors = useThemeColors();
+  activeColors = themeColors;
+  styles = useMemo(() => createStyles(), [themeColors]);
   const gradientId = useId().replace(/:/g, "");
   const sideId = `${gradientId}-${side}`;
   const alpha = Math.min(Math.max(intensity, 0), 0.18);
@@ -66,28 +75,27 @@ export function CardSideAccentGradient({
           {side === "left" ? (
             <LinearGradient id={sideId} x1="0%" y1="0%" x2="100%" y2="35%">
               <Stop offset="0%" stopColor={color} stopOpacity={alpha} />
+              <Stop offset={`${clampedWidth}%`} stopColor={color} stopOpacity={0} />
               <Stop offset="100%" stopColor={color} stopOpacity={0} />
             </LinearGradient>
           ) : (
             <LinearGradient id={sideId} x1="100%" y1="0%" x2="0%" y2="35%">
               <Stop offset="0%" stopColor={color} stopOpacity={alpha} />
+              <Stop offset={`${clampedWidth}%`} stopColor={color} stopOpacity={0} />
               <Stop offset="100%" stopColor={color} stopOpacity={0} />
             </LinearGradient>
           )}
         </Defs>
-        <Rect
-          x={side === "left" ? "0" : `${100 - clampedWidth}`}
-          y="0"
-          width={`${clampedWidth}`}
-          height="100"
-          fill={`url(#${sideId})`}
-        />
+        <Rect x="0" y="0" width="100" height="100" fill={`url(#${sideId})`} />
       </Svg>
     </View>
   );
 }
 
 export function FormDots({ form, align = "left" }: FormDotsProps) {
+  const themeColors = useThemeColors();
+  activeColors = themeColors;
+  styles = useMemo(() => createStyles(), [themeColors]);
   return (
     <View style={[styles.formRow, align === "right" ? styles.formRowRight : null]}>
       {form.slice(0, 5).map((state, index) => (
@@ -110,7 +118,7 @@ function dotStyleForState(state: MatchFormState) {
   return styles.dotNone;
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   formRow: {
     flexDirection: "row",
     gap: 4,
@@ -128,12 +136,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#22C55E"
   },
   dotLoss: {
-    backgroundColor: colors.dangerAccent
+    backgroundColor: activeColors.dangerAccent
   },
   dotDraw: {
-    backgroundColor: colors.warningAccent
+    backgroundColor: activeColors.warningAccent
   },
   dotNone: {
-    backgroundColor: colors.textMutedAlt
+    backgroundColor: activeColors.textMutedAlt
   }
 });
+
+
+let styles = createStyles();

@@ -17,7 +17,8 @@ import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import type { GroupSearchResult, GroupVisibility } from "@fulbito/domain";
-import { colors, spacing } from "@fulbito/design-tokens";
+import { getColors, spacing } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
 import { ScreenFrame } from "@/components/ScreenFrame";
 import { groupsRepository } from "@/repositories";
@@ -25,6 +26,9 @@ import { useAuth } from "@/state/AuthContext";
 import { useAppDialog } from "@/state/AppDialogContext";
 import { useGroupSelection } from "@/state/GroupContext";
 import { usePeriod } from "@/state/PeriodContext";
+import { useThemePreference } from "@/state/ThemePreferenceContext";
+import { useThemeColors } from "@/theme/useThemeColors";
+let activeColors: ColorTokens = getColors("light");
 
 type Tab = "buscar" | "crear";
 const SEARCH_PAGE_SIZE = 5;
@@ -112,6 +116,11 @@ function SegmentedTabButton({
 }
 
 export function UnirseCrearGrupoScreen() {
+  const themeColors = useThemeColors();
+  activeColors = themeColors;
+  styles = useMemo(() => createStyles(), [themeColors]);
+  const { themePreference } = useThemePreference();
+  const isDark = themePreference === "dark";
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
   const reducedMotion = useReducedMotion();
@@ -156,7 +165,7 @@ export function UnirseCrearGrupoScreen() {
                 hitSlop={8}
                 style={styles.backButton}
               >
-                <Ionicons name="chevron-back" size={18} color={colors.iconStrong} />
+                <Ionicons name="chevron-back" size={18} color={activeColors.iconStrong} />
               </Pressable>
             </Animated.View>
           </View>
@@ -348,13 +357,13 @@ function SearchTab() {
 
           <View style={styles.searchRow}>
             <View style={styles.searchInputWrap}>
-              <Ionicons name="search" size={16} color={colors.textMuted} style={styles.searchIcon} />
+              <Ionicons name="search" size={16} color={activeColors.textMuted} style={styles.searchIcon} />
               <TextInput
                 style={styles.searchInput}
                 value={query}
                 onChangeText={setQuery}
                 placeholder="Ej: Amigos del fútbol"
-                placeholderTextColor={colors.textSoft}
+                placeholderTextColor={activeColors.textSoft}
                 returnKeyType="search"
                 onSubmitEditing={doSearch}
               />
@@ -415,7 +424,7 @@ function SearchTab() {
             onPressOut={refreshPress.onPressOut}
             style={styles.resultsRefreshChip}
           >
-            <Ionicons name="refresh" size={13} color={colors.textSecondary} />
+            <Ionicons name="refresh" size={13} color={activeColors.textSecondary} />
             <Text allowFontScaling={false} style={styles.resultsRefreshChipText}>Actualizar</Text>
           </Pressable>
         </Animated.View>
@@ -423,12 +432,12 @@ function SearchTab() {
 
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator color={colors.primary} />
+          <ActivityIndicator color={activeColors.primary} />
         </View>
       ) : results.length === 0 && searched ? (
         <View style={styles.emptyStateCard}>
           <View style={styles.emptyStateIconWrap}>
-            <Ionicons name="search-outline" size={24} color={colors.textMuted} />
+            <Ionicons name="search-outline" size={24} color={activeColors.textMuted} />
           </View>
           <Text allowFontScaling={false} style={styles.emptyStateTitle}>No encontramos grupos</Text>
           <Text allowFontScaling={false} style={styles.emptyStateDescription}>
@@ -455,7 +464,7 @@ function SearchTab() {
           ))}
           {loadingMore ? (
             <View style={styles.loadMoreSpinner}>
-              <ActivityIndicator size="small" color={colors.primaryDeep} />
+              <ActivityIndicator size="small" color={activeColors.primaryDeep} />
             </View>
           ) : null}
         </ScrollView>
@@ -500,7 +509,7 @@ function GroupResultCard({
           <Ionicons
             name={isClosed ? "lock-closed-outline" : "lock-open-outline"}
             size={12}
-            color={isClosed ? colors.warningDeep : colors.successDeep}
+            color={isClosed ? activeColors.warningDeep : activeColors.successDeep}
           />
           <Text
             allowFontScaling={false}
@@ -514,12 +523,12 @@ function GroupResultCard({
       <View style={styles.resultBottomRow}>
         <View style={styles.resultTags}>
           <View style={styles.membersTag}>
-            <Ionicons name="people-outline" size={13} color={colors.textSecondary} />
+            <Ionicons name="people-outline" size={13} color={activeColors.textSecondary} />
             <Text allowFontScaling={false} style={styles.membersTagText}>{membersLabel} miembros</Text>
           </View>
           {isMember ? (
             <View style={styles.memberTag}>
-              <Ionicons name="checkmark-circle" size={12} color={colors.primaryDeep} />
+              <Ionicons name="checkmark-circle" size={12} color={activeColors.primaryDeep} />
               <Text allowFontScaling={false} style={styles.memberTagText}>Ya sos miembro</Text>
             </View>
           ) : null}
@@ -534,7 +543,7 @@ function GroupResultCard({
               style={[styles.joinButton, joining && styles.joinButtonDisabled]}
             >
               {joining ? (
-                <ActivityIndicator size="small" color={colors.textTitle} />
+                <ActivityIndicator size="small" color={activeColors.textTitle} />
               ) : (
                 <Text allowFontScaling={false} style={styles.joinButtonText}>
                   {isClosed ? "Solicitar acceso" : "Unirse"}
@@ -580,7 +589,7 @@ function DropdownSelect({
           <Text allowFontScaling={false} style={[styles.dropdownMenuText, active ? styles.dropdownMenuTextActive : null]}>
             {label}
           </Text>
-          {active ? <Ionicons name="checkmark" size={14} color={colors.primaryDeep} /> : null}
+          {active ? <Ionicons name="checkmark" size={14} color={activeColors.primaryDeep} /> : null}
         </Pressable>
       </Animated.View>
     );
@@ -621,7 +630,7 @@ function DropdownSelect({
             <Text allowFontScaling={false} numberOfLines={1} style={styles.dropdownValue}>
               {selected?.label ?? placeholder}
             </Text>
-            <Ionicons name="chevron-down" size={16} color={colors.textMuted} />
+            <Ionicons name="chevron-down" size={16} color={activeColors.textMuted} />
           </Pressable>
         </Animated.View>
       </View>
@@ -661,6 +670,8 @@ function DropdownSelect({
 
 function CreateTab() {
   const { refresh } = useAuth();
+  const { themePreference } = useThemePreference();
+  const isDark = themePreference === "dark";
   const dialog = useAppDialog();
   const navigation = useNavigation<any>();
   const { options: fechaOptions } = usePeriod();
@@ -726,7 +737,7 @@ function CreateTab() {
             value={name}
             onChangeText={setName}
             placeholder="Ej: Amigos del fútbol"
-            placeholderTextColor={colors.textSoft}
+            placeholderTextColor={activeColors.textSoft}
             maxLength={40}
           />
           <Text allowFontScaling={false} style={styles.counterText}>{name.length}/40</Text>
@@ -764,7 +775,7 @@ function CreateTab() {
                   <Ionicons
                     name="lock-open-outline"
                     size={16}
-                    color={visibility === "open" ? colors.primaryDeep : colors.textMuted}
+                    color={visibility === "open" ? activeColors.primaryDeep : activeColors.textMuted}
                   />
                 </View>
                 <View style={styles.visibilityTextWrap}>
@@ -779,7 +790,7 @@ function CreateTab() {
                 <Ionicons
                   name={visibility === "open" ? "checkmark-circle" : "ellipse-outline"}
                   size={18}
-                  color={visibility === "open" ? colors.primaryDeep : colors.textSoft}
+                  color={visibility === "open" ? activeColors.primaryDeep : activeColors.textSoft}
                 />
               </Pressable>
             </Animated.View>
@@ -795,7 +806,7 @@ function CreateTab() {
                   <Ionicons
                     name="lock-closed-outline"
                     size={16}
-                    color={visibility === "closed" ? colors.primaryDeep : colors.textMuted}
+                    color={visibility === "closed" ? activeColors.primaryDeep : activeColors.textMuted}
                   />
                 </View>
                 <View style={styles.visibilityTextWrap}>
@@ -810,7 +821,7 @@ function CreateTab() {
                 <Ionicons
                   name={visibility === "closed" ? "checkmark-circle" : "ellipse-outline"}
                   size={16}
-                  color={visibility === "closed" ? colors.primaryDeep : colors.textSoft}
+                  color={visibility === "closed" ? activeColors.primaryDeep : activeColors.textSoft}
                 />
               </Pressable>
             </Animated.View>
@@ -833,7 +844,7 @@ function CreateTab() {
             />
           ) : (
             <View style={styles.noFechaState}>
-              <ActivityIndicator size="small" color={colors.textMuted} />
+              <ActivityIndicator size="small" color={activeColors.textMuted} />
               <Text allowFontScaling={false} style={styles.noFechaStateText}>Cargando fechas disponibles...</Text>
             </View>
           )}
@@ -862,11 +873,11 @@ function CreateTab() {
           style={[styles.createButton, (saving || !canCreate) && styles.createButtonDisabled]}
         >
           {saving ? (
-            <ActivityIndicator color={colors.textTitle} />
+            <ActivityIndicator color={isDark ? activeColors.textInverse : activeColors.textTitle} />
           ) : (
             <>
-              <Ionicons name="sparkles-outline" size={16} color={colors.textTitle} />
-              <Text allowFontScaling={false} style={styles.createButtonText}>Crear grupo</Text>
+              <Ionicons name="sparkles-outline" size={16} color={isDark ? activeColors.textInverse : activeColors.textTitle} />
+              <Text allowFontScaling={false} style={[styles.createButtonText, isDark ? styles.createButtonTextDark : null]}>Crear grupo</Text>
             </>
           )}
         </Pressable>
@@ -875,7 +886,7 @@ function CreateTab() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   keyboardContent: {
     gap: spacing.sm
   },
@@ -883,18 +894,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingTop: 0,
     paddingBottom: 0,
-    backgroundColor: colors.canvas
+    backgroundColor: activeColors.canvas
   },
   screenContent: {
     gap: 10,
     marginTop: spacing.sm
   },
   headerShell: {
-    backgroundColor: colors.surface,
+    backgroundColor: activeColors.surface,
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
+    borderBottomColor: activeColors.borderLight,
     marginHorizontal: -12
   },
   headerRow: {
@@ -908,20 +919,20 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: activeColors.surfaceMuted,
     borderWidth: 1,
-    borderColor: colors.borderMuted
+    borderColor: activeColors.borderMuted
   },
   headerTitle: {
     marginTop: spacing.sm,
-    color: colors.textTitle,
+    color: activeColors.textTitle,
     fontSize: 22,
     fontWeight: "800",
     letterSpacing: -0.2
   },
   headerSubtitle: {
     marginTop: 6,
-    color: colors.textSecondary,
+    color: activeColors.textSecondary,
     fontSize: 13,
     lineHeight: 19,
     fontWeight: "600"
@@ -930,7 +941,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     height: 3,
     borderRadius: 999,
-    backgroundColor: colors.primaryStrong
+    backgroundColor: activeColors.primaryStrong
   },
 
   segmentedControl: {
@@ -938,8 +949,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surfaceSoft,
+    borderColor: activeColors.borderSubtle,
+    backgroundColor: activeColors.surfaceSoft,
     padding: 3,
     overflow: "hidden",
     gap: 2
@@ -960,15 +971,15 @@ const styles = StyleSheet.create({
     top: 3,
     bottom: 3,
     borderRadius: 8,
-    backgroundColor: colors.primaryStrong
+    backgroundColor: activeColors.primaryStrong
   },
   segmentedTabText: {
-    color: colors.textMutedAlt,
+    color: activeColors.textMutedAlt,
     fontSize: 14,
     fontWeight: "800"
   },
   segmentedTabTextActive: {
-    color: colors.textHigh,
+    color: activeColors.textHigh,
     fontWeight: "800"
   },
 
@@ -976,7 +987,7 @@ const styles = StyleSheet.create({
     gap: 8
   },
   sectionCaption: {
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontSize: 13,
     fontWeight: "800",
     letterSpacing: 0.5,
@@ -988,13 +999,13 @@ const styles = StyleSheet.create({
   panelCard: {
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surface,
+    borderColor: activeColors.borderSubtle,
+    backgroundColor: activeColors.surface,
     padding: spacing.md,
     gap: spacing.sm
   },
   panelDescription: {
-    color: colors.textSecondary,
+    color: activeColors.textSecondary,
     fontSize: 12,
     fontWeight: "600",
     lineHeight: 17
@@ -1009,8 +1020,8 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
-    backgroundColor: colors.surfaceSoft,
+    borderColor: activeColors.borderMuted,
+    backgroundColor: activeColors.surfaceSoft,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12
@@ -1020,7 +1031,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     flex: 1,
-    color: colors.textPrimary,
+    color: activeColors.textPrimary,
     fontSize: 14,
     fontWeight: "700"
   },
@@ -1030,10 +1041,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.primaryStrong
+    backgroundColor: activeColors.primaryStrong
   },
   searchButtonText: {
-    color: colors.textTitle,
+    color: activeColors.textTitle,
     fontSize: 13,
     fontWeight: "800"
   },
@@ -1044,7 +1055,7 @@ const styles = StyleSheet.create({
     gap: 8
   },
   filterLabel: {
-    color: colors.textSecondary,
+    color: activeColors.textSecondary,
     fontSize: 12,
     fontWeight: "700"
   },
@@ -1052,28 +1063,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: activeColors.surfaceMuted,
     borderWidth: 1,
-    borderColor: colors.borderMuted
+    borderColor: activeColors.borderMuted
   },
   filterChipActive: {
-    backgroundColor: colors.primarySoftAlt,
-    borderColor: colors.primaryStrong
+    backgroundColor: activeColors.primarySoftAlt,
+    borderColor: activeColors.primaryStrong
   },
   filterChipText: {
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontSize: 11,
     fontWeight: "700"
   },
   filterChipTextActive: {
-    color: colors.primaryDeep
+    color: activeColors.primaryDeep
   },
   filterClear: {
     paddingHorizontal: 6,
     paddingVertical: 4
   },
   filterClearText: {
-    color: colors.textSoft,
+    color: activeColors.textSoft,
     fontSize: 11,
     fontWeight: "700",
     textDecorationLine: "underline"
@@ -1092,10 +1103,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 999,
-    backgroundColor: colors.surfaceMuted
+    backgroundColor: activeColors.surfaceMuted
   },
   resultsRefreshChipText: {
-    color: colors.textSecondary,
+    color: activeColors.textSecondary,
     fontSize: 11,
     fontWeight: "700"
   },
@@ -1108,8 +1119,8 @@ const styles = StyleSheet.create({
   emptyStateCard: {
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surface,
+    borderColor: activeColors.borderSubtle,
+    backgroundColor: activeColors.surface,
     padding: spacing.lg,
     alignItems: "center",
     gap: spacing.sm
@@ -1120,15 +1131,15 @@ const styles = StyleSheet.create({
     borderRadius: 21,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surfaceMuted
+    backgroundColor: activeColors.surfaceMuted
   },
   emptyStateTitle: {
-    color: colors.textTitle,
+    color: activeColors.textTitle,
     fontSize: 15,
     fontWeight: "800"
   },
   emptyStateDescription: {
-    color: colors.textSecondary,
+    color: activeColors.textSecondary,
     fontSize: 12,
     fontWeight: "600",
     textAlign: "center",
@@ -1146,8 +1157,8 @@ const styles = StyleSheet.create({
   resultCard: {
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surface,
+    borderColor: activeColors.borderSubtle,
+    backgroundColor: activeColors.surface,
     padding: spacing.sm + 4,
     gap: spacing.sm
   },
@@ -1162,10 +1173,10 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.primarySoft
+    backgroundColor: activeColors.primarySoft
   },
   resultAvatarText: {
-    color: colors.primaryDeep,
+    color: activeColors.primaryDeep,
     fontSize: 16,
     fontWeight: "900"
   },
@@ -1174,12 +1185,12 @@ const styles = StyleSheet.create({
     gap: 2
   },
   resultName: {
-    color: colors.textPrimary,
+    color: activeColors.textPrimary,
     fontSize: 14,
     fontWeight: "800"
   },
   resultMeta: {
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontSize: 12,
     fontWeight: "600"
   },
@@ -1192,20 +1203,20 @@ const styles = StyleSheet.create({
     paddingVertical: 4
   },
   visibilityBadgeOpen: {
-    backgroundColor: colors.primarySoftAlt
+    backgroundColor: activeColors.primarySoftAlt
   },
   visibilityBadgeClosed: {
-    backgroundColor: colors.surfaceTintWarning
+    backgroundColor: activeColors.surfaceTintWarning
   },
   visibilityBadgeText: {
     fontSize: 11,
     fontWeight: "700"
   },
   visibilityBadgeTextOpen: {
-    color: colors.successDeep
+    color: activeColors.successDeep
   },
   visibilityBadgeTextClosed: {
-    color: colors.warningDeep
+    color: activeColors.warningDeep
   },
   resultBottomRow: {
     flexDirection: "row",
@@ -1224,12 +1235,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
     borderRadius: 8,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: activeColors.surfaceMuted,
     paddingHorizontal: 8,
     paddingVertical: 5
   },
   membersTagText: {
-    color: colors.textSecondary,
+    color: activeColors.textSecondary,
     fontSize: 11,
     fontWeight: "700"
   },
@@ -1238,19 +1249,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
     borderRadius: 8,
-    backgroundColor: colors.primarySoftAlt,
+    backgroundColor: activeColors.primarySoftAlt,
     paddingHorizontal: 8,
     paddingVertical: 5
   },
   memberTagText: {
-    color: colors.primaryDeep,
+    color: activeColors.primaryDeep,
     fontSize: 11,
     fontWeight: "700"
   },
   joinButton: {
     minHeight: 34,
     borderRadius: 10,
-    backgroundColor: colors.primaryStrong,
+    backgroundColor: activeColors.primaryStrong,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 14
@@ -1259,7 +1270,7 @@ const styles = StyleSheet.create({
     opacity: 0.5
   },
   joinButtonText: {
-    color: colors.textTitle,
+    color: activeColors.textTitle,
     fontSize: 12,
     fontWeight: "800"
   },
@@ -1271,13 +1282,13 @@ const styles = StyleSheet.create({
   formCard: {
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surface,
+    borderColor: activeColors.borderSubtle,
+    backgroundColor: activeColors.surface,
     padding: spacing.md,
     gap: 8
   },
   fieldHelp: {
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontSize: 12,
     fontWeight: "600",
     lineHeight: 17
@@ -1286,16 +1297,16 @@ const styles = StyleSheet.create({
     minHeight: 46,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
-    backgroundColor: colors.surfaceSoft,
+    borderColor: activeColors.borderMuted,
+    backgroundColor: activeColors.surfaceSoft,
     paddingHorizontal: 14,
-    color: colors.textPrimary,
+    color: activeColors.textPrimary,
     fontSize: 15,
     fontWeight: "700"
   },
   counterText: {
     alignSelf: "flex-end",
-    color: colors.textSoft,
+    color: activeColors.textSoft,
     fontSize: 11,
     fontWeight: "700"
   },
@@ -1306,16 +1317,16 @@ const styles = StyleSheet.create({
     minHeight: 62,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
-    backgroundColor: colors.surfaceSoft,
+    borderColor: activeColors.borderMuted,
+    backgroundColor: activeColors.surfaceSoft,
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
     gap: 10
   },
   visibilityOptionActive: {
-    backgroundColor: colors.primaryHighlight,
-    borderColor: colors.primaryStrong
+    backgroundColor: activeColors.primaryHighlight,
+    borderColor: activeColors.primaryStrong
   },
   visibilityOptionIcon: {
     width: 26,
@@ -1323,22 +1334,22 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.surface
+    backgroundColor: activeColors.surface
   },
   visibilityTextWrap: {
     flex: 1,
     gap: 1
   },
   visibilityTitle: {
-    color: colors.textPrimary,
+    color: activeColors.textPrimary,
     fontSize: 13,
     fontWeight: "800"
   },
   visibilityTitleActive: {
-    color: colors.primaryDeep
+    color: activeColors.primaryDeep
   },
   visibilityDesc: {
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontSize: 11,
     fontWeight: "600"
   },
@@ -1346,8 +1357,8 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surfaceSoft,
+    borderColor: activeColors.borderSubtle,
+    backgroundColor: activeColors.surfaceSoft,
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
@@ -1356,7 +1367,7 @@ const styles = StyleSheet.create({
   },
   dropdownValue: {
     flex: 1,
-    color: colors.textTitle,
+    color: activeColors.textTitle,
     fontSize: 14,
     fontWeight: "800"
   },
@@ -1367,17 +1378,17 @@ const styles = StyleSheet.create({
   },
   dropdownBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: colors.overlaySubtle
+    backgroundColor: activeColors.overlaySubtle
   },
   dropdownMenuCard: {
     position: "absolute",
     maxHeight: "60%",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
-    backgroundColor: colors.surface,
+    borderColor: activeColors.borderMuted,
+    backgroundColor: activeColors.surface,
     overflow: "hidden",
-    shadowColor: colors.textPrimary,
+    shadowColor: activeColors.textPrimary,
     shadowOpacity: 0.2,
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
@@ -1400,40 +1411,40 @@ const styles = StyleSheet.create({
     borderColor: "transparent"
   },
   dropdownMenuRowActive: {
-    backgroundColor: colors.primaryAlpha16,
-    borderColor: colors.borderInfo
+    backgroundColor: activeColors.primaryAlpha16,
+    borderColor: activeColors.borderInfo
   },
   dropdownMenuText: {
     flex: 1,
-    color: colors.textPrimary,
+    color: activeColors.textPrimary,
     fontSize: 14,
     fontWeight: "700"
   },
   dropdownMenuTextActive: {
-    color: colors.primaryDeep,
+    color: activeColors.primaryDeep,
     fontWeight: "900"
   },
   noFechaState: {
     minHeight: 40,
     borderRadius: 10,
-    backgroundColor: colors.surfaceSoft,
+    backgroundColor: activeColors.surfaceSoft,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: activeColors.borderMuted,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8
   },
   noFechaStateText: {
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontSize: 12,
     fontWeight: "600"
   },
   summaryCard: {
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surfaceSoft,
+    borderColor: activeColors.borderSubtle,
+    backgroundColor: activeColors.surfaceSoft,
     padding: spacing.sm,
     gap: 6
   },
@@ -1444,19 +1455,19 @@ const styles = StyleSheet.create({
     gap: 8
   },
   summaryLabel: {
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontSize: 12,
     fontWeight: "700"
   },
   summaryValue: {
-    color: colors.textPrimary,
+    color: activeColors.textPrimary,
     fontSize: 12,
     fontWeight: "800"
   },
   createButton: {
     minHeight: 48,
     borderRadius: 14,
-    backgroundColor: colors.primaryStrong,
+    backgroundColor: activeColors.primaryStrong,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
@@ -1466,8 +1477,14 @@ const styles = StyleSheet.create({
     opacity: 0.4
   },
   createButtonText: {
-    color: colors.textTitle,
+    color: activeColors.textTitle,
     fontSize: 15,
     fontWeight: "900"
+  },
+  createButtonTextDark: {
+    color: activeColors.textInverse
   }
 });
+
+
+let styles = createStyles();

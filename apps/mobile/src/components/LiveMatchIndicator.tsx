@@ -1,6 +1,8 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Animated, Easing, StyleSheet, View } from "react-native";
-import { colors } from "@fulbito/design-tokens";
+import { getColors } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
+import { useThemeColors } from "@/theme/useThemeColors";
 
 const PULSE_DURATION = 900;
 
@@ -28,6 +30,8 @@ export function LivePulseBorder({
   children: React.ReactNode;
   borderRadius?: number;
 }) {
+  const themeColors = useThemeColors();
+  styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const opacity = useLivePulse();
 
   return (
@@ -53,7 +57,7 @@ export function estimateMatchMinute(kickoffAt: string): string {
   return "90+";
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ColorTokens) => StyleSheet.create({
   wrapper: {
     position: "relative",
     overflow: "visible",
@@ -62,6 +66,8 @@ const styles = StyleSheet.create({
   pulseBorder: {
     ...StyleSheet.absoluteFillObject,
     borderWidth: 2,
-    borderColor: colors.dangerAccent
+    borderColor: themeColors.dangerAccent
   }
 });
+
+let styles = createStyles(getColors("light"));

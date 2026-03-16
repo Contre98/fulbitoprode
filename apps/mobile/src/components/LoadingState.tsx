@@ -1,6 +1,8 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Animated, StyleSheet, Text, View, type DimensionValue, type StyleProp, type ViewStyle } from "react-native";
-import { colors, spacing } from "@fulbito/design-tokens";
+import { getColors, spacing } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
+import { useThemeColors } from "@/theme/useThemeColors";
 
 export type LoadingStateVariant =
   | "default"
@@ -244,6 +246,8 @@ function variantContent(variant: LoadingStateVariant) {
 }
 
 export function LoadingState({ message = "Cargando...", showMessage = true, variant = "default" }: LoadingStateProps) {
+  const themeColors = useThemeColors();
+  styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const pulse = useRef(new Animated.Value(0.6)).current;
 
   useEffect(() => {
@@ -275,7 +279,7 @@ export function LoadingState({ message = "Cargando...", showMessage = true, vari
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ColorTokens) => StyleSheet.create({
   container: {
     width: "100%",
     paddingVertical: spacing.md,
@@ -288,13 +292,13 @@ const styles = StyleSheet.create({
     gap: spacing.sm
   },
   skeletonBlock: {
-    backgroundColor: colors.surfaceMuted
+    backgroundColor: themeColors.surfaceMuted
   },
   card: {
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surfaceSoft,
+    borderColor: themeColors.borderSubtle,
+    backgroundColor: themeColors.surfaceSoft,
     padding: 12,
     gap: 8
   },
@@ -320,8 +324,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surfaceSoft,
+    borderColor: themeColors.borderSubtle,
+    backgroundColor: themeColors.surfaceSoft,
     padding: 4,
     gap: 4
   },
@@ -342,7 +346,7 @@ const styles = StyleSheet.create({
   },
   leaderboardRowBorder: {
     borderTopWidth: 1,
-    borderTopColor: colors.borderSubtle,
+    borderTopColor: themeColors.borderSubtle,
     paddingTop: 8
   },
   statsSummaryRow: {
@@ -353,8 +357,8 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surfaceSoft,
+    borderColor: themeColors.borderSubtle,
+    backgroundColor: themeColors.surfaceSoft,
     padding: 10,
     gap: 8,
     alignItems: "center"
@@ -368,7 +372,7 @@ const styles = StyleSheet.create({
   },
   simpleRowBorder: {
     borderTopWidth: 1,
-    borderTopColor: colors.borderSubtle,
+    borderTopColor: themeColors.borderSubtle,
     paddingTop: 8
   },
   homeHeaderRow: {
@@ -389,8 +393,8 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surface,
+    borderColor: themeColors.borderSubtle,
+    backgroundColor: themeColors.surface,
     paddingHorizontal: 10,
     flexDirection: "row",
     alignItems: "center",
@@ -398,7 +402,9 @@ const styles = StyleSheet.create({
   },
   message: {
     alignSelf: "center",
-    color: colors.textSecondary,
+    color: themeColors.textSecondary,
     fontSize: 12
   }
 });
+
+let styles = createStyles(getColors("light"));

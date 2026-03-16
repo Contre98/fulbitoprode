@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
-import { colors } from "@fulbito/design-tokens";
+import { getColors } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
+import { useThemeColors } from "@/theme/useThemeColors";
 
 type TeamCrestProps = {
   teamName: string;
@@ -10,6 +12,8 @@ type TeamCrestProps = {
 };
 
 export function TeamCrest({ teamName, code, logoUrl, size = 30 }: TeamCrestProps) {
+  const themeColors = useThemeColors();
+  styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const [failedImageUrl, setFailedImageUrl] = useState<string | null>(null);
   const shouldRenderLogo = Boolean(logoUrl) && logoUrl !== failedImageUrl;
   const stripeHeight = Math.max(2, Math.round(size * 0.24));
@@ -40,7 +44,7 @@ export function TeamCrest({ teamName, code, logoUrl, size = 30 }: TeamCrestProps
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ColorTokens) => StyleSheet.create({
   root: {
     alignItems: "center",
     justifyContent: "center"
@@ -61,11 +65,13 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     top: "50%",
-    backgroundColor: colors.textSlateSoft
+    backgroundColor: themeColors.textSlateSoft
   },
   code: {
-    color: colors.textSlateStrong,
+    color: themeColors.textSlateStrong,
     fontWeight: "900",
     letterSpacing: -0.2
   }
 });
+
+let styles = createStyles(getColors("light"));

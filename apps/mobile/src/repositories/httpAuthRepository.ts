@@ -2,6 +2,7 @@ import type { AuthRepository, AuthSession } from "@fulbito/api-contracts";
 import { translateBackendErrorMessage } from "@fulbito/domain";
 import { getRequiredApiBaseUrl } from "@/lib/apiBaseUrl";
 import { clearAuthTokens, getAccessToken, getRefreshToken, setAuthTokens } from "@/repositories/httpAuthTokens";
+import { tryRefreshHttpAuthTokens } from "@/repositories/httpTokenRefresh";
 
 function getApiBaseUrl() {
   return getRequiredApiBaseUrl();
@@ -50,43 +51,8 @@ async function performFetch(path: string, init?: RequestInit) {
   });
 }
 
-interface RefreshPayload {
-  ok?: boolean;
-  accessToken?: string;
-  refreshToken?: string;
-}
-
 async function tryRefreshTokens() {
-  const baseUrl = getApiBaseUrl();
-  const refreshToken = await getRefreshToken();
-  if (!refreshToken) {
-    return false;
-  }
-
-  const response = await fetch(`${baseUrl}/api/auth/refresh`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json"
-    },
-    body: JSON.stringify({ refreshToken })
-  });
-
-  if (!response.ok) {
-    await clearAuthTokens();
-    return false;
-  }
-
-  const payload = (await response.json()) as RefreshPayload;
-  if (typeof payload.accessToken === "string") {
-    await setAuthTokens({
-      accessToken: payload.accessToken,
-      refreshToken: typeof payload.refreshToken === "string" ? payload.refreshToken : refreshToken
-    });
-    return true;
-  }
-
-  await clearAuthTokens();
-  return false;
+  return tryRefreshHttpAuthTokens(getApiBaseUrl());
 }
 
 async function requestJson<T>(path: string, init?: RequestInit, allowRefresh = true): Promise<T> {

@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Animated as NativeAnimated, Pressable, StyleSheet, Text, View } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { compareFixturesByStatusAndKickoff, groupFixturesByDate } from "@fulbito/domain";
-import { colors } from "@fulbito/design-tokens";
+import { getColors } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
 import type { Fixture } from "@fulbito/domain";
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withSpring } from "react-native-reanimated";
 import { fixtureRepository } from "@/repositories";
@@ -20,8 +21,11 @@ import { estimateMatchMinute, useLivePulse } from "@/components/LiveMatchIndicat
 import { FormDots } from "@/components/MatchCardVisuals";
 import { formatClock24 } from "@/lib/dateTime";
 import { buildTeamFormLookup } from "@/lib/matchVisuals";
+import { useThemePreference } from "@/state/ThemePreferenceContext";
+import { useThemeColors } from "@/theme/useThemeColors";
 
 type FixtureFilter = "all" | "live" | "final" | "upcoming";
+let activeColors: ColorTokens = getColors("light");
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const filterLabels: Record<FixtureFilter, string> = {
@@ -94,6 +98,8 @@ function FilterTabButton({
   active: boolean;
   onPress: () => void;
 }) {
+  const { themePreference } = useThemePreference();
+  const isDark = themePreference === "dark";
   const reducedMotion = useReducedMotion();
   const pressScale = useSharedValue(1);
   const pressAnimatedStyle = useAnimatedStyle(() => ({
@@ -125,7 +131,14 @@ function FilterTabButton({
       onPressOut={handlePressOut}
       style={[styles.filterTab, pressAnimatedStyle]}
     >
-      <Text allowFontScaling={false} style={[styles.filterTabLabel, active ? styles.filterTabLabelActive : null]}>
+      <Text
+        allowFontScaling={false}
+        style={[
+          styles.filterTabLabel,
+          active ? styles.filterTabLabelActive : null,
+          active && isDark ? styles.filterTabLabelActiveDark : null
+        ]}
+      >
         {label}
       </Text>
     </AnimatedPressable>
@@ -133,6 +146,9 @@ function FilterTabButton({
 }
 
 export function FixtureScreen() {
+  const themeColors = useThemeColors();
+  activeColors = themeColors;
+  styles = useMemo(() => createStyles(), [themeColors]);
   const queryClient = useQueryClient();
   const reducedMotion = useReducedMotion();
   const { memberships, selectedGroupId } = useGroupSelection();
@@ -351,12 +367,12 @@ export function FixtureScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = () => StyleSheet.create({
   screenContainer: {
     paddingHorizontal: 12,
     paddingTop: 0,
     paddingBottom: 0,
-    backgroundColor: colors.canvas
+    backgroundColor: activeColors.canvas
   },
   screenContent: {
     gap: 14
@@ -367,56 +383,56 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.primaryStrong
+    backgroundColor: activeColors.primaryStrong
   },
   sectionIconText: {
     fontSize: 13,
     fontWeight: "900",
-    color: colors.textStrong
+    color: activeColors.textStrong
   },
   sectionTitle: {
-    color: colors.textTitle,
+    color: activeColors.textTitle,
     fontSize: 24,
     fontWeight: "800"
   },
   sectionSubtitle: {
     marginLeft: "auto",
-    color: colors.textMutedAlt,
+    color: activeColors.textMutedAlt,
     fontSize: 12,
     fontWeight: "700"
   },
   block: {
-    backgroundColor: colors.surfaceSoft,
+    backgroundColor: activeColors.surfaceSoft,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    borderColor: activeColors.borderSubtle,
     padding: 10
   },
   blockLabel: {
     fontSize: 11,
     fontWeight: "800",
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     letterSpacing: 0.8
   },
   selectionButton: {
     marginTop: 8,
     minHeight: 44,
     borderRadius: 10,
-    backgroundColor: colors.surfaceMuted,
+    backgroundColor: activeColors.surfaceMuted,
     borderWidth: 1,
-    borderColor: colors.borderMuted,
+    borderColor: activeColors.borderMuted,
     paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center"
   },
   selectionText: {
     flex: 1,
-    color: colors.textTitle,
+    color: activeColors.textTitle,
     fontWeight: "800",
     fontSize: 14
   },
   selectionChevron: {
-    color: colors.textSoft,
+    color: activeColors.textSoft,
     fontSize: 14
   },
   filterTabs: {
@@ -424,8 +440,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surfaceSoft,
+    borderColor: activeColors.borderSubtle,
+    backgroundColor: activeColors.surfaceSoft,
     padding: 3,
     overflow: "hidden",
     gap: 2
@@ -436,7 +452,7 @@ const styles = StyleSheet.create({
     top: 3,
     bottom: 3,
     borderRadius: 8,
-    backgroundColor: colors.primaryStrong
+    backgroundColor: activeColors.primaryStrong
   },
   filterTab: {
     flex: 1,
@@ -446,22 +462,25 @@ const styles = StyleSheet.create({
     minHeight: 44
   },
   filterTabLabel: {
-    color: colors.textMutedAlt,
+    color: activeColors.textMutedAlt,
     fontSize: 14,
     fontWeight: "800"
   },
   filterTabLabelActive: {
-    color: colors.textHigh
+    color: activeColors.textHigh
+  },
+  filterTabLabelActiveDark: {
+    color: activeColors.textInverse
   },
   groupCard: {
-    backgroundColor: colors.surfaceSoft,
+    backgroundColor: activeColors.surfaceSoft,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    borderColor: activeColors.borderSubtle,
     overflow: "hidden"
   },
   dateLabel: {
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontWeight: "800",
     fontSize: 11,
     letterSpacing: 0.8,
@@ -481,7 +500,7 @@ const styles = StyleSheet.create({
   },
   rowWithBorder: {
     borderTopWidth: 1,
-    borderTopColor: colors.borderLight
+    borderTopColor: activeColors.borderLight
   },
   teamSide: {
     flex: 1,
@@ -503,13 +522,13 @@ const styles = StyleSheet.create({
     alignItems: "flex-end"
   },
   teamName: {
-    color: colors.textStrong,
+    color: activeColors.textStrong,
     fontWeight: "800",
     fontSize: 14,
     flexShrink: 1
   },
   teamNameRight: {
-    color: colors.textStrong,
+    color: activeColors.textStrong,
     fontWeight: "800",
     fontSize: 14,
     textAlign: "right",
@@ -520,24 +539,27 @@ const styles = StyleSheet.create({
     alignItems: "center"
   },
   rowLive: {
-    backgroundColor: colors.surfaceSoft,
+    backgroundColor: activeColors.surfaceSoft,
     borderTopWidth: 0
   },
   metaLabel: {
-    color: colors.textMuted,
+    color: activeColors.textMuted,
     fontSize: 11,
     fontWeight: "800"
   },
   metaLabelLive: {
-    color: colors.dangerAccent,
+    color: activeColors.dangerAccent,
     fontSize: 11,
     fontWeight: "800"
   },
   scoreText: {
     marginTop: 1,
-    color: colors.textHigh,
+    color: activeColors.textHigh,
     fontWeight: "900",
     fontSize: 20,
     letterSpacing: -0.4
   }
 });
+
+
+let styles = createStyles();

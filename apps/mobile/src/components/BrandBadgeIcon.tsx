@@ -1,11 +1,16 @@
+import { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
-import { colors } from "@fulbito/design-tokens";
+import { getColors } from "@fulbito/design-tokens";
+import type { ColorTokens } from "@fulbito/design-tokens";
+import { useThemeColors } from "@/theme/useThemeColors";
 
 type BrandBadgeIconProps = {
   size?: number;
 };
 
 export function BrandBadgeIcon({ size = 18 }: BrandBadgeIconProps) {
+  const themeColors = useThemeColors();
+  styles = useMemo(() => createStyles(themeColors), [themeColors]);
   const scale = size / 18;
 
   return (
@@ -21,7 +26,7 @@ export function BrandBadgeIcon({ size = 18 }: BrandBadgeIconProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (themeColors: ColorTokens) => StyleSheet.create({
   root: {
     alignItems: "center",
     justifyContent: "center"
@@ -40,9 +45,9 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 5,
     borderTopLeftRadius: 2,
     borderTopRightRadius: 2,
-    backgroundColor: colors.trophy,
+    backgroundColor: themeColors.trophy,
     borderWidth: 1,
-    borderColor: colors.trophyDeep
+    borderColor: themeColors.trophyDeep
   },
   handleLeft: {
     position: "absolute",
@@ -51,7 +56,7 @@ const styles = StyleSheet.create({
     width: 4,
     height: 6,
     borderWidth: 1.4,
-    borderColor: colors.trophyDeep,
+    borderColor: themeColors.trophyDeep,
     borderTopLeftRadius: 4,
     borderBottomLeftRadius: 4,
     borderRightWidth: 0
@@ -63,7 +68,7 @@ const styles = StyleSheet.create({
     width: 4,
     height: 6,
     borderWidth: 1.4,
-    borderColor: colors.trophyDeep,
+    borderColor: themeColors.trophyDeep,
     borderTopRightRadius: 4,
     borderBottomRightRadius: 4,
     borderLeftWidth: 0
@@ -74,7 +79,7 @@ const styles = StyleSheet.create({
     width: 2.5,
     height: 4.5,
     borderRadius: 999,
-    backgroundColor: colors.trophyDeep
+    backgroundColor: themeColors.trophyDeep
   },
   base: {
     position: "absolute",
@@ -82,6 +87,8 @@ const styles = StyleSheet.create({
     width: 8,
     height: 2.5,
     borderRadius: 999,
-    backgroundColor: colors.trophyDeep
+    backgroundColor: themeColors.trophyDeep
   }
 });
+
+let styles = createStyles(getColors("light"));
