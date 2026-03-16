@@ -14,9 +14,10 @@
     },
     "android": {
       "package": "com.fulbito.prode",
+      "icon": "./assets/branding/app-icon-1024.png",
       "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
-        "foregroundImage": "./assets/branding/adaptive-foreground-1024.png",
+        "foregroundImage": "./assets/branding/app-icon-1024.png",
         "backgroundColor": "#0A0A0A"
       },
       "notification": {
